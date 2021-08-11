@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Main",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "args": [
+                "arg0",
+            ],
+            "env": {
+                // "ENV_VARIABLE": "value",
+            },
+            "justMyCode": false
+        },
+    ]
+}
