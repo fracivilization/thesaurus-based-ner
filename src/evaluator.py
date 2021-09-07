@@ -78,35 +78,16 @@ class NERTestor:
         pred_ner_tags = []
         # dict_ner_tags = []
         gold_ner_tags = []
-        snt_id = []
-        doc_id = []
-        bos_ids = []
         for doc, _pred, _gold in zip(
             self.datasets[split],
             _pred_ner_tags,
             _gold_ner_tags,
             #  _dict_ner_tags
         ):
-            bos = doc["bos_ids"]
-            if len(bos) >= 2:
-                for _snt_id, (s, e) in enumerate(
-                    zip(bos, bos[1:] + [len(doc["tokens"])])
-                ):
-                    tokens.append(doc["tokens"][s:e])
-                    pred_ner_tags.append(_pred[s:e])
-                    gold_ner_tags.append(_gold[s:e])
-                    # dict_ner_tags.append(_dict[s:e])
-                    doc_id.append(doc["doc_id"])
-                    snt_id.append(_snt_id)
-                    bos_ids.append([0])
-            else:
-                tokens.append(doc["tokens"])
-                pred_ner_tags.append(_pred)
-                gold_ner_tags.append(_gold)
-                # dict_ner_tags.append(_dict)
-                snt_id.append(doc["snt_id"])
-                doc_id.append(doc["doc_id"])
-                bos_ids.append(doc["bos_ids"])
+            tokens.append(doc["tokens"])
+            pred_ner_tags.append(_pred)
+            gold_ner_tags.append(_gold)
+            # dict_ner_tags.append(_dict)
         assert len(tokens) == len(gold_ner_tags)
         assert len(gold_ner_tags) == len(pred_ner_tags)
         # assert len(gold_ner_tags) == len(dict_ner_tags)
@@ -148,9 +129,6 @@ class NERTestor:
                 "gold_ner_tags": gold_ner_tags,
                 "pred_ner_tags": pred_ner_tags,
                 # "dict_ner_tags": dict_ner_tags,
-                "snt_id": snt_id,
-                "doc_id": doc_id,
-                "bos_ids": bos_ids,
             }
         )
         prediction_for_split.save_to_disk(
