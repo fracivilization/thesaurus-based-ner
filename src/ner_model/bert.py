@@ -242,7 +242,7 @@ class TrainingArguments(OrigTrainingArguments):
 
 @dataclass
 class BERTModelConfig(NERModelConfig):
-    model_name: str = "BERT"
+    ner_model_name: str = "BERT"
     train_args: TrainingArguments = TrainingArguments(output_dir=".")
     data_args: DataTrainingArguments = DataTrainingArguments()
     model_args: ModelArguments = ModelArguments(

@@ -41,6 +41,7 @@ class NERModel:
     def train(self):
         raise NotImplementedError
 
+
 @dataclass
 class NERModelConfig:
-    model_name: str = MISSING
+    ner_model_name: str = MISSING

@@ -24,11 +24,13 @@ class TrainConfig:
 #     data_config: int = 90
 
 from src.ner_model.bert import register_BERT_configs
+from src.ner_model.bond import register_BOND_configs
 
 cs = ConfigStore.instance()
 cs.store(name="base_train_config", node=TrainConfig)
 cs.store(group="ner_model", name="base_ner_model_config", node=NERModelConfig)
 register_BERT_configs()
+register_BOND_configs()
 cs.store(group="dataset", name="base_dataset_config", node=DatasetConfig)
 
 

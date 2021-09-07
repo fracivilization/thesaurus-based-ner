@@ -1,7 +1,8 @@
 defaults:
   - base_train_config
   - dataset: base_dataset_config
-  - ner_model: BERT
+  # - ner_model: BERT
+  - ner_model: BOND  
 
 dataset:
   name_or_path: "conll2003"

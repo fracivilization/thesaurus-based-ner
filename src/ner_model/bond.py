@@ -1,5 +1,4 @@
 import os
-import colt
 from datasets import DatasetDict
 from .bert import BERTNERModelBase
 from pathlib import Path
@@ -8,6 +7,7 @@ from dataclasses import dataclass
 import torch
 import logging
 from torch.nn import CrossEntropyLoss
+from hydra.core.config_store import ConfigStore
 from transformers import (
     WEIGHTS_NAME,
     AdamW,
@@ -38,7 +38,8 @@ import random
 import numpy as np
 from .bond_lib.modelling_bert import BertForTokenClassification
 from .bond_lib.modeling_roberta import RobertaForTokenClassification
-from src.utils.params import task_name2ner_label_names
+from .abstract_model import NERModelConfig
+from omegaconf import MISSING
 
 logger = logging.getLogger(__name__)
 
@@ -59,12 +60,11 @@ MODEL_CLASSES = {
 }
 
 
-@colt.register("BONDArgs")
 @dataclass
-class BONDArgs:
-    model_type: str
-    model_name_or_path: str
-
+class BONDArgs(NERModelConfig):
+    model_type: str = MISSING
+    model_name_or_path: str = MISSING
+    ner_model_name: str = "BOND"
     # Other parameters
     config_name: str = ""
     tokenizer_name: str = ""
@@ -135,6 +135,11 @@ class BONDArgs:
     saved_param_path: str = ""
 
 
+def register_BOND_configs() -> None:
+    cs = ConfigStore.instance()
+    cs.store(group="ner_model", name="base_BOND_model_config", node=BONDArgs)
+
+
 def set_seed(args):
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -143,18 +148,29 @@ def set_seed(args):
         torch.cuda.manual_seed_all(args.seed)
 
 
-@colt.register("BONDNERModel")
 class BONDNERModel(BERTNERModelBase):
     def __init__(
         self,
-        task: str,
         ner_dataset: DatasetDict,
         bond_args: BONDArgs = BONDArgs(
             model_type="bert", model_name_or_path="bert-base-uncased"
         ),
     ) -> None:
         super().__init__()
-        self.args["task"] = task
+        bond_args = BONDArgs(**bond_args)
+        # Setup CUDA, GPU & distributed training
+        if bond_args.local_rank == -1 or bond_args.no_cuda:
+            device = torch.device(
+                "cuda" if torch.cuda.is_available() and not bond_args.no_cuda else "cpu"
+            )
+            bond_args.n_gpu = torch.cuda.device_count()
+        else:  # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
+            torch.cuda.set_device(bond_args.local_rank)
+            device = torch.device("cuda", bond_args.local_rank)
+            torch.distributed.init_process_group(backend="nccl")
+            bond_args.n_gpu = 1
+        bond_args.device = device
+
         self.args["datasets"] = {
             key: split.__hash__() for key, split in ner_dataset.items()
         }
@@ -162,6 +178,7 @@ class BONDNERModel(BERTNERModelBase):
         output_dir = Path("data/output").joinpath(
             md5(str(self.args).encode()).hexdigest()
         )
+        self.output_dir = output_dir
         logger.info("output_dir is %s" % str(output_dir))
         if (
             os.path.exists(output_dir)
@@ -191,7 +208,7 @@ class BONDNERModel(BERTNERModelBase):
             torch.distributed.init_process_group(backend="nccl")
             bond_args.n_gpu = 1
         bond_args.device = device
-
+        self.bond_args = bond_args
         # Setup logging
         logging.basicConfig(
             format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
@@ -214,7 +231,7 @@ class BONDNERModel(BERTNERModelBase):
         set_seed(bond_args)
         # Use cross entropy ignore index as padding label id so that only real label ids contribute to the loss later
         pad_token_label_id = CrossEntropyLoss().ignore_index
-
+        self.pad_token_label_id = pad_token_label_id
         # Load pretrained model and tokenizer
         if bond_args.local_rank not in [-1, 0]:
             torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
@@ -250,11 +267,13 @@ class BONDNERModel(BERTNERModelBase):
         else:
             label_list = get_label_list(ner_dataset["train"][label_column_name])
             label_to_id = {l: i for i, l in enumerate(label_list)}
+        self.label_list = label_list
 
         num_labels = len(label_list)
         o_label_id = ner_dataset["train"].features["ner_tags"].feature.names.index("O")
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[bond_args.model_type]
+        self.mode_class = model_class
         config = config_class.from_pretrained(
             bond_args.config_name
             if bond_args.config_name
@@ -263,6 +282,7 @@ class BONDNERModel(BERTNERModelBase):
             cache_dir=bond_args.cache_dir if bond_args.cache_dir else None,
             term_dropout_ratio=bond_args.term_dropout_ratio,
         )
+        self.config = config
 
         # Tokenize all texts and align the labels with them.
         def tokenize_and_align_labels(examples):
@@ -304,7 +324,7 @@ class BONDNERModel(BERTNERModelBase):
         ner_dataset = DatasetDict(
             {"train": ner_dataset["train"], "validation": ner_dataset["validation"]}
         )
-        tokenized_datasets = ner_dataset.map(
+        self.tokenized_datasets = ner_dataset.map(
             tokenize_and_align_labels,
             batched=True,
             # num_proc=data_args.preprocessing_num_workers,
@@ -334,61 +354,67 @@ class BONDNERModel(BERTNERModelBase):
         # Training
         if bond_args.saved_param_path != "":
             model.load_state_dict(torch.load(bond_args.saved_param_path))
-        if bond_args.do_train:
-            # train_dataset = load_and_cache_examples(
-            #     bond_args, tokenizer, labels, pad_token_label_id, mode="train"
-            # )
-
-            model, global_step, tr_loss, best_dev, best_test = train(
-                bond_args,
-                tokenized_datasets,
-                model_class,
-                config,
-                tokenizer,
-                label_list,
-                pad_token_label_id,
-                output_dir,
-                model,
-            )
-            logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
-
-        # Saving last-practice: if you use defaults names for the model, you can reload it using from_pretrained()
-        if bond_args.do_train and (
-            bond_args.local_rank == -1 or torch.distributed.get_rank() == 0
-        ):
-            logger.info("Saving model checkpoint to %s", output_dir)
-            model_to_save = (
-                model.module if hasattr(model, "module") else model
-            )  # Take care of distributed/parallel training
-            model_to_save.save_pretrained(output_dir)
-            tokenizer.save_pretrained(output_dir)
-            torch.save(bond_args, os.path.join(output_dir, "training_args.bin"))
-            if isinstance(model, DataParallel):
-                torch.save(
-                    model.module.state_dict(),
-                    os.path.join(output_dir, "pytorch_model.bin"),
-                )
-            else:
-                torch.save(
-                    model.state_dict(), os.path.join(output_dir, "pytorch_model.bin")
-                )
 
         if isinstance(model, DataParallel):
-            model = model.module
+            model_for_eval = model.module
+        else:
+            model_for_eval = model
 
         self.model = model
         self.tokenizer = tokenizer
         if isinstance(model.device.index, int):
             self.pipeline = pipeline(
                 "ner",
-                model=model,
+                model=model_for_eval,
                 tokenizer=tokenizer,
                 device=model.device.index,
             )
         else:
             self.pipeline = pipeline(
                 "ner",
-                model=model,
+                model=model_for_eval,
                 tokenizer=tokenizer,
             )
-        self.label_list = label_list
+
+    def train(self):
+        if self.bond_args.do_train:
+            # train_dataset = load_and_cache_examples(
+            #     bond_args, tokenizer, labels, pad_token_label_id, mode="train"
+            # )
+
+            model, global_step, tr_loss, best_dev, best_test = train(
+                self.bond_args,
+                self.tokenized_datasets,
+                self.model_class,
+                self.config,
+                self.tokenizer,
+                self.label_list,
+                self.pad_token_label_id,
+                self.output_dir,
+                self.model,
+            )
+            logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
+
+        # Saving last-practice: if you use defaults names for the model, you can reload it using from_pretrained()
+        if self.bond_args.do_train and (
+            self.bond_args.local_rank == -1 or torch.distributed.get_rank() == 0
+        ):
+            logger.info("Saving model checkpoint to %s", self.output_dir)
+            model_to_save = (
+                model.module if hasattr(model, "module") else model
+            )  # Take care of distributed/parallel training
+            model_to_save.save_pretrained(self.output_dir)
+            self.tokenizer.save_pretrained(self.output_dir)
+            torch.save(
+                self.bond_args, os.path.join(self.output_dir, "training_args.bin")
+            )
+            if isinstance(model, DataParallel):
+                torch.save(
+                    model.module.state_dict(),
+                    os.path.join(self.output_dir, "pytorch_model.bin"),
+                )
+            else:
+                torch.save(
+                    model.state_dict(),
+                    os.path.join(self.output_dir, "pytorch_model.bin"),
+                )
