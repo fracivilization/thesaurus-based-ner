@@ -1,0 +1,7 @@
+defaults:
+  - base_train_config
+  - dataset: base_dataset_config
+  - ner_model: BERT
+
+dataset:
+  name_or_path: "conll2003"

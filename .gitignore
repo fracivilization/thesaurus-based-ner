@@ -1,3 +1,5 @@
+# Exclude output dir of hydra
+outputs/
 # Exclude emacs file
 *~
 

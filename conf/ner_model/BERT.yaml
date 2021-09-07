@@ -1,0 +1,9 @@
+defaults:
+  - base_BERT_model_config
+  - train_args: BERT_train_args
+  - model_args: BERT_model_args
+  - data_args: BERT_data_args
+
+train_args:
+  do_train: True
+  overwrite_output_dir: True

@@ -3,7 +3,7 @@
 *** Chunking
 **** DONE Abastract Model
      基本的にはdistendのモデルを持ってくる
-**** Random Chunkerを実装する
+**** TODO Random Chunkerを実装する
      とりあえずランダムにスパンを返す分類器を実装する
 **** ChunkerEvaluatorを実装する
      EntityDetectorEvaluator を持ってくればいいかな

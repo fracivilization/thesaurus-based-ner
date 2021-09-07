@@ -1,0 +1,2 @@
+defaults:
+  ner_model: bert_seq_label.yaml

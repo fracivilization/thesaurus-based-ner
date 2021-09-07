@@ -2,6 +2,67 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Load Pseudo NER",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.preprocess.load_pseudo_ner",
+            "justMyCode": false,
+            "args": [
+                "--raw-corpus-num",
+                "50000",
+                "--focus-cats",
+                "T116_T126",
+                "--duplicate-cats",
+                "ChemicalSubstance_GeneLocation_Biomolecule_Unknown_TopicalConcept",
+            ],
+        },
+        {
+            "name": "Load Gold NER",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.preprocess.load_gold_ner",
+            "justMyCode": false,
+            "args": [
+                "T116_T126"
+            ],
+        },
+        {
+            "name": "Load Terms",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.preprocess.load_terms",
+            "justMyCode": false,
+            "args": [
+                "data/dict/T116",
+            ],
+        },
+        {
+            "name": "Load Terms",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.preprocess.load_terms",
+            "justMyCode": false,
+            "args": [
+                "data/dict/T116",
+            ],
+        },
+        {
+            "name": "Train",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.train",
+            "justMyCode": false,
+            "args": [],
+        },
+        {
+            "name": "Eval",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.eval",
+            "justMyCode": false,
+            "args": [],
+        },
+        {
             "name": "Python: Main",
             "type": "python",
             "request": "launch",
