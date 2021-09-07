@@ -7,6 +7,7 @@ from src.dataset.utils import DatasetConfig
 from omegaconf import MISSING, OmegaConf
 from src.builder import dataset_builder, ner_model_builder
 import logging
+from src.evaluator import NERTestor
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,8 @@ def main(cfg: TrainConfig):
     dataset = dataset_builder(cfg.dataset)
     ner_model: NERModel = ner_model_builder(cfg.ner_model, dataset)
     ner_model.train()
+
+    testor = NERTestor(ner_model, dataset)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,3 @@
-import colt
 from tqdm import tqdm
 from hashlib import md5
 from pathlib import Path
@@ -301,7 +300,6 @@ def joint_adjacent_term(matches):
         return matches
 
 
-@colt.register("NERMatcherModel")
 class NERMatcherModel(NERModel):
     def __init__(
         self,

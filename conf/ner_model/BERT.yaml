@@ -5,5 +5,5 @@ defaults:
   - data_args: BERT_data_args
 
 train_args:
-  do_train: True
+  do_train: False
   overwrite_output_dir: True
