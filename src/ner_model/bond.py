@@ -273,7 +273,7 @@ class BONDNERModel(BERTNERModelBase):
         o_label_id = ner_dataset["train"].features["ner_tags"].feature.names.index("O")
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[bond_args.model_type]
-        self.mode_class = model_class
+        self.model_class = model_class
         config = config_class.from_pretrained(
             bond_args.config_name
             if bond_args.config_name
