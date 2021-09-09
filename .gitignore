@@ -2,6 +2,8 @@
 outputs/
 # Exclude emacs file
 *~
+# Exclude Mac System file
+.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
