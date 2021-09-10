@@ -4,10 +4,12 @@
 import os
 import sys
 from SPARQLWrapper import SPARQLWrapper, JSON
-from loguru import logger
+from logging import getLogger
 from tqdm import tqdm
 from p_tqdm import p_map
 import json
+
+logger = getLogger(__name__)
 
 endpoint_url = "http://localhost:8890/sparql"
 prefixes = """PREFIX dbo: <http://dbpedia.org/ontology/>

@@ -3,13 +3,20 @@ from .abstract_model import (
     Typer,
     SpanClassifierDataTrainingArguments,
     SpanClassifierOutput,
+    TyperConfig,
 )
 from datasets import DatasetDict
-from lib.ner_model.dictionary_match.matcher import ComplexKeywordProcessor
+from src.ner_model.matcher_model import ComplexKeywordProcessor
 from tqdm import tqdm
+from dataclasses import dataclass
 
 
-class DictMatchClassifier(Typer):
+@dataclass
+class DictMatchTyperConfig(TyperConfig):
+    typer_name: str = "DictMatchTyper"
+
+
+class DictMatchTyper(Typer):
     def __init__(self, term2cat: Dict) -> None:
         self.term2cat = term2cat
         self.argss = ["DictMatchClassifier", self.term2cat]

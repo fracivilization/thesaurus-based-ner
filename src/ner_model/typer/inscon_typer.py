@@ -3,16 +3,16 @@ from transformers.models.bert.modeling_bert import BertForTokenClassification
 from transformers.modeling_outputs import SequenceClassifierOutput
 from torch.nn import CrossEntropyLoss
 from typing import Dict, List
-
 from .abstract_model import (
     Typer,
+    TyperConfig,
     SpanClassifierOutput,
     SpanClassifierDataTrainingArguments,
     SequenceClassifierOutputPlus,
 )
 
 
-class BertForSpanInsConClassification(BertForTokenClassification):
+class BertForSpanInsconClassification(BertForTokenClassification):
     def __init__(self, config):
         super().__init__(config)
         self.classifier = torch.nn.Linear(2 * config.hidden_size, config.num_labels)
@@ -86,13 +86,12 @@ class BertForSpanInsConClassification(BertForTokenClassification):
         )
 
 
-from transformers import TrainingArguments
+from transformers import TrainingArguments as OrigTrainingArguments
 from dataclasses import dataclass, field
 from typing import Optional
-from lib.utils.click_based_utils import (
-    fix_transformers_argument_type_into_click_argument_type,
-)
-from loguru import logger
+from logging import getLogger
+
+logger = getLogger(__name__)
 import os
 from datasets import ClassLabel, load_dataset, DatasetDict
 from transformers import (
@@ -112,7 +111,7 @@ span_end_token = "[unused2]"
 
 
 @dataclass
-class SpanInsConClassificationModelArguments:
+class InsconTyperModelArguments:
     """
     Arguments pertaining to which model/config/tokenizer we are going to fine-tune from.
     """
@@ -147,9 +146,7 @@ class SpanInsConClassificationModelArguments:
 
 
 @dataclass
-class SpanInsConClassificationDataTrainingArguments(
-    SpanClassifierDataTrainingArguments
-):
+class InsconTyperDataTrainingArguments(SpanClassifierDataTrainingArguments):
     """
     Arguments pertaining to what data we are going to input our model for training and eval.
     """
@@ -183,23 +180,61 @@ class SpanInsConClassificationDataTrainingArguments(
         metadata={"help": "Max sequence length in training."},
     )
 
+
+from transformers.trainer_utils import (
+    IntervalStrategy,
+    SchedulerType,
+)
+
+
+@dataclass
+class TrainingArguments(OrigTrainingArguments):
+    eval_steps: Optional[int] = field(
+        default=None, metadata={"help": "Run an evaluation every X steps."}
+    )
+    push_to_hub_organization: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "The name of the organization in with to which push the `Trainer`."
+        },
+    )
+    push_to_hub_token: Optional[str] = field(
+        default=None, metadata={"help": "The token to use to push to the Model Hub."}
+    )
+    evaluation_strategy: IntervalStrategy = field(
+        default=IntervalStrategy.NO,
+        metadata={"help": "The evaluation strategy to use."},
+    )
+    lr_scheduler_type: SchedulerType = field(
+        default=SchedulerType.LINEAR,
+        metadata={"help": "The scheduler type to use."},
+    )
+    logging_strategy: IntervalStrategy = field(
+        default=IntervalStrategy.STEPS,
+        metadata={"help": "The logging strategy to use."},
+    )
+    save_strategy: IntervalStrategy = field(
+        default=IntervalStrategy.STEPS,
+        metadata={"help": "The checkpoint save strategy to use."},
+    )
+    push_to_hub_model_id: Optional[str] = field(
+        default=None,
+        metadata={"help": "The name of the repository to which push the `Trainer`."},
+    )
+
     def __post_init__(self):
-        self.task_name = self.task_name.lower()
+        pass
 
 
-SpanInsConTrainingArguments = fix_transformers_argument_type_into_click_argument_type(
-    TrainingArguments
-)
-SpanInsConClassificationModelArguments = (
-    fix_transformers_argument_type_into_click_argument_type(
-        SpanInsConClassificationModelArguments
+@dataclass
+class InsconTyperConfig(TyperConfig):
+    typer_name: str = "Inscon"
+    train_args: TrainingArguments = TrainingArguments(output_dir=".")
+    data_args: InsconTyperDataTrainingArguments = InsconTyperDataTrainingArguments()
+    model_args: InsconTyperModelArguments = InsconTyperModelArguments(
+        model_name_or_path="dmis-lab/biobert-base-cased-v1.1"
     )
-)
-SpanInsConClassificationDataTrainingArguments = (
-    fix_transformers_argument_type_into_click_argument_type(
-        SpanInsConClassificationDataTrainingArguments
-    )
-)
+
 
 from datasets import Dataset, DatasetDict, DatasetInfo, Sequence, Value
 
@@ -207,21 +242,23 @@ mask_token = "[MASK]"
 from tqdm import tqdm
 
 
-class SpanInsConClassifier(Typer):
+class InsconTyper(Typer):
     def __init__(
         self,
-        span_classification_datasets: DatasetDict,
-        model_args: SpanInsConClassificationModelArguments,
-        data_args: SpanInsConClassificationDataTrainingArguments,
-        training_args: TrainingArguments,
+        config: InsconTyperConfig,
+        ner_datasets: DatasetDict,
     ) -> None:
         """[summary]
 
         Args:
             span_classification_datasets (DatasetDict): with context tokens
         """
+        model_args = config.model_args
         self.model_args = model_args
+        data_args = config.data_args
         self.data_args = data_args
+        train_args_dict = {k: v for k, v in config.train_args.items() if k != "_n_gpu"}
+        training_args = OrigTrainingArguments(**train_args_dict)
         self.training_args = training_args
         logger.info("Start Loading BERT")
         if (
@@ -242,16 +279,18 @@ class SpanInsConClassifier(Typer):
         # Set seed before initializing model.
         set_seed(training_args.seed)
 
-        datasets = span_classification_datasets
-        datasets = DatasetDict(
-            {"train": datasets["train"], "validation": datasets["validation"]}
+        msc_datasets = self.translate_into_msc_datasets(
+            ner_datasets
+        )  # msc: multi span classification
+        msc_datasets = DatasetDict(
+            {"train": msc_datasets["train"], "validation": msc_datasets["validation"]}
         )
         if training_args.do_train:
-            column_names = datasets["train"].column_names
-            features = datasets["train"].features
+            column_names = msc_datasets["train"].column_names
+            features = msc_datasets["train"].features
         else:
-            column_names = datasets["validation"].column_names
-            features = datasets["validation"].features
+            column_names = msc_datasets["validation"].column_names
+            features = msc_datasets["validation"].features
         # text_column_name = "tokens" if "tokens" in column_names else column_names[0]
         # label_column_name = (
         #     f"{data_args.task_name}_tags"
@@ -284,7 +323,7 @@ class SpanInsConClassifier(Typer):
             use_fast=True,
             additional_special_tokens=[span_start_token, span_end_token],
         )
-        model = BertForSpanInsConClassification.from_pretrained(
+        model = BertForSpanInsconClassification.from_pretrained(
             model_args.model_name_or_path,
             from_tf=bool(".ckpt" in model_args.model_name_or_path),
             config=config,
@@ -298,13 +337,13 @@ class SpanInsConClassifier(Typer):
         self.model = model
         self.mask_id = self.tokenizer.vocab[mask_token]
 
-        span_classification_datasets = DatasetDict(
+        ner_datasets = DatasetDict(
             {
-                "train": span_classification_datasets["train"],
-                "validation": span_classification_datasets["validation"],
+                "train": ner_datasets["train"],
+                "validation": ner_datasets["validation"],
             }
         )
-        super().__init__(span_classification_datasets, data_args)
+        super().__init__(ner_datasets, data_args)
         self.argss += [model_args, data_args]
         tokenized_datasets = self.span_classification_datasets
 
@@ -360,7 +399,9 @@ class SpanInsConClassifier(Typer):
             )
             trainer.save_model()  # Saves the tokenizer too for easy upload
 
-    def predict(self, tokens: List[str], start: int, end: int) -> SpanClassifierOutput:
+    def predict(
+        self, tokens: List[str], starts: List[str], ends: List[str]
+    ) -> List[str]:
         context_tokens = self.get_spanned_token(tokens, start, end)
         tokenized_context = self.tokenizer(
             context_tokens,
@@ -404,8 +445,8 @@ class SpanInsConClassifier(Typer):
         return context_tokens
 
     def batch_predict(
-        self, tokens: List[List[str]], start: List[int], end: List[int]
-    ) -> List[SpanClassifierOutput]:
+        self, tokens: List[List[str]], starts: List[List[int]], ends: List[List[int]]
+    ) -> List[List[str]]:
         assert len(tokens) == len(start)
         assert len(start) == len(end)
         context_tokens = self.get_spanned_tokens(tokens, start, end)
@@ -444,6 +485,9 @@ class SpanInsConClassifier(Typer):
                 )
             )
         return ret_list
+
+    def translate_into_msc_datasets(self, ner_datasets: DatasetDict):
+        pass
 
     def preprocess_function(self, example: Dict) -> Dict:
         context_tokens = self.get_spanned_tokens(

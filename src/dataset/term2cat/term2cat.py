@@ -1,4 +1,3 @@
-import colt
 from .genia import load_term2cat as genia_load_term2cat
 
 # todo: 本当は UMLSのダウンロードから自動化して書くべきだけど、ちょっと面倒なので後回し
@@ -54,7 +53,6 @@ def load_twitter_dictionary(
     return term2cat
 
 
-@colt.register("Term2Cat")
 class Term2Cat:
     def __init__(
         self,

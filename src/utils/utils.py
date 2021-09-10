@@ -32,3 +32,11 @@ def remove_BIE(ner_tag):
         return ner_tag
     else:
         raise NotImplementedError
+
+def remove_BIE(ner_tag):
+    if ner_tag[:2] in {"B-", "I-", "E-"}:
+        return ner_tag[2:]
+    elif ner_tag == "O":
+        return ner_tag
+    else:
+        raise NotImplementedError

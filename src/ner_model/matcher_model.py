@@ -9,16 +9,19 @@ from src.utils.params import (
 )
 from typing import Dict, List, Tuple
 from flashtext import KeywordProcessor
-from loguru import logger
+from logging import getLogger
 from .abstract_model import NERModel
 from collections import Counter
 import inflection
-from .chunker import Chunker, Chunk
+from .chunker.abstract_model import Chunker, Span
 from src.utils.utils import UnionFind
 import copy
 import pickle
 import sys
 from src.dataset.term2cat.term2cat import Term2Cat
+
+
+logger = getLogger(__name__)
 
 
 def translate_char_level_to_token_level(
@@ -177,7 +180,7 @@ def leave_only_longet_match(
 
 
 def ends_with_match(
-    chunks: List[Chunk], matches: List[Tuple[TokenBasedSpan, Label]]
+    chunks: List[Span], matches: List[Tuple[TokenBasedSpan, Label]]
 ) -> List[Tuple[TokenBasedSpan, Label]]:
     return_matches = []
     for s, e in chunks:
@@ -191,7 +194,7 @@ def ends_with_match(
 
 
 def exact_match(
-    chunks: List[Chunk], matches: List[Tuple[TokenBasedSpan, Label]]
+    chunks: List[Span], matches: List[Tuple[TokenBasedSpan, Label]]
 ) -> List[Tuple[TokenBasedSpan, Label]]:
     return_matches = []
     span2label = dict(matches)
@@ -200,7 +203,7 @@ def exact_match(
 
 
 def right_shift_match(
-    chunks: List[Chunk], matches: List[Tuple[TokenBasedSpan, Label]]
+    chunks: List[Span], matches: List[Tuple[TokenBasedSpan, Label]]
 ) -> List[Tuple[TokenBasedSpan, Label]]:
     return_matches = []
     for cs, ce in chunks:
@@ -231,7 +234,7 @@ class NERMatcher:
     def __call__(
         self,
         tokens: Tokens,
-        chunks: List[Chunk] = None,
+        chunks: List[Span] = None,
         chunker_usage: str = "endswith",
     ) -> List[Tuple[TokenBasedSpan, Label]]:
         snt = " ".join(tokens)

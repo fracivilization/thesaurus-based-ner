@@ -4,6 +4,7 @@ from typing import Dict, List, Tuple
 from datasets.info import DatasetInfo
 from dataclasses import dataclass, field
 import numpy as np
+from omegaconf.omegaconf import MISSING
 from transformers.modeling_outputs import SequenceClassifierOutput
 import torch
 
@@ -27,42 +28,26 @@ class SpanClassifierDataTrainingArguments:
     )
 
 
-class Typer:
-    def __init__(
-        self,
-        span_classification_datasets: DatasetDict,
-        data_args: SpanClassifierDataTrainingArguments,
-    ) -> None:
-        self.span_classification_datasets = span_classification_datasets.map(
-            self.preprocess_function,
-            batched=True,
-            load_from_cache_file=not data_args.overwrite_cache,
-        )
-        self.argss = []
+@dataclass
+class TyperConfig:
+    typer_name: str = MISSING
 
-    def predict(self, tokens: List[str], start: int, end: int) -> SpanClassifierOutput:
+
+class Typer:
+    def predict(
+        self, tokens: List[str], starts: List[str], ends: List[str]
+    ) -> List[str]:
         raise NotImplementedError
 
     def batch_predict(
-        self, tokens: List[List[str]], start: List[int], end: List[int]
-    ) -> List[SpanClassifierOutput]:
-        assert len(tokens) == len(start)
-        assert len(start) == len(end)
-        raise NotImplementedError
-
-    def preprocess_function(self, example: Dict) -> Dict:
-        """preprocess_function for encoding
-
-        Args:
-            example (Dict): {"tokens": List[List[str]], "start": List[int], "end": List[int], "label": List[int]}
-
-        Returns:
-            ret_dict (Dict): {"label": List[int], "...": ...}
-        """
+        self, tokens: List[List[str]], starts: List[List[int]], ends: List[List[int]]
+    ) -> List[List[str]]:
+        assert len(tokens) == len(starts)
+        assert len(starts) == len(ends)
         raise NotImplementedError
 
 
-from lib.ner_model.abstract_model import NERModel
+from src.ner_model.abstract_model import NERModel
 from tqdm import tqdm
 from scipy.special import softmax
 

@@ -1,12 +1,17 @@
 from typing import List
 from .abstract_model import Span, Chunker
-import gin
 from flair.data import Sentence
 from flair.models import SequenceTagger
+from .abstract_model import ChunkerConfig
+from dataclasses import dataclass
 
 
-@gin.configurable
-class FlairNPDetector(Chunker):
+@dataclass
+class FlairNPChunkerConfig(ChunkerConfig):
+    chunker_name: str = "FlairNPChunker"
+
+
+class FlairNPChunker(Chunker):
     def __init__(self) -> None:
         self.argss = ["Flair NP Detector"]
         self.tagger = SequenceTagger.load("flair/chunk-english-fast")

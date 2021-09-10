@@ -442,7 +442,9 @@ def load_fake_cat2terms(sibilling_compression):
 
 from hashlib import md5
 from functools import reduce
-from loguru import logger
+from logging import getLogger
+
+logger = getLogger(__name__)
 
 
 def load_term2cat(

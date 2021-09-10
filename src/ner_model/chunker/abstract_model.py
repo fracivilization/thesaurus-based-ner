@@ -2,11 +2,17 @@ from collections import defaultdict
 from datasets import DatasetDict, Dataset, Sequence, Value
 from typing import Dict, List, Tuple
 from datasets.info import DatasetInfo
-from dataclasses import dataclass, field
+from dataclasses import MISSING, dataclass, field
 import numpy as np
 from tqdm import tqdm
+from omegaconf import MISSING
 
 Span = Tuple[int, int]
+
+
+@dataclass
+class ChunkerConfig:
+    chunker_name: str = MISSING
 
 
 class Chunker:
@@ -41,5 +47,6 @@ class Chunker:
             ret_dict (Dict): {"label": List[int], "...": ...}
         """
         raise NotImplementedError
+
     def train(self):
         raise NotImplementedError

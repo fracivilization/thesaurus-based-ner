@@ -1,18 +1,23 @@
 from typing import List
-from .abstract_model import Span, Chunker
+from .abstract_model import Span, Chunker, ChunkerConfig
 import benepar
 from benepar.spacy_plugin import BeneparComponent
 import spacy
 from datasets import DatasetDict
-import gin
 from spacy.tokens.doc import Doc
-from loguru import logger
+from dataclasses import dataclass
+from logging import getLogger
+
+logger = getLogger(__name__)
 
 
-@gin.configurable
-class BeneparNPSpanDetector(Chunker):
-    def __init__(self, span_detection_datasets: DatasetDict) -> None:
-        self.span_detection_datasets = span_detection_datasets
+@dataclass
+class BeneparNPChunkerConfig(ChunkerConfig):
+    chunker_name: str = "BeneparNPChunker"
+
+
+class BeneparNPChunker(Chunker):
+    def __init__(self) -> None:
         self.nlp = spacy.load("en_core_web_sm")
         try:
             self.nlp.add_pipe(benepar.BeneparComponent("benepar_en3"))
