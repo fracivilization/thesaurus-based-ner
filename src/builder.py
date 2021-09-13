@@ -45,12 +45,12 @@ def typer_builder(config: TyperConfig, datasets: DatasetDict):
         raise NotImplementedError
         return DictMatchTyper(term2cat)
     elif config.typer_name == "Inscon":
-        InsconTyper(config, datasets)
+        return InsconTyper(config, datasets)
     pass
 
 
 def two_stage_model_builder(config: TwoStageConfig, datasets: DatasetDict):
     chunker: Chunker = chunker_builder(config.chunker)
     typer: Typer = typer_builder(config.typer, datasets)
-    TwoStageModel(chunker, typer, datasets)
+    return TwoStageModel(chunker, typer, datasets)
     pass

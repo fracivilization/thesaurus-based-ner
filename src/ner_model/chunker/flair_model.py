@@ -30,3 +30,6 @@ class FlairNPChunker(Chunker):
                 end = max(ids)
                 nps.append((start, end))
         return nps
+
+    def train(self):
+        pass

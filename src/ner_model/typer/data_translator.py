@@ -17,14 +17,10 @@ logger = getLogger(__name__)
 @dataclasses.dataclass
 class SpanClassificationDatasetArgs:
     span_length: int = 6
-    span_per_snt: click.Choice(["multiple", "one"]) = "one"
     label_balance: bool = False
-    remove_fake_cat: bool = False
-    remove_o: bool = False
     hard_o_sampling: bool = False
     o_outside_entity: bool = False
     weight_of_hard_o_for_easy_o: float = 0.5  #
-    pre_one_span: bool = False  # if True, make pre_span_classification datasets having one span per one instance
 
 
 from tqdm import tqdm
@@ -93,13 +89,13 @@ def get_o_under_sampling_ratio(
         return o_label_under_sampling_ratio
 
 
-def ner_datasets_to_pre_span_classification_datasets(
+def ner_datasets_to_span_classification_datasets(
     ner_datasets: datasets.DatasetDict,
     span_classification_dataset_args: SpanClassificationDatasetArgs,
 ) -> datasets.DatasetDict:
     pre_span_classification_datasets = dict()
 
-    label_names = ["O"] + sorted(
+    label_names = sorted(
         set(
             [
                 remove_BIE(tag)
@@ -119,54 +115,17 @@ def ner_datasets_to_pre_span_classification_datasets(
         )
     )
     for key in ner_datasets:
-        pass
         pre_span_classification_dataset = defaultdict(list)
         ner_tag_labels = ner_datasets[key].features["ner_tags"].feature.names
-        if span_classification_dataset_args.hard_o_sampling:
-            (
-                easy_o_under_sampling_ratio,
-                hard_o_under_sampling_ratio,
-            ) = get_o_under_sampling_ratio(
-                ner_datasets[key], span_classification_dataset_args
-            )
-
-        else:
-            o_under_sampling_ratio = get_o_under_sampling_ratio(
-                ner_datasets[key], span_classification_dataset_args
-            )
         for snt in tqdm(ner_datasets[key]):
             ner_tags = [ner_tag_labels[tag] for tag in snt["ner_tags"]]
-            span2label = {(s, e + 1): label for label, s, e in get_entities(ner_tags)}
-            words_in_ents = set(i for s, e in span2label.keys() for i in range(s, e))
-            snt_length = len(snt["tokens"])
-            span_generator = (
-                (i, j)
-                for i in range(snt_length)
-                for j in range(i + 1, snt_length)
-                if j - i <= span_classification_dataset_args.span_length
-            )
             starts = []
             ends = []
             labels = []
-            for s, e in span_generator:
-                if key != "test" and (s, e) not in span2label:
-                    if span_classification_dataset_args.hard_o_sampling:
-                        if (s, e) not in span2label:
-                            if set(range(s, e)) & words_in_ents == set():
-                                if span_classification_dataset_args.o_outside_entity:
-                                    if set(range(s, e)) <= words_in_ents:
-                                        continue
-                                if random.random() > hard_o_under_sampling_ratio:
-                                    continue
-                            else:
-                                if random.random() > easy_o_under_sampling_ratio:
-                                    continue
-                    else:
-                        if random.random() > o_under_sampling_ratio:
-                            continue
+            for label, s, e in get_entities(ner_tags):
                 starts.append(s)
-                ends.append(e)
-                labels.append(span2label[(s, e)] if (s, e) in span2label else "O")
+                ends.append(e + 1)
+                labels.append(label)
             if labels:
                 pre_span_classification_dataset["tokens"].append(snt["tokens"])
                 pre_span_classification_dataset["starts"].append(starts)
@@ -179,42 +138,6 @@ def ner_datasets_to_pre_span_classification_datasets(
 
 
 import numpy as np
-
-
-def make_one_span_per_snt(pre_span_classification_datasets: DatasetDict):
-    """スパンを文ごとに一つになるように修正する
-
-    Args:
-        pre_span_classification_datasets (DatasetDict): span classification dataset which include multiple spans
-    """
-    pass
-    label_names = (
-        pre_span_classification_datasets["test"].features["labels"].feature.names
-    )
-    info = datasets.DatasetInfo(
-        features=datasets.Features(
-            {
-                "tokens": datasets.Sequence(datasets.Value("string")),
-                "start": datasets.Value("int32"),
-                "end": datasets.Value("int32"),
-                "label": datasets.ClassLabel(names=label_names),
-            }
-        )
-    )
-    span_classification_datasets = dict()
-    for split_key, dataset_split in pre_span_classification_datasets.items():
-        span_classification_dataset = defaultdict(list)
-        for snt in dataset_split:
-            tokens = snt["tokens"]
-            for s, e, l in zip(snt["starts"], snt["ends"], snt["labels"]):
-                span_classification_dataset["tokens"].append(tokens)
-                span_classification_dataset["start"].append(s)
-                span_classification_dataset["end"].append(e)
-                span_classification_dataset["label"].append(l)
-        span_classification_datasets[split_key] = datasets.Dataset.from_dict(
-            span_classification_dataset, info=info
-        )
-    return datasets.DatasetDict(span_classification_datasets)
 
 
 def label_balancing_span_classification_datasets(
@@ -320,229 +243,7 @@ def print_label_statistics(span_classification_datasets: datasets.DatasetDict):
 from copy import deepcopy
 
 
-def span_classification_datasets_to_span_detection_datasets(
-    span_classification_datasets: datasets.DatasetDict,
-):
-    ret_datasets = dict()
-    features = deepcopy(span_classification_datasets["test"].features)
-    old_names = features["label"].names
-    new_names = ["O", "Span"]
-    label_map = dict()
-    for i, l in enumerate(old_names):
-        if l == "O":
-            label_map[i] = new_names.index("O")
-        else:
-            label_map[i] = new_names.index("Span")
-    features["label"] = datasets.ClassLabel(names=new_names)
-    info = datasets.DatasetInfo(features=features)
-    for split_key, dataset_split in span_classification_datasets.items():
-        if "labels" in dataset_split.features:
-            raise NotImplementedError
-            # for multi span classification datasets
-            span_classification_dataset = {
-                "tokens": [],
-                "starts": [],
-                "ends": [],
-                "labels": [],
-            }
-            label_count = Counter([l for snt in dataset_split["labels"] for l in snt])
-            min_label_count = min(label_count.values())
-            logger.info("min label count: %d" % min_label_count)
-            undersampling_ratio = {
-                label: min_label_count / count for label, count in label_count.items()
-            }
-            for snt in tqdm(dataset_split):
-                starts = []
-                ends = []
-                labels = []
-                for s, e, l in zip(snt["starts"], snt["ends"], snt["labels"]):
-                    if random.random() < undersampling_ratio[l]:
-                        starts.append(s)
-                        ends.append(e)
-                        labels.append(l)
-                if labels:
-                    span_classification_dataset["tokens"].append(snt["tokens"])
-                    span_classification_dataset["starts"].append(snt["starts"])
-                    span_classification_dataset["ends"].append(snt["ends"])
-                    span_classification_dataset["labels"].append(snt["labels"])
-            ret_datasets[split_key] = datasets.Dataset.from_dict(
-                span_classification_dataset, info=info
-            )
-        elif "label" in dataset_split.features:
-            # for one span classification datasets
-            span_classification_dataset = {
-                "tokens": dataset_split["tokens"],
-                "start": dataset_split["start"],
-                "end": dataset_split["end"],
-                "label": [],
-            }
-            for label in tqdm(dataset_split["label"]):
-                span_classification_dataset["label"].append(label_map[label])
-            ret_datasets[split_key] = datasets.Dataset.from_dict(
-                span_classification_dataset, info=info
-            )
-        else:
-            raise NotImplementedError
-    return datasets.DatasetDict(ret_datasets)
-
-
-def remove_fake_cat_from_span_classification_dataset(datasets: DatasetDict):
-    names = datasets["train"].features["label"].names
-    fake_cat_nums = {i for i, n in enumerate(names) if "fake_cat_" in n}
-    for split in datasets.values():
-        assert names == split.features["label"].names
-
-    new_datasets = dict()
-    for key, split in datasets.items():
-        new_snts = defaultdict(list)
-        for snt in tqdm(split):
-            if snt["label"] not in fake_cat_nums:
-                for k, v in snt.items():
-                    new_snts[k].append(v)
-        new_datasets[key] = Dataset.from_dict(new_snts, features=split.features)
-    return DatasetDict(new_datasets)
-
-
-def remove_o_label_dataset(datasets: DatasetDict):
-    names = datasets["train"].features["label"].names
-    o_label_id = names.index("O")
-
-    for split in datasets.values():
-        assert names == split.features["label"].names
-
-    new_datasets = dict()
-    for key, split in datasets.items():
-        new_snts = defaultdict(list)
-        for snt in tqdm(split):
-            if snt["label"] != o_label_id:
-                for k, v in snt.items():
-                    new_snts[k].append(v)
-        new_datasets[key] = Dataset.from_dict(new_snts, features=split.features)
-    return DatasetDict(new_datasets)
-
-
-def pre_one_span_classification_datasets(
-    pre_span_classification_datasets: DatasetDict,
-) -> DatasetDict:
-    pass
-    new_dataset_dict = dict()
-    for key, split in pre_span_classification_datasets.items():
-        new_dataset = defaultdict(list)
-        if key not in {"supervised_validation", "test"}:
-            for snt in split:
-                for s, e, l in zip(snt["starts"], snt["ends"], snt["labels"]):
-                    new_dataset["tokens"].append(snt["tokens"])
-                    new_dataset["starts"].append([s])
-                    new_dataset["ends"].append([e])
-                    new_dataset["labels"].append([l])
-            new_dataset_dict[key] = Dataset.from_dict(
-                new_dataset, features=split.features
-            )
-        else:
-            new_dataset_dict[key] = split
-    return DatasetDict(new_dataset_dict)
-
-
-def ner_datasets_to_span_classification_datasets(
-    ner_datasets: datasets.DatasetDict,
-    span_classification_dataset_args: SpanClassificationDatasetArgs,
-    buffer_dir: str,
-) -> datasets.DatasetDict:
-    buffer_dir: Path = Path(buffer_dir)
-    if not buffer_dir.exists():
-        os.mkdir(buffer_dir)
-    buffer_dir.joinpath("pre_span_classification_datasets")
-
-    output_path = buffer_dir.joinpath("pre_span_classification_datasets")
-    if not output_path.exists():
-        pre_span_classification_datasets = (
-            ner_datasets_to_pre_span_classification_datasets(
-                ner_datasets, span_classification_dataset_args
-            )
-        )
-        pre_span_classification_datasets.save_to_disk(output_path)
-    pre_span_classification_datasets = DatasetDict.load_from_disk(output_path)
-
-    output_path = buffer_dir.joinpath("pre_one_span_classification_datasets")
-    if span_classification_dataset_args.pre_one_span:
-        if not output_path.exists():
-            pre_span_classification_datasets = pre_one_span_classification_datasets(
-                pre_span_classification_datasets
-            )
-            pass
-        pre_span_classification_datasets.save_to_disk(output_path)
-
-    output_path = buffer_dir.joinpath("span_classification_datasets")
-    if span_classification_dataset_args.span_per_snt == "one":
-        if not output_path.exists():
-            span_classification_datasets = make_one_span_per_snt(
-                pre_span_classification_datasets
-            )
-            span_classification_datasets.save_to_disk(output_path)
-    else:
-        span_classification_datasets = pre_span_classification_datasets
-        span_classification_datasets.save_to_disk(output_path)
-    span_classification_datasets = DatasetDict.load_from_disk(output_path)
-    logger.info("Without balancing, dataset label statistics: ")
-    print_label_statistics(span_classification_datasets)
-
-    output_path = buffer_dir.joinpath("span_classification_datasets_removed_fake_cat")
-    if span_classification_dataset_args.remove_fake_cat:
-        if not output_path.exists():
-            span_classification_datasets = (
-                remove_fake_cat_from_span_classification_dataset(
-                    span_classification_datasets
-                )
-            )
-            span_classification_datasets.save_to_disk(output_path)
-        span_classification_datasets = DatasetDict.load_from_disk(output_path)
-        logger.info("Fake categories are removed, dataset label statistics: ")
-        print_label_statistics(span_classification_datasets)
-
-    output_path = buffer_dir.joinpath("span_classification_datasets_o_removed")
-    if span_classification_dataset_args.remove_o:
-        if not output_path.exists():
-            span_classification_datasets = remove_o_label_dataset(
-                span_classification_datasets
-            )
-            span_classification_datasets.save_to_disk(output_path)
-        span_classification_datasets = DatasetDict.load_from_disk(output_path)
-        logger.info("O label are removed, dataset label statistics: ")
-        print_label_statistics(span_classification_datasets)
-
-    output_path = buffer_dir.joinpath("span_detection_classification_datasets")
-    if span_classification_dataset_args.span_detection:
-        if not output_path.exists():
-            span_detection_datasets = (
-                span_classification_datasets_to_span_detection_datasets(
-                    span_classification_datasets
-                )
-            )
-            span_detection_datasets.save_to_disk(output_path)
-            logger.info("With balancing, dataset label statistics: ")
-        span_detection_datasets = DatasetDict.load_from_disk(output_path)
-        span_classification_datasets = span_detection_datasets
-        print_label_statistics(span_classification_datasets)
-
-    output_path = buffer_dir.joinpath("span_classification_balanced_datasets")
-    if span_classification_dataset_args.label_balance:
-        if not output_path.exists():
-            span_classification_balanced_datasets = (
-                label_balancing_span_classification_datasets(
-                    span_classification_datasets
-                )
-            )
-            span_classification_balanced_datasets.save_to_disk(output_path)
-            logger.info("With balancing, dataset label statistics: ")
-        span_classification_balanced_datasets = DatasetDict.load_from_disk(output_path)
-        span_classification_datasets = span_classification_balanced_datasets
-        print_label_statistics(span_classification_datasets)
-
-    return span_classification_datasets
-
-
 from typing import Dict, List
-from lib.data.span_classification import SpanClassificationDatasetArgs
 
 import random
 

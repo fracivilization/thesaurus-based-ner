@@ -10,17 +10,26 @@ from .abstract_model import (
     SpanClassifierDataTrainingArguments,
     SequenceClassifierOutputPlus,
 )
+from .data_translator import (
+    SpanClassificationDatasetArgs,
+    ner_datasets_to_span_classification_datasets,
+)
+from hydra.utils import get_original_cwd
+from pathlib import Path
+from hashlib import md5
+import itertools
 
 
 class BertForSpanInsconClassification(BertForTokenClassification):
     def __init__(self, config):
         super().__init__(config)
         self.classifier = torch.nn.Linear(2 * config.hidden_size, config.num_labels)
+        self.max_prob_len = 32
 
     def forward(
         self,
-        span_inscon_input_ids=None,
-        span_inscon_attention_mask=None,
+        input_ids=None,
+        attention_mask=None,
         labels=None,
     ):
         r"""
@@ -30,27 +39,62 @@ class BertForSpanInsconClassification(BertForTokenClassification):
         """
         # return_dict = self.config.use_return_dict
 
-        minibatch_size, max_seq_lens = span_inscon_input_ids.shape
-        start_mask = (span_inscon_input_ids == 2).reshape(
-            minibatch_size, max_seq_lens, -1
-        )
-        end_mask = (span_inscon_input_ids == 3).reshape(
-            minibatch_size, max_seq_lens, -1
-        )
+        minibatch_size, max_seq_len = input_ids.shape
+        if labels is not None:
+            max_prob_len = labels.shape[1]
+        else:
+            max_prob_len = self.max_prob_len
+        # start_mask = (input_ids == 2).reshape(minibatch_size, max_seq_lens, -1)
+        # end_mask = (input_ids == 3).reshape(minibatch_size, max_seq_lens, -1)
         outputs = self.bert(
-            span_inscon_input_ids,
-            attention_mask=span_inscon_attention_mask,
+            input_ids,
+            attention_mask=attention_mask,
         )
-        sequence_output = outputs.last_hidden_state
-        start_vectors = (sequence_output * start_mask).sum(dim=1)
-        end_vectors = (sequence_output * end_mask).sum(dim=1)
-        feature_vecs = torch.cat([start_vectors, end_vectors], dim=1)
-        sequence_output = self.dropout(feature_vecs)
-        logits = self.classifier(sequence_output)
+        hidden_states = outputs[0]
+        hidden_size = hidden_states.size()[2]
+
+        seq_ids = (
+            torch.arange(max_seq_len, device=self.device)
+            .unsqueeze(0)
+            .expand(minibatch_size, -1)
+        )
+        max_seq_len_tensor = (
+            torch.tensor([max_seq_len - 1], device=self.device)
+            .unsqueeze(0)
+            .expand(minibatch_size, max_seq_len)
+        )
+
+        flag_start_ids = input_ids == 2
+        start_positions = torch.where(flag_start_ids, seq_ids, max_seq_len_tensor)
+        start_positions, _ = torch.sort(start_positions, 1)
+        start_positions = start_positions[:, :max_prob_len]
+        start_positions = start_positions.unsqueeze(-1).expand(-1, -1, hidden_size)
+        start_hidden_states = torch.gather(hidden_states, -2, start_positions)
+        # sequence_output = outputs.last_hidden_state
+        # start_vectors = (sequence_output * start_mask).sum(dim=1)
+        # end_vectors = (sequence_output * end_mask).sum(dim=1)
+        # feature_vecs = torch.cat([start_vectors, end_vectors], dim=1)
+        # sequence_output = self.dropout(feature_vecs)
+        # logits = self.classifier(sequence_output)
+
+        flag_end_ids = input_ids == 3
+        end_positions = torch.where(flag_end_ids, seq_ids, max_seq_len_tensor)
+        end_positions, _ = torch.sort(end_positions, 1)
+        end_positions = end_positions[:, :max_prob_len]
+        end_positions = end_positions.unsqueeze(-1).expand(-1, -1, hidden_size)
+        end_hidden_states = torch.gather(hidden_states, -2, end_positions)
+
+        mention_vector = torch.cat([start_hidden_states, end_hidden_states], dim=2)
+        pooled_output = self.dropout(mention_vector)
+        logits = self.classifier(pooled_output)
+
+        outputs = (logits,) + outputs[2:]
+
         loss = None
         if labels is not None:
-            loss_fct = CrossEntropyLoss()
+            loss_fct = CrossEntropyLoss(ignore_index=-1)
             loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+            outputs = (loss,) + outputs
         # loss = None
         # if labels is not None:
         #     loss_fct = CrossEntropyLoss()
@@ -80,9 +124,6 @@ class BertForSpanInsconClassification(BertForTokenClassification):
         return SequenceClassifierOutputPlus(
             loss=loss,
             logits=logits,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
-            feature_vecs=feature_vecs,
         )
 
 
@@ -178,6 +219,9 @@ class InsconTyperDataTrainingArguments(SpanClassifierDataTrainingArguments):
     max_length: int = field(
         default=512,
         metadata={"help": "Max sequence length in training."},
+    )
+    max_span_num: int = field(
+        default=128, metadata={"help": "Max span number in training"}
     )
 
 
@@ -282,6 +326,15 @@ class InsconTyper(Typer):
         msc_datasets = self.translate_into_msc_datasets(
             ner_datasets
         )  # msc: multi span classification
+
+        max_span_num = max(
+            [
+                len(snt)
+                for split_dataset in msc_datasets.values()
+                for snt in split_dataset["labels"]
+            ]
+        )
+        self.data_args.max_span_num = min(self.data_args.max_span_num, max_span_num)
         msc_datasets = DatasetDict(
             {"train": msc_datasets["train"], "validation": msc_datasets["validation"]}
         )
@@ -298,7 +351,7 @@ class InsconTyper(Typer):
         #     else column_names[1]
         # )
 
-        label_list = features["label"].names
+        label_list = features["labels"].feature.names
         self.label_list = label_list
         num_labels = len(label_list)
 
@@ -343,8 +396,11 @@ class InsconTyper(Typer):
                 "validation": ner_datasets["validation"],
             }
         )
-        super().__init__(ner_datasets, data_args)
-        self.argss += [model_args, data_args]
+        self.span_classification_datasets = msc_datasets.map(
+            self.preprocess_function,
+            batched=True,
+            load_from_cache_file=not data_args.overwrite_cache,
+        )
         tokenized_datasets = self.span_classification_datasets
 
         # Data collator
@@ -390,15 +446,6 @@ class InsconTyper(Typer):
         )
         self.trainer = trainer
 
-        # Training
-        if training_args.do_train:
-            trainer.train(
-                model_path=model_args.model_name_or_path
-                if os.path.isdir(model_args.model_name_or_path)
-                else None
-            )
-            trainer.save_model()  # Saves the tokenizer too for easy upload
-
     def predict(
         self, tokens: List[str], starts: List[str], ends: List[str]
     ) -> List[str]:
@@ -427,22 +474,40 @@ class InsconTyper(Typer):
             logits=outputs.logits[0].cpu().detach().numpy(),
         )
 
-    def get_spanned_token(self, tokens: List[str], start: int, end: int):
-        return (
-            tokens[:start]
-            + [span_start_token]
-            + tokens[start:end]
-            + [span_end_token]
-            + tokens[end:]
-        )
+    def get_spanned_token(self, tokens: List[str], starts: List[int], ends: List[int]):
+        read_tokid = 0
+        ret_tokens = []
+        for s1, s2 in zip(starts, starts[1:]):
+            assert s1 < s2
+        for e1, e2 in zip(ends, ends[1:]):
+            assert e1 < e2
+        for s, e in zip(starts, ends):
+            assert s < e
+            ret_tokens += tokens[read_tokid:s]
+            ret_tokens.append(span_start_token)
+            ret_tokens += tokens[s:e]
+            ret_tokens.append(span_end_token)
+            read_tokid = e
+        else:
+            ret_tokens += tokens[read_tokid:]
+        return ret_tokens
 
     def get_spanned_tokens(
-        self, tokens: List[List[str]], start: List[int], end: List[int]
-    ):
+        self, tokens: List[List[str]], starts: List[List[int]], ends: List[List[int]]
+    ) -> Dict:
         context_tokens = [
-            self.get_spanned_token(tok, s, e) for tok, s, e in zip(tokens, start, end)
+            self.get_spanned_token(tok, ss, es)
+            for tok, ss, es in zip(tokens, starts, ends)
         ]
-        return context_tokens
+        starts = [
+            [wid for wid, w in enumerate(snt) if w == span_start_token]
+            for snt in context_tokens
+        ]
+        ends = [
+            [wid for wid, w in enumerate(snt) if w == span_end_token]
+            for snt in context_tokens
+        ]
+        return {"tokens": context_tokens, "starts": starts, "ends": ends}
 
     def batch_predict(
         self, tokens: List[List[str]], starts: List[List[int]], ends: List[List[int]]
@@ -487,23 +552,125 @@ class InsconTyper(Typer):
         return ret_list
 
     def translate_into_msc_datasets(self, ner_datasets: DatasetDict):
-        pass
+        msc_args = SpanClassificationDatasetArgs()
+        input_hash = {k: v._fingerprint for k, v in ner_datasets.items()}
+        output_dir = Path(get_original_cwd()).joinpath(
+            "data", "buffer", md5(str(input_hash).encode()).hexdigest()
+        )
+        if not output_dir.exists():
+            msc_datasets = ner_datasets_to_span_classification_datasets(
+                ner_datasets, msc_args
+            )
+            msc_datasets.save_to_disk(output_dir)
+        else:
+            msc_datasets = DatasetDict.load_from_disk(output_dir)
+        return msc_datasets
 
     def preprocess_function(self, example: Dict) -> Dict:
-        context_tokens = self.get_spanned_tokens(
-            example["tokens"], example["start"], example["end"]
+        new_example = self.get_spanned_tokens(
+            example["tokens"], example["starts"], example["ends"]
         )
-        tokenized_inputs = self.tokenizer(
-            context_tokens,
-            padding="max_length",
-            truncation=True,
-            # We use this argument because the texts in our dataset are lists of words (with a label for each word).
-            is_split_into_words=True,
-            # return_offsets_mapping=True,
+        new_example["labels"] = example["labels"]
+        padded_inputs = self.load_model_input(
+            new_example["tokens"],
+            new_example["starts"],
+            new_example["ends"],
             max_length=self.data_args.max_length,
+            labels=new_example["labels"],
+            max_span_num=self.data_args.max_span_num,
         )
         return {
-            "span_inscon_input_ids": tokenized_inputs["input_ids"],
-            "span_inscon_attention_mask": tokenized_inputs["attention_mask"],
-            "label": example["label"],
+            "input_ids": padded_inputs["input_ids"],
+            "attention_mask": padded_inputs["attention_mask"],
+            "labels": padded_inputs["labels"],
         }
+
+    def load_model_input(
+        self,
+        tokens: List[List[str]],
+        starts: List[List[int]],
+        ends: List[List[int]],
+        max_length: int,
+        labels: List[List[int]] = None,
+        max_span_num=10000,
+    ):
+        pass
+        example = self.padding_spans(
+            {"tokens": tokens, "starts": starts, "ends": ends, "labels": labels},
+            max_span_num=max_span_num,
+        )
+        all_padded_subwords = []
+        all_attention_mask = []
+        all_starts = []
+        all_ends = []
+        for snt, starts, ends in zip(
+            example["tokens"], example["starts"], example["ends"]
+        ):
+            tokens = [self.tokenizer.encode(w, add_special_tokens=False) for w in snt]
+            subwords = [w for li in tokens for w in li]
+            # subword2token = list(
+            #     itertools.chain(*[[i] * len(li) for i, li in enumerate(tokens)])
+            # )
+            token2subword = [0] + list(itertools.accumulate(len(li) for li in tokens))
+            all_starts.append([token2subword[s] for s in starts])
+            all_ends.append([token2subword[e] for e in ends])
+            # token_ids = [sw for word in subwords for sw in word]
+            padded_subwords = (
+                [self.tokenizer.cls_token_id]
+                + subwords[: self.data_args.max_length - 2]
+                + [self.tokenizer.sep_token_id]
+            )
+            all_attention_mask.append(
+                [1] * len(padded_subwords)
+                + [0] * (self.data_args.max_length - len(padded_subwords))
+            )
+            padded_subwords = padded_subwords + [self.tokenizer.pad_token_id] * (
+                self.data_args.max_length - len(padded_subwords)
+            )
+            all_padded_subwords.append(padded_subwords)
+        return {
+            "input_ids": all_padded_subwords,
+            "attention_mask": all_attention_mask,
+            "starts": all_starts,
+            "ends": all_ends,
+            "labels": example["labels"],
+        }
+
+    def padding_spans(self, example: Dict, max_span_num=10000) -> Dict:
+        """add padding for example
+
+        Args:
+            example (Dict): {"tokens": List[List[str]], "starts": List[List[int]], "ends": List[List[int]], "label": List[List[int]]}
+        Returns:
+            Dict: [description]
+        """
+        sn = max_span_num
+        ignore_label = -1
+        padding_label = 0
+        for key, value in example.items():
+            if key in {"starts", "ends", "labels"}:
+                new_value = []
+                if value:
+                    for snt in value:
+                        if key in {"starts", "ends"}:
+                            new_value.append(
+                                snt[:sn] + [padding_label] * (sn - len(snt))
+                            )
+                        elif key == "labels":
+                            new_value.append(
+                                snt[:sn] + [ignore_label] * (sn - len(snt))
+                            )
+                    example[key] = new_value
+                else:
+                    example[key] = value
+        return example
+
+    def train(self):
+        # Training
+        if self.training_args.do_train:
+            self.trainer.train(
+                model_path=self.model_args.model_name_or_path
+                if os.path.isdir(self.model_args.model_name_or_path)
+                else None
+            )
+            self.trainer.save_model()  # Saves the tokenizer too for easy upload

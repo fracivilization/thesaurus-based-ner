@@ -69,6 +69,7 @@ class TwoStageModel(NERModel):
         self.datasets = datasets
 
     def batch_predict(self, tokens: List[List[str]]) -> List[List[str]]:
+        chunks = self.chunker.batch_predict(tokens)
         return super().batch_predict(tokens)
 
     def train(self):
