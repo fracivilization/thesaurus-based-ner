@@ -11,7 +11,6 @@ RAW_CORPUS_NUM := 50000
 # APPEARED_CATS を使って 出力先のフォルダを決める
 PSEUDO_DATA_DIR := $(DATA_DIR)/pseudo
 PSEUDO_NER_DATA_DIR := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo $(APPEARED_CATS) $(RAW_CORPUS_NUM) | sha1sum))
-PSEUDO_SPAN_CLASSIF_DATA_DIR := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo $(PSEUDO_NER_DATA_DIR) "SPAN" | sha1sum))
 
 GOLD_DIR := $(DATA_DIR)/gold
 GOLD_DATA := $(GOLD_DIR)/$(firstword $(shell echo "MedMentions" $(FOCUS_CATS) | sha1sum))
@@ -35,14 +34,16 @@ $(PSEUDO_DATA_DIR): $(DATA_DIR)
 	mkdir -p $(PSEUDO_DATA_DIR)
 
 $(GOLD_DIR): $(DATA_DIR)
-	mkdir $(GOLD_DIR)
+	mkdir -p $(GOLD_DIR)
 $(GOLD_DIR)/MedMentions: $(GOLD_DIR)
 	git clone https://github.com/chanzuckerberg/MedMentions
+	for f in `find MedMentions/ | grep gz`; do gunzip $$f; done
 	mv MedMentions $(GOLD_DIR)/MedMentions
 $(GOLD_DATA): $(GOLD_DIR)/MedMentions
-	poetry run python -m cli.preprocess.load_gold_ner $(subst $() ,_,$(FOCUS_CATS))
+	poetry run python -m cli.preprocess.load_gold_ner $(subst $() ,_,$(FOCUS_CATS)) $(GOLD_DATA)
 
-all: $(PSEUDO_NER_DATA_DIR) $(PSEUDO_SPAN_CLASSIF_DATA_DIR) $(GOLD_DATA)
+
+all: $(PSEUDO_NER_DATA_DIR) $(GOLD_DATA)
 
 $(DICT_FILES): $(DICT_DIR)
 	@echo make dict files $@
@@ -54,7 +55,7 @@ $(PSEUDO_NER_DATA_DIR): $(DICT_FILES) $(PSEUDO_DATA_DIR) $(GOLD_DATA)
 	@echo duplicated categories: $(DUPLICATE_CATS)
 	@echo raw corpus num: $(RAW_CORPUS_NUM)
 	@echo output dir: $(PSEUDO_NER_DATA_DIR)
-	poetry run python -m cli.preprocess.load_pseudo_ner --raw-corpus-num $(RAW_CORPUS_NUM) --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --duplicate-cats $(subst $() ,_,$(DUPLICATE_CATS))
+	poetry run python -m cli.preprocess.load_pseudo_ner --raw-corpus-num $(RAW_CORPUS_NUM) --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --duplicate-cats $(subst $() ,_,$(DUPLICATE_CATS)) --output_dir $(PSEUDO_NER_DATA_DIR)
 
 # $(PSEUDO_SPAN_CLASSIF_DATA_DIR): $(PSEUDO_NER_DATA_DIR) $(PSEUDO_DATA_DIR)
 # 	@echo make pseudo ner data translated into span classification from $(PSEUDO_NER_DATA_DIR).

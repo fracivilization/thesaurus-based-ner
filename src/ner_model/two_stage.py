@@ -70,7 +70,26 @@ class TwoStageModel(NERModel):
 
     def batch_predict(self, tokens: List[List[str]]) -> List[List[str]]:
         chunks = self.chunker.batch_predict(tokens)
-        return super().batch_predict(tokens)
+        starts = [[s for s, e in snt] for snt in chunks]
+        ends = [[e for s, e in snt] for snt in chunks]
+        types = self.typer.batch_predict(tokens, starts, ends)
+        # chunksとtypesを組み合わせて、BIO形式に変換する
+        ner_tags = []
+        for snt_tokens, snt_starts, snt_ends, snt_types in zip(
+            tokens, starts, ends, types
+        ):
+            snt_ner_tags = ["O"] * len(snt_tokens)
+            assert len(snt_starts) == len(snt_ends)
+            assert len(snt_ends) == len(snt_types)
+            for s, e, l in zip(snt_starts, snt_ends, snt_types):
+                for i in range(s, e):
+                    if i == s:
+                        snt_ner_tags[i] = "B-%s" % l
+                    else:
+                        snt_ner_tags[i] = "I-%s" % l
+            assert len(snt_tokens) == len(snt_ner_tags)
+            ner_tags.append(snt_ner_tags)
+        return ner_tags
 
     def train(self):
         self.chunker.train()

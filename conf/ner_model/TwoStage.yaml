@@ -5,5 +5,5 @@ defaults:
 
 typer:
   train_args:
-    # do_train: True
+    do_train: True
     overwrite_output_dir: True

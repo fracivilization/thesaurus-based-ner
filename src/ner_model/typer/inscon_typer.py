@@ -24,7 +24,7 @@ class BertForSpanInsconClassification(BertForTokenClassification):
     def __init__(self, config):
         super().__init__(config)
         self.classifier = torch.nn.Linear(2 * config.hidden_size, config.num_labels)
-        self.max_prob_len = 32
+        self.max_prob_len = 512
 
     def forward(
         self,
@@ -146,6 +146,7 @@ from transformers import (
 from seqeval.metrics import accuracy_score, f1_score, precision_score, recall_score
 import numpy as np
 import torch
+import datasets
 
 span_start_token = "[unused1]"
 span_end_token = "[unused2]"
@@ -512,44 +513,29 @@ class InsconTyper(Typer):
     def batch_predict(
         self, tokens: List[List[str]], starts: List[List[int]], ends: List[List[int]]
     ) -> List[List[str]]:
-        assert len(tokens) == len(start)
-        assert len(start) == len(end)
-        context_tokens = self.get_spanned_tokens(tokens, start, end)
-        # max_context_len = max(
-        #     len(
-        #         self.tokenizer(
-        #             cont_tok,
-        #             is_split_into_words=True,
-        #         )["input_ids"]
-        #     )
-        #     for cont_tok in context_tokens
-        # )
-        tokenized_contexts = self.tokenizer(
-            context_tokens,
-            padding="max_length",
-            max_length=216,
-            truncation=True,
-            is_split_into_words=True,
+        assert len(starts) == len(ends)
+
+        inputs = self.preprocess_function(
+            {"tokens": tokens, "starts": starts, "ends": ends, "labels": []},
+            max_span_num=max([len(snt_starts) for snt_starts in starts]),
         )
-        dataset = Dataset.from_dict(
-            {
-                "span_inscon_input_ids": tokenized_contexts["input_ids"],
-                "span_inscon_attention_mask": tokenized_contexts["attention_mask"],
-            }
-        )
+        del inputs["labels"]
+        dataset = Dataset.from_dict(inputs)
         outputs = self.trainer.predict(dataset)
         logits = outputs.predictions
         if isinstance(logits, tuple):
             assert logits[0].shape[1] == len(self.label_list)
             logits = logits[0]
-        ret_list = []
-        for logit in logits:
-            ret_list.append(
-                SpanClassifierOutput(
-                    label=self.label_list[logit.argmax()], logits=logit
-                )
-            )
-        return ret_list
+        probs = logits.argmax(-1)
+        labels = []
+        for snt_probs, snt_starts in zip(probs, starts):
+            snt_labels = [
+                self.label_list[l] for l in snt_probs[: len(snt_starts)].tolist()
+            ]
+            assert len(snt_labels) == len(snt_starts)
+            labels.append(snt_labels)
+
+        return labels
 
     def translate_into_msc_datasets(self, ner_datasets: DatasetDict):
         msc_args = SpanClassificationDatasetArgs()
@@ -566,18 +552,20 @@ class InsconTyper(Typer):
             msc_datasets = DatasetDict.load_from_disk(output_dir)
         return msc_datasets
 
-    def preprocess_function(self, example: Dict) -> Dict:
+    def preprocess_function(self, example: Dict, max_span_num=None) -> Dict:
         new_example = self.get_spanned_tokens(
             example["tokens"], example["starts"], example["ends"]
         )
         new_example["labels"] = example["labels"]
+        if not max_span_num:
+            max_span_num = self.data_args.max_span_num
         padded_inputs = self.load_model_input(
             new_example["tokens"],
             new_example["starts"],
             new_example["ends"],
             max_length=self.data_args.max_length,
             labels=new_example["labels"],
-            max_span_num=self.data_args.max_span_num,
+            max_span_num=max_span_num,
         )
         return {
             "input_ids": padded_inputs["input_ids"],
