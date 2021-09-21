@@ -2,6 +2,21 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Load Raw Corpus",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.preprocess.load_raw_corpus",
+            "justMyCode": false,
+            "args": [
+                "--raw-sentence-num",
+                "100",
+                "--source-txt-dir",
+                "data/raw/pubmed",
+                "--output-dir",
+                "data/raw/3b62dd72b9e6d30984ad8dc85ca66a47c4bcb58c"
+            ],
+        },
+        {
             "name": "Load Pseudo NER",
             "type": "python",
             "request": "launch",
