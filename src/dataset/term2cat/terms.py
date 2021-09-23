@@ -78,7 +78,63 @@ def get_article2names():
     return article2names
 
 
-DBPedia_categories = {"Agent"}
+DBPedia_categories = {
+    "ChemicalSubstance",
+    "GrossDomesticProduct",
+    "Protocol",
+    "Disease",
+    "GrossDomesticProductPerCapita",
+    "Unknown",
+    "Tank",
+    "Flag",
+    "Device",
+    "Identifier",
+    "MeanOfTransportation",
+    "Species",
+    "Agent",
+    "Colour",
+    "SportsSeason",
+    "Population",
+    "Biomolecule",
+    "Area",
+    "Currency",
+    "PersonFunction",
+    "UnitOfWork",
+    "ElectionDiagram",
+    "Diploma",
+    "Spreadsheet",
+    "StarCluster",
+    "Name",
+    "FileSystem",
+    "Work",
+    "Event",
+    "Statistic",
+    "AnatomicalStructure",
+    "Place",
+    "Algorithm",
+    "MedicalSpecialty",
+    "Cipher",
+    "Relationship",
+    "Browser",
+    "SportCompetitionResult",
+    "EthnicGroup",
+    "Medicine",
+    "Blazon",
+    "Food",
+    "Media",
+    "TopicalConcept",
+    "Language",
+    "List",
+    "GeneLocation",
+    "Demographics",
+    "Depth",
+    "PublicService",
+    "ChartsPlacements",
+    "TimePeriod",
+    "Altitude",
+    "Award",
+    "Activity",
+}
 
 
 def load_DBPedia_terms(name="Agent") -> Set:
@@ -103,7 +159,6 @@ def load_DBPedia_terms(name="Agent") -> Set:
         children = parent2children[parent]
         remained_category |= children - descendants
     del parent2children
-
     # Get Wikipedia Articles corresponding DBPedia Concepts
     cat2articles = defaultdict(set)
     with open(DBPedia_instance_type) as f:

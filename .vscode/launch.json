@@ -23,12 +23,14 @@
             "module": "cli.preprocess.load_pseudo_ner",
             "justMyCode": false,
             "args": [
-                "--raw-corpus-num",
-                "50000",
+                "--raw-corpus",
+                "data/raw/adc83b19e793491b1c6ea0fd8b46cd9f32e592fc",
                 "--focus-cats",
                 "T116_T126",
                 "--duplicate-cats",
                 "ChemicalSubstance_GeneLocation_Biomolecule_Unknown_TopicalConcept",
+                "--output_dir",
+                "data/pseudo/dbc9968f1dd87e3bfab1fee210700a95ebfa65e1"
             ],
         },
         {

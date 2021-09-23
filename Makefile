@@ -1,4 +1,4 @@
-DBPEDIA_CATS = Agent ChemicalSubstance GeneLocation Biomolecule Unknown TopicalConcept Activity 
+DBPEDIA_CATS = GeneLocation Species Disease Work SportsSeason Device Media SportCompetitionResult EthnicGroup Protocol Award Demographics MeanOfTransportation FileSystem Medicine Area Flag UnitOfWork MedicalSpecialty GrossDomesticProduct Biomolecule Identifier Blazon PersonFunction List TimePeriod Event Relationship Altitude TopicalConcept Spreadsheet Currency Cipher Browser Tank Food Depth Population Statistic StarCluster Language GrossDomesticProductPerCapita ChemicalSubstance ElectionDiagram Diploma Place Algorithm ChartsPlacements Unknown Activity PublicService Agent Name AnatomicalStructure Colour
 UMLS_CATS = T116
 FOCUS_CATS := T116 T126
 DUPLICATE_CATS := ChemicalSubstance GeneLocation Biomolecule Unknown TopicalConcept
@@ -75,10 +75,10 @@ $(DICT_FILES): $(DICT_DIR) $(UMLS_DIR) $(DBPEDIA_DIR)
 $(RAW_CORPUS_DIR):
 	mkdir -p $(RAW_CORPUS_DIR)
 $(PUBMED): $(RAW_CORPUS_DIR)
-	mkdir -p $(PUBMED)
-	for f in `seq -w 1062`; do wget https://ftp.ncbi.nlm.nih.gov/pubmed/baseline/pubmed21n$$f.xml.gz ; gunzip pubmed21n$$f.xml.gz & done
-	mv pubmed21n*.xml $(PUBMED)
-	for f in `ls $(PUBMED)/pubmed21n*.xml`; do poetry run python -m cli.preprocess.load_pubmed_txt $$f & done
+	# mkdir -p $(PUBMED)
+	# for f in `seq -w 1062`; do wget https://ftp.ncbi.nlm.nih.gov/pubmed/baseline/pubmed21n$$f.xml.gz ; gunzip pubmed21n$$f.xml.gz & done
+	# mv pubmed21n*.xml $(PUBMED)
+	# for f in `ls $(PUBMED)/pubmed21n*.xml`; do poetry run python -m cli.preprocess.load_pubmed_txt $$f & done
 	
 
 $(RAW_CORPUS_OUT): $(SOURCE_TXT_DIR)
@@ -91,7 +91,7 @@ $(PSEUDO_NER_DATA_DIR): $(DICT_FILES) $(PSEUDO_DATA_DIR) $(GOLD_DATA) $(RAW_CORP
 	@echo focused categories: $(FOCUS_CATS)
 	@echo duplicated categories: $(DUPLICATE_CATS)
 	@echo output dir: $(PSEUDO_NER_DATA_DIR)
-	poetry run python -m cli.preprocess.load_pseudo_ner --raw-corpus $(RAW_CORPUS_OUT) --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --duplicate-cats $(subst $() ,_,$(DUPLICATE_CATS)) --output_dir $(PSEUDO_NER_DATA_DIR)
+	poetry run python -m cli.preprocess.load_pseudo_ner --raw-corpus $(RAW_CORPUS_OUT) --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --duplicate-cats $(subst $() ,_,$(DUPLICATE_CATS)) --output-dir $(PSEUDO_NER_DATA_DIR) --gold-corpus $(GOLD_DATA)
 
 # $(PSEUDO_SPAN_CLASSIF_DATA_DIR): $(PSEUDO_NER_DATA_DIR) $(PSEUDO_DATA_DIR)
 # 	@echo make pseudo ner data translated into span classification from $(PSEUDO_NER_DATA_DIR).
