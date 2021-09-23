@@ -42,23 +42,29 @@
             ],
         },
         {
-            "name": "Load Terms",
+            "name": "Load Terms (UMLS)",
             "type": "python",
             "request": "launch",
             "module": "cli.preprocess.load_terms",
             "justMyCode": false,
             "args": [
+                "--category",
+                "T116",
+                "--output",
                 "data/dict/T116",
             ],
         },
         {
-            "name": "Load Terms",
+            "name": "Load Terms (DBPedia)",
             "type": "python",
             "request": "launch",
             "module": "cli.preprocess.load_terms",
             "justMyCode": false,
             "args": [
-                "data/dict/T116",
+                "--category",
+                "Activity",
+                "--output",
+                "data/dict/Activity",
             ],
         },
         {
