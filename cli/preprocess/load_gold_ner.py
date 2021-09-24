@@ -1,2 +1,28 @@
+import click
+from src.dataset.gold_dataset import load_gold_datasets
+import os
+from datasets import DatasetDict
+
+
+@click.command()
+@click.option("--focus-cats", type=str, default="T116_T126")
+@click.option(
+    "--output", type=str, default="data/gold/7bd600d361001d5acc3b1e3f2974b2536027ea20"
+)
+@click.option("--input-dir", type=str, default="data/gold/Medmentions/full/data")
+def cmd(focus_cats: str, output: str, input_dir: str):
+    if not os.path.exists(output):
+        gold_datasets = load_gold_datasets(focus_cats, input_dir)
+        gold_datasets.save_to_disk(output)
+
+
+def main():
+    cmd()
+
+
+if __name__ == "__main__":
+    main()
+
+
 if __name__ == "__main__":
     pass

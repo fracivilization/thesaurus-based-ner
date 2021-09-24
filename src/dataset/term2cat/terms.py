@@ -19,7 +19,7 @@ DBPedia_infobox = os.path.join(DBPedia_dir, "infobox-properties_lang=en.ttl")
 DBPedia_redirect = os.path.join(DBPedia_dir, "redirects_lang=en.ttl")
 
 
-def load_TUI_terms(tui="T025"):
+def get_descendants_TUIs(tui="T025"):
     tui2stn: Dict[str, str] = dict()
     with open(srdef) as f:
         for line in f:
@@ -29,7 +29,12 @@ def load_TUI_terms(tui="T025"):
             else:
                 raise NotImplementedError
     root_stn = tui2stn[tui]
-    include_tuis = {tui for tui, stn in tui2stn.items() if stn.startswith(root_stn)}
+    descendants_tuis = {tui for tui, stn in tui2stn.items() if stn.startswith(root_stn)}
+    return descendants_tuis
+
+
+def load_TUI_terms(tui="T025"):
+    include_tuis = get_descendants_TUIs(tui)
     with open(mrsty) as f:
         cuis = [
             line.strip().split("|")[0]

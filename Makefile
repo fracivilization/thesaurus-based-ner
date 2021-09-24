@@ -1,6 +1,6 @@
 DBPEDIA_CATS = GeneLocation Species Disease Work SportsSeason Device Media SportCompetitionResult EthnicGroup Protocol Award Demographics MeanOfTransportation FileSystem Medicine Area Flag UnitOfWork MedicalSpecialty GrossDomesticProduct Biomolecule Identifier Blazon PersonFunction List TimePeriod Event Relationship Altitude TopicalConcept Spreadsheet Currency Cipher Browser Tank Food Depth Population Statistic StarCluster Language GrossDomesticProductPerCapita ChemicalSubstance ElectionDiagram Diploma Place Algorithm ChartsPlacements Unknown Activity PublicService Agent Name AnatomicalStructure Colour
 UMLS_CATS = T116
-FOCUS_CATS := T116 T126
+FOCUS_CATS := T125 T126
 DUPLICATE_CATS := ChemicalSubstance GeneLocation Biomolecule Unknown TopicalConcept
 REMOVE_CATS := $(filter-out $(DUPLICATE_CATS), $(DBPEDIA_CATS))
 APPEARED_CATS := $(FOCUS_CATS) $(REMOVE_CATS)
@@ -63,7 +63,7 @@ $(GOLD_DIR)/MedMentions: $(GOLD_DIR)
 	for f in `find MedMentions/ | grep gz`; do gunzip $$f; done
 	mv MedMentions $(GOLD_DIR)/MedMentions
 $(GOLD_DATA): $(GOLD_DIR)/MedMentions
-	poetry run python -m cli.preprocess.load_gold_ner $(subst $() ,_,$(FOCUS_CATS)) $(GOLD_DATA)
+	poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_DIR)/MedMentions/full/data
 
 
 all: $(PSEUDO_NER_DATA_DIR) $(GOLD_DATA)

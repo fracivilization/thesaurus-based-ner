@@ -26,11 +26,13 @@
                 "--raw-corpus",
                 "data/raw/adc83b19e793491b1c6ea0fd8b46cd9f32e592fc",
                 "--focus-cats",
-                "T116_T126",
+                "T125_T126",
                 "--duplicate-cats",
                 "ChemicalSubstance_GeneLocation_Biomolecule_Unknown_TopicalConcept",
-                "--output_dir",
-                "data/pseudo/dbc9968f1dd87e3bfab1fee210700a95ebfa65e1"
+                "--output-dir",
+                "data/pseudo/828031693f82baaa934bba16e276cfcdc2e2c4fd",
+                "--gold-corpus",
+                "data/gold/f9a32f61ee73c46b459afe5b0c750a0b2ee7b5dc",
             ],
         },
         {
@@ -40,7 +42,12 @@
             "module": "cli.preprocess.load_gold_ner",
             "justMyCode": false,
             "args": [
-                "T116_T126"
+                "--focus-cats",
+                "T125_T126",
+                "--output",
+                "data/gold/f9a32f61ee73c46b459afe5b0c750a0b2ee7b5dc",
+                "--input-dir",
+                "data/gold/MedMentions/full/data",
             ],
         },
         {

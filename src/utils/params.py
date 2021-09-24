@@ -84,14 +84,6 @@ def get_ner_dataset_features(ner_labels: list) -> datasets.Features:
         {
             "tokens": datasets.Sequence(datasets.Value("string")),
             "ner_tags": datasets.Sequence(datasets.ClassLabel(names=ner_labels)),
-            "bos_ids": datasets.Sequence(
-                datasets.Value("int32")
-            ),  # bos: begin of sentence, if there are only one sentence, then "bos_ids" become [0]
-            "doc_id": datasets.Value("int32"),
-            "snt_id": datasets.Value(
-                "int32"
-            ),  # if snt_id == -1, it means that it is a not sentence but a document .
-            "POS": datasets.Sequence(datasets.Value("string")),
         }
     )
     return features
