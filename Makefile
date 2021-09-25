@@ -91,7 +91,14 @@ $(PSEUDO_NER_DATA_DIR): $(DICT_FILES) $(PSEUDO_DATA_DIR) $(GOLD_DATA) $(RAW_CORP
 	@echo focused categories: $(FOCUS_CATS)
 	@echo duplicated categories: $(DUPLICATE_CATS)
 	@echo output dir: $(PSEUDO_NER_DATA_DIR)
-	poetry run python -m cli.preprocess.load_pseudo_ner --raw-corpus $(RAW_CORPUS_OUT) --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --duplicate-cats $(subst $() ,_,$(DUPLICATE_CATS)) --output-dir $(PSEUDO_NER_DATA_DIR) --gold-corpus $(GOLD_DATA)
+	poetry run python -m cli.preprocess.load_pseudo_ner \
+		+raw_corpus=$(RAW_CORPUS_OUT) \
+		+ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
+		+ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
+		+output_dir=$(PSEUDO_NER_DATA_DIR) \
+        +gold_corpus=$(GOLD_DATA) 
+        
+
 
 # $(PSEUDO_SPAN_CLASSIF_DATA_DIR): $(PSEUDO_NER_DATA_DIR) $(PSEUDO_DATA_DIR)
 # 	@echo make pseudo ner data translated into span classification from $(PSEUDO_NER_DATA_DIR).

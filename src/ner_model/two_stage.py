@@ -21,7 +21,7 @@ def register_chunker_configs() -> None:
     cs = ConfigStore.instance()
     from .chunker.flair_model import FlairNPChunkerConfig
 
-    from .chunker.spacy_model import BeneparNPChunkerConfig
+    from .chunker.spacy_model import BeneparNPChunkerConfig, SpacyNPChunkerConfig
 
     cs.store(
         group="ner_model/chunker",
@@ -33,6 +33,12 @@ def register_chunker_configs() -> None:
         group="ner_model/chunker",
         name="BeneparNPChunker",
         node=BeneparNPChunkerConfig,
+    )
+
+    cs.store(
+        group="ner_model/chunker",
+        name="SpacyNPChunker",
+        node=SpacyNPChunkerConfig,
     )
 
 

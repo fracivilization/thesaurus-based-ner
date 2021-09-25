@@ -87,3 +87,20 @@ class BeneparNPChunker(Chunker):
             assert tokens[np.start : np.end] == [w.text for w in np]
             spans.append([np.start, np.end])
         return spans
+
+
+@dataclass
+class SpacyNPChunkerConfig(ChunkerConfig):
+    chunker_name: str = "SpacyNPChunker"
+    spacy_model: str = "en_core_sci_sm"
+
+
+class SpacyNPChunker(Chunker):
+    def __init__(self, cfg: SpacyNPChunkerConfig) -> None:
+        self.nlp = spacy.load(cfg.spacy_model)
+
+    def predict(self, tokens: List[str]) -> List[Span]:
+        raise NotImplementedError
+        # check input is a sentence
+        spans = []
+        return spans

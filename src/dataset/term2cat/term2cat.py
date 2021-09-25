@@ -7,6 +7,45 @@ from .twitter import load_twitter_main_dictionary, load_twitter_sibling_dictiona
 from hashlib import md5
 import os
 import json
+from dataclasses import dataclass
+from omegaconf import MISSING
+from .terms import DBPedia_categories
+from hydra.utils import get_original_cwd
+
+
+@dataclass
+class Term2CatConfig:
+    focus_cats: str = MISSING
+    duplicate_cats: str = MISSING
+    dict_dir: str = os.path.join(os.getcwd(), "data/dict")
+
+
+def load_term2cat(conf: Term2CatConfig):
+    focus_cats = set(conf.focus_cats.split("_"))
+    duplicate_cats = set(conf.duplicate_cats.split("_"))
+    remained_fc = DBPedia_categories - duplicate_cats  # fc: fake cat
+    cats = focus_cats | remained_fc
+    cat2terms = dict()
+    for cat in cats:
+        with open(os.path.join(conf.dict_dir, cat)) as f:
+            pass
+            terms = f.read().split("\n")
+            cat2terms[cat] = set(terms)
+    duplicate_terms = set()
+    for i1, t1 in enumerate(cat2terms.values()):
+        for i2, t2 in enumerate(cat2terms.values()):
+            if i2 > i1:
+                duplicated = t1 & t2
+                if duplicated:
+                    duplicate_terms |= duplicated
+    term2cat = dict()
+    for cat, terms in cat2terms.items():
+        for non_duplicated_term in terms - duplicate_terms:
+            if cat in remained_fc:
+                term2cat[non_duplicated_term] = "fc-%s" % cat
+            else:
+                term2cat[non_duplicated_term] = cat
+    return term2cat
 
 
 def load_jnlpba_main_term2cat():

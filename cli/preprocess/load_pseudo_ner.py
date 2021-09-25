@@ -1,48 +1,85 @@
-import click
-from src.dataset.term2cat.terms import (
-    load_TUI_terms,
-    DBPedia_categories,
-    load_DBPedia_terms,
-)
-import re
+from datasets.dataset_dict import DatasetDict
+from omegaconf import DictConfig
+import hydra
+from hydra.core.config_store import ConfigStore
+from dataclasses import dataclass
+from src.ner_model.abstract_model import NERModel, NERModelConfig
+from src.ner_model.two_stage import TwoStageConfig
+from src.ner_model.chunker.spacy_model import SpacyNPChunkerConfig
+from src.ner_model.typer.dict_match_typer import DictMatchTyperConfig
+from src.dataset.utils import DatasetConfig
+from omegaconf import MISSING, OmegaConf
+from src.builder import dataset_builder, ner_model_builder
+import logging
+from src.evaluator import NERTestor
+import json
+from datasets import Dataset
 import os
+from src.dataset.pseudo_dataset.pseudo_dataset import (
+    load_pseudo_dataset,
+    join_pseudo_and_gold_dataset,
+)
+from hydra.utils import get_original_cwd, to_absolute_path
+
+logger = logging.getLogger(__name__)
 
 
-@click.command()
-@click.option(
-    "--raw-corpus",
-    type=str,
-    default="data/raw/adc83b19e793491b1c6ea0fd8b46cd9f32e592fc",
-)
-@click.option("--focus-cats", type=str, default="T116_T126")
-@click.option(
-    "--duplicate-cats",
-    type=str,
-    default="ChemicalSubstance_GeneLocation_Biomolecule_Unknown_TopicalConcept",
-)
-@click.option(
-    "--output-dir",
-    type=str,
-    default="data/pseudo/dbc9968f1dd87e3bfab1fee210700a95ebfa65e1",
-)
-@click.option(
-    "--gold-corpus",
-    type=str,
-    default="data/gold/7bd600d361001d5acc3b1e3f2974b2536027ea20",
-)
-def cmd(
-    raw_corpus: str,
-    focus_cats: str,
-    duplicate_cats: str,
-    output_dir: str,
-    gold_corpus: str,
-):
-    pass
+@dataclass
+class PseudoAnnoConfig:
+    ner_model: NERModelConfig = TwoStageConfig(
+        chunker=SpacyNPChunkerConfig(), typer=DictMatchTyperConfig()
+    )
+    output_dir: str = MISSING
+    raw_corpus: str = MISSING
+    gold_corpus: str = MISSING
+    # duplicate_cats: str = MISSING
+    # focus_cats: str = MISSING
 
 
-def main():
-    cmd()
+from src.ner_model.two_stage import register_two_stage_configs
+
+cs = ConfigStore.instance()
+cs.store(name="base_pseudo_anno", node=PseudoAnnoConfig)
+cs.store(group="ner_model", name="base_ner_model_config", node=NERModelConfig)
+register_two_stage_configs()
+
+
+@hydra.main(config_path="../../conf", config_name="pseudo_anno")
+def main(cfg: PseudoAnnoConfig):
+    if not os.path.exists(os.path.join(get_original_cwd(), cfg.output_dir)):
+        raw_corpus = Dataset.load_from_disk(
+            os.path.join(get_original_cwd(), cfg.raw_corpus)
+        )
+        ner_model: NERModel = ner_model_builder(cfg.ner_model)
+        pseudo_dataset = load_pseudo_dataset(raw_corpus, ner_model)
+        gold_corpus = DatasetDict.load_from_disk(
+            os.path.join(get_original_cwd(), cfg.gold_corpus)
+        )
+        ret_datasets = join_pseudo_and_gold_dataset(pseudo_dataset, gold_corpus)
+        ret_datasets.save_to_disk(cfg.output_dir)
 
 
 if __name__ == "__main__":
     main()
+
+# @click.option(
+#     "--raw-corpus",
+#     type=str,
+#     default="data/raw/adc83b19e793491b1c6ea0fd8b46cd9f32e592fc",
+# )
+# @click.option("--focus-cats", type=str, default="T116_T126")
+# @click.option(
+#     "--duplicate-cats",
+#     type=str,
+#     default="ChemicalSubstance_GeneLocation_Biomolecule_Unknown_TopicalConcept",
+# )
+# @click.option(
+#     "--output-dir",
+#     type=str,
+#     default="data/pseudo/dbc9968f1dd87e3bfab1fee210700a95ebfa65e1",
+# )
+# @click.option(
+#     "--gold-corpus",
+#     type=str,
+#     default="data/gold/7bd600d361001d5acc3b1e3f2974b2536027ea20",
+# )

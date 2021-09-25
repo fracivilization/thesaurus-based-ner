@@ -64,12 +64,14 @@ class ComplexKeywordProcessor:
             case_sensitive_term2cat = dict()
             # 小文字化した際に2回以上出現するものを見つける。これらをcase sensitiveとする
             duplicated_lower_terms = []
-            for term, num in Counter([term.lower() for term in term2cat]).most_common():
+            for term, num in tqdm(
+                Counter([term.lower() for term in term2cat]).most_common()
+            ):
                 if num >= 2:
                     duplicated_lower_terms.append(term)
                 else:
                     break
-            for term, cat in term2cat.items():
+            for term, cat in tqdm(term2cat.items()):
                 if term.upper() == term:
                     # 略語(大文字に変化させても形状が変化しないもの)をcase_sensitive_term2catとする
                     #  & これらを　term2catから取り除く
@@ -77,7 +79,7 @@ class ComplexKeywordProcessor:
                 elif term.lower() in duplicated_lower_terms:
                     case_sensitive_term2cat[term] = cat
             # 残りのものをcase insensitiveとする
-            for term in case_sensitive_term2cat:
+            for term in tqdm(case_sensitive_term2cat):
                 del term2cat[term]
 
             self.reversed_case_sensitive_keyword_processor = KeywordProcessor(
