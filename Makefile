@@ -53,7 +53,7 @@ $(DBPEDIA_DIR): $(DATA_DIR)
 	wget https://databus.dbpedia.org/dbpedia/wikidata/labels/2021.03.01/labels.ttl.bz2 # Wikidata Labels
 	wget https://databus.dbpedia.org/dbpedia/wikidata/ontology-subclassof/2021.02.01/ontology-subclassof.ttl.bz2 # Wikidata SubClassOf
 	wget https://databus.dbpedia.org/dbpedia/wikidata/alias/2021.02.01/alias.ttl.bz2 # Wikidata Alias
-	bunzip *.bz2
+	bunzip2 *.bz2
 	mv *.ttl $(DBPEDIA_DIR)
 	mv *.nt $(DBPEDIA_DIR)
 
