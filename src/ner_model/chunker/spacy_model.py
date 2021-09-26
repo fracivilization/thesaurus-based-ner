@@ -7,6 +7,7 @@ from datasets import DatasetDict
 from spacy.tokens.doc import Doc
 from dataclasses import dataclass
 from logging import getLogger
+from spacy.util import DummyTokenizer
 
 logger = getLogger(__name__)
 
@@ -89,18 +90,25 @@ class BeneparNPChunker(Chunker):
         return spans
 
 
+class IdentityTokenizer(DummyTokenizer):
+    def __init__(self, vocab):
+        self.vocab = vocab
+
+    def __call__(self, words):
+        return Doc(self.vocab, words=words)
+
+
 @dataclass
 class SpacyNPChunkerConfig(ChunkerConfig):
     chunker_name: str = "SpacyNPChunker"
-    spacy_model: str = "en_core_sci_sm"
+    spacy_model: str = "en_core_web_sm"
 
 
 class SpacyNPChunker(Chunker):
     def __init__(self, cfg: SpacyNPChunkerConfig) -> None:
         self.nlp = spacy.load(cfg.spacy_model)
+        self.nlp.tokenizer = IdentityTokenizer(self.nlp.vocab)
 
     def predict(self, tokens: List[str]) -> List[Span]:
-        raise NotImplementedError
-        # check input is a sentence
-        spans = []
-        return spans
+        doc = self.nlp(tokens)
+        return [(chunk.start, chunk.end) for chunk in doc.noun_chunks]

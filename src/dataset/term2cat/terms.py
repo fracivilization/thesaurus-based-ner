@@ -1,5 +1,5 @@
 import os
-from typing import Dict, Set
+from typing import Dict, Set, List
 from tqdm import tqdm
 from collections import defaultdict
 from rdflib import Graph, URIRef
@@ -10,6 +10,7 @@ mrsty = os.path.join(umls_dir, "META", "MRSTY.RRF")
 mrconso = os.path.join(umls_dir, "META", "MRCONSO.RRF")
 srdef = os.path.join(umls_dir, "NET", "SRDEF")
 DBPedia_dir = "data/DBPedia"
+# DBPedia(Wikipedia)
 DBPedia_ontology = os.path.join(DBPedia_dir, "ontology--DEV_type=parsed_sorted.nt")
 DBPedia_instance_type = os.path.join(DBPedia_dir, "instance-types_lang=en_specific.ttl")
 DBPedia_mapping_literals = os.path.join(
@@ -17,6 +18,11 @@ DBPedia_mapping_literals = os.path.join(
 )
 DBPedia_infobox = os.path.join(DBPedia_dir, "infobox-properties_lang=en.ttl")
 DBPedia_redirect = os.path.join(DBPedia_dir, "redirects_lang=en.ttl")
+# DBPedia (Wikidata)
+DBPedia_WD_instance_type = os.path.join(DBPedia_dir, "instance-types_specific.ttl")
+DBPedia_WD_SubClassOf = os.path.join(DBPedia_dir, "ontology-subclassof.ttl")
+DBPedia_WD_labels = os.path.join(DBPedia_dir, "labels.ttl")
+DBPedia_WD_alias = os.path.join(DBPedia_dir, "alias.ttl")
 
 
 def get_descendants_TUIs(tui="T025"):
@@ -142,6 +148,91 @@ DBPedia_categories = {
 }
 
 
+def terms_from_Wikipedia_for_cats(cats: List[str]) -> List[str]:
+    # Get Wikipedia Articles corresponding DBPedia Concepts
+    cat2articles = defaultdict(set)
+    with open(DBPedia_instance_type) as f:
+        for line in f:
+            line = line.strip().split()
+            cat2articles[line[2]] |= {line[0]}
+            assert len(line) == 4
+    articles = set()
+    for c in cats:
+        articles |= cat2articles[c]
+    del cat2articles
+
+    # Expand Wikipedia Articles using Redirect
+    article2redirects = defaultdict(set)
+    with open(DBPedia_redirect) as f:
+        for line in tqdm(f):
+            s, p, o, _ = line.strip().split()
+            article2redirects[o] |= {s}
+
+    # Get Names for Wikipedia Articles
+    article2names = get_article2names()
+
+    terms = []
+    for article in tqdm(articles):
+        expanded_articles = {article}
+        expanded_articles |= article2redirects[article]
+        for a in expanded_articles:
+            terms += list(article2names[a])
+    return terms
+
+
+def get_entity2names():
+    # Translate DBPedia Entities into string by
+    # DBPedia_WD_labels
+    # DBPedia_WD_alias
+    entity2names = defaultdict(set)
+    pattern = (
+        "(<[^>]+>) "
+        + "<http://www.w3.org/2000/01/rdf-schema#label>"
+        + ' "([^"]+)"@en .'
+    )
+    pattern = re.compile(pattern)
+    with open(DBPedia_WD_labels) as f:
+        for line in tqdm(f):
+            if pattern.match(line):
+                entity, label = pattern.findall(line)[0]
+                entity2names[entity] |= {label}
+
+    pattern = "(<[^>]+>) " + "<http://dbpedia.org/ontology/alias>" + ' "([^"]+)"@en .'
+    pattern = re.compile(pattern)
+    with open(DBPedia_WD_labels) as f:
+        for line in tqdm(f):
+            if pattern.match(line):
+                entity, label = pattern.findall(line)[0]
+                entity2names[entity] |= {label}
+    # DBPedia_WD_labels
+    # DBPedia_WD_alias
+    return entity2names
+
+
+def terms_from_Wikidata_for_cats(cats: List[str]) -> List[str]:
+    # Get DBPedia Entities using
+    # DBPedia_WD_instance_type
+    # DBPedia_WD_SubClassOf
+    class2entities = defaultdict(set)
+    with open(DBPedia_WD_instance_type) as f:
+        for line in f:
+            ent, _, cl, _ = line.split()
+            class2entities[cl] |= {ent}
+    with open(DBPedia_WD_SubClassOf) as f:
+        for line in f:
+            ent, _, cl, _ = line.split()
+            class2entities[cl] |= {ent}
+    entities = set()
+    for cat in cats:
+        entities |= class2entities[cat]
+
+    entity2names = get_entity2names()
+    terms = set()
+    for entity in entities:
+        terms |= entity2names[entity]
+    pass
+
+
 def load_DBPedia_terms(name="Agent") -> Set:
     assert name in DBPedia_categories
 
@@ -164,32 +255,7 @@ def load_DBPedia_terms(name="Agent") -> Set:
         children = parent2children[parent]
         remained_category |= children - descendants
     del parent2children
-    # Get Wikipedia Articles corresponding DBPedia Concepts
-    cat2articles = defaultdict(set)
-    with open(DBPedia_instance_type) as f:
-        for line in f:
-            line = line.strip().split()
-            cat2articles[line[2]] |= {line[0]}
-            assert len(line) == 4
-    articles = set()
-    for d in descendants:
-        articles |= cat2articles[d]
-    del cat2articles
 
-    # Expand Wikipedia Articles using Redirect
-    article2redirects = defaultdict(set)
-    with open(DBPedia_redirect) as f:
-        for line in tqdm(f):
-            s, p, o, _ = line.strip().split()
-            article2redirects[o] |= {s}
-
-    # Get Names for Wikipedia Articles
-    article2names = get_article2names()
-
-    terms = []
-    for article in tqdm(articles):
-        expanded_articles = {article}
-        expanded_articles |= article2redirects[article]
-        for a in expanded_articles:
-            terms += list(article2names[a])
+    terms = terms_from_Wikidata_for_cats(descendants)
+    terms += terms_from_Wikipedia_for_cats(descendants)
     return set(terms)
