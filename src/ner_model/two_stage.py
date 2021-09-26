@@ -1,3 +1,5 @@
+from src.ner_model.chunker import chunker_builder
+from src.ner_model.typer import typer_builder
 from src.ner_model.typer.abstract_model import TyperConfig
 from typing import List
 from hydra.core.config_store import ConfigStore
@@ -68,11 +70,30 @@ def register_two_stage_configs() -> None:
 
 
 class TwoStageModel(NERModel):
-    def __init__(self, chunker: Chunker, typer: Typer, datasets: DatasetDict) -> None:
+    def __init__(self, config: TwoStageConfig, datasets: DatasetDict) -> None:
         super().__init__()
-        self.chunker = chunker
-        self.typer = typer
+        self.conf = config
+        self.chunker = chunker_builder(config.chunker)
+        self.typer = typer_builder(config.typer, datasets)
         self.datasets = datasets
+
+    def predict(self, tokens: List[str]) -> List[str]:
+        chunk = self.chunker.predict(tokens)
+        starts = [s for s, e in chunk]
+        ends = [e for s, e in chunk]
+        types = self.typer.predict(tokens, starts, ends)
+        ner_tags = ["O"] * len(tokens)
+        assert len(starts) == len(ends)
+        assert len(ends) == len(types)
+        for s, e, l in zip(starts, ends, types):
+            if l != "O":
+                for i in range(s, e):
+                    if i == s:
+                        ner_tags[i] = "B-%s" % l
+                    else:
+                        ner_tags[i] = "I-%s" % l
+        assert len(tokens) == len(ner_tags)
+        return ner_tags
 
     def batch_predict(self, tokens: List[List[str]]) -> List[List[str]]:
         chunks = self.chunker.batch_predict(tokens)

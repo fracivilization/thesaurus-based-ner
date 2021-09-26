@@ -34,6 +34,8 @@ class TyperConfig:
 
 
 class Typer:
+    conf = dict()
+
     def predict(
         self, tokens: List[str], starts: List[str], ends: List[str]
     ) -> List[str]:

@@ -26,7 +26,7 @@ class NERTestor:
         }
         self.args = {
             "ner_dataset": self.datasets_hash,
-            "ner_model": ner_model.args,
+            "ner_model": ner_model.conf,
         }
         self.output_dir = Path("data/output").joinpath(
             md5(str(self.args).encode()).hexdigest()

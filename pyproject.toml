@@ -31,6 +31,7 @@ scispacy = "^0.4.0"
 en_core_sci_sm = {url = "https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.4.0/en_core_sci_sm-0.4.0.tar.gz"}
 en_core_web_sm = {url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.0.0/en_core_web_sm-3.0.0.tar.gz"}
 rdflib = "^6.0.1"
+PyYAML = "^5.4.1"
 
 
 [tool.poetry.dev-dependencies]

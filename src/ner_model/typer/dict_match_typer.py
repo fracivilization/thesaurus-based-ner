@@ -27,17 +27,17 @@ class DictMatchTyper(Typer):
         # argumentを追加する...後でいいか...
         self.keyword_processor = ComplexKeywordProcessor(self.term2cat)
 
-    def predict(self, tokens: List[str], start: int, end: int) -> SpanClassifierOutput:
-        term = " ".join(tokens[start:end])
-        keywords = self.keyword_processor.extract_keywords(term)
-        end_match_keyword = [(l, s, e) for l, s, e in keywords if e == len(term)]
-        if end_match_keyword:
-            l, s, e = sorted(end_match_keyword, key=lambda x: x[1])[0]
-            return SpanClassifierOutput(label=l)
-        else:
-            return SpanClassifierOutput(label="O")
-
-    def batch_predict(
-        self, tokens: List[List[str]], start: List[int], end: List[int]
-    ) -> List[SpanClassifierOutput]:
-        return [self.predict(tok, s, e) for tok, s, e in tqdm(zip(tokens, start, end))]
+    def predict(
+        self, tokens: List[str], starts: List[str], ends: List[str]
+    ) -> List[str]:
+        labels = []
+        for start, end in zip(starts, ends):
+            term = " ".join(tokens[start:end])
+            keywords = self.keyword_processor.extract_keywords(term)
+            end_match_keyword = [(l, s, e) for l, s, e in keywords if e == len(term)]
+            if end_match_keyword:
+                l, s, e = sorted(end_match_keyword, key=lambda x: x[1])[0]
+                labels.append(l)
+            else:
+                labels.append("O")
+        return labels

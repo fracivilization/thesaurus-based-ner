@@ -1,6 +1,7 @@
 from hashlib import md5
 from datasets import Dataset, DatasetDict
 from pathlib import Path
+from datasets.info import DatasetInfo
 from seqeval.metrics.sequence_labeling import get_entities
 import os
 import datasets
@@ -12,18 +13,93 @@ from src.utils.params import pseudo_annotated_time
 import shutil
 from dataclasses import dataclass
 from logging import getLogger
+from tqdm import tqdm
+from collections import Counter
+import json
+import yaml
+from omegaconf import OmegaConf
+from hydra.utils import get_original_cwd
+from typing import List
 
 logger = getLogger(__name__)
 
 
 def load_pseudo_dataset(raw_corpus: Dataset, ner_model: NERModel) -> Dataset:
-    pass
+    desc = dict()
+    desc["raw_corpus"] = json.loads(raw_corpus.info.description)
+    desc["ner_model"] = yaml.safe_load(OmegaConf.to_yaml(ner_model.conf))
+
+    buffer_dir = Path(get_original_cwd()).joinpath(
+        "data",
+        "buffer",
+        md5(("Pseudo Dataset from " + str(desc)).encode()).hexdigest(),
+    )
+
+    if not buffer_dir.exists():
+        ret_tokens = []
+        ner_tags = []
+        for tokens in tqdm(raw_corpus["tokens"]):
+            pred_tags = ner_model.predict(tokens)
+            if any(tag != "O" for tag in pred_tags):
+                ret_tokens.append(tokens)
+                ner_tags.append(pred_tags)
+        ner_labels = [
+            l
+            for l, c in Counter([tag for snt in ner_tags for tag in snt]).most_common()
+        ]
+        pseudo_dataset = Dataset.from_dict(
+            {"tokens": ret_tokens, "ner_tags": ner_tags},
+            info=DatasetInfo(
+                description=desc, features=get_ner_dataset_features(ner_labels)
+            ),
+        )
+        pseudo_dataset.save_to_disk(str(buffer_dir))
+    pseudo_dataset = Dataset.load_from_disk(str(buffer_dir))
+    return pseudo_dataset
+
+
+def get_tags(ner_dataset: Dataset):
+    ner_labels = ner_dataset.features["ner_tags"].feature.names
+    ner_tags = []
+    for snt in ner_dataset["ner_tags"]:
+        for tag in snt:
+            ner_tags.append(ner_labels[tag])
+    return ner_tags
+
+
+import copy
+
+
+def change_ner_label_names(ner_dataset: Dataset, label_names: List[str]):
+    info = copy.deepcopy(ner_dataset.info)
+    old_names = info.features["ner_tags"].feature.names
+    raw_ner_tags = []
+    for snt in ner_dataset["ner_tags"]:
+        raw_ner_tags.append([old_names[tag] for tag in snt])
+    info.features["ner_tags"].feature.names = label_names
+    new_ner_dataset = ner_dataset.to_dict()
+    new_ner_dataset["ner_tags"] = raw_ner_tags
+    return Dataset.from_dict(new_ner_dataset, info=info)
 
 
 def join_pseudo_and_gold_dataset(
     pseudo_dataset: Dataset, gold_dataset: DatasetDict
 ) -> DatasetDict:
-    pass
+    ner_tags = []
+    ner_tags += get_tags(pseudo_dataset)
+    ner_tags += get_tags(gold_dataset["validation"])
+    ner_tags += get_tags(gold_dataset["test"])
+    label_names = [l for l, c in Counter(ner_tags).most_common()]
+    ret = DatasetDict(
+        {
+            "train": change_ner_label_names(pseudo_dataset, label_names),
+            "validation": change_ner_label_names(
+                gold_dataset["validation"], label_names
+            ),
+            "test": change_ner_label_names(gold_dataset["test"], label_names),
+        }
+    )
+    return ret
 
 
 # class PseudoDataset:

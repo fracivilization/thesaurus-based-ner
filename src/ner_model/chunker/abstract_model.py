@@ -21,7 +21,7 @@ class Chunker:
         span_detection_datasets: DatasetDict,
     ) -> None:
         self.span_detection_datasets = span_detection_datasets
-        self.argss = []
+        self.conf = []
 
     def predict(self, tokens: List[str]) -> List[Span]:
         raise NotImplementedError

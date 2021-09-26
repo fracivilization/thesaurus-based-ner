@@ -171,12 +171,12 @@ class BONDNERModel(BERTNERModelBase):
             bond_args.n_gpu = 1
         bond_args.device = device
 
-        self.args["datasets"] = {
+        self.conf["datasets"] = {
             key: split.__hash__() for key, split in ner_dataset.items()
         }
-        self.args["bond_args"] = bond_args
+        self.conf["bond_args"] = bond_args
         output_dir = Path("data/output").joinpath(
-            md5(str(self.args).encode()).hexdigest()
+            md5(str(self.conf).encode()).hexdigest()
         )
         self.output_dir = output_dir
         logger.info("output_dir is %s" % str(output_dir))

@@ -273,7 +273,7 @@ def register_BERT_configs() -> None:
 class BERTNERModel(BERTNERModelBase):
     def __init__(self, ner_dataset: DatasetDict, config: BERTModelConfig):
         super().__init__()
-        self.args["config"] = config
+        self.conf["config"] = config
         train_args_dict = {k: v for k, v in config.train_args.items() if k != "_n_gpu"}
         train_args = OrigTrainingArguments(**train_args_dict)
         self.train_args = train_args
@@ -288,9 +288,9 @@ class BERTNERModel(BERTNERModelBase):
         self.datasets_hash = {
             key: split.__hash__() for key, split in ner_dataset.items()
         }
-        self.args["ner_dataset"] = self.datasets_hash
+        self.conf["ner_dataset"] = self.datasets_hash
         config.train_args.output_dir = os.path.join(
-            "data/output", md5(str(self.args).encode()).hexdigest()
+            "data/output", md5(str(self.conf).encode()).hexdigest()
         )
         logger.info("output dir: %s" % config.train_args.output_dir)
         logger.info("Start Loading BERT")

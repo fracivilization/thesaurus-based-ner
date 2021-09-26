@@ -19,7 +19,8 @@ import copy
 import pickle
 import sys
 from src.dataset.term2cat.term2cat import Term2Cat
-
+import os
+from hydra.utils import get_original_cwd
 
 logger = getLogger(__name__)
 
@@ -55,7 +56,8 @@ def translate_char_level_to_token_level(
 
 class ComplexKeywordProcessor:
     def __init__(self, term2cat: Dict[str, str]) -> None:
-        buffer_dir = Path("data").joinpath(
+        buffer_dir = Path(get_original_cwd()).joinpath(
+            "data",
             "buffer",
             md5(("ComplexKeywordProcessor from " + str(term2cat)).encode()).hexdigest(),
         )
@@ -317,10 +319,10 @@ class NERMatcherModel(NERModel):
         self.term2cat = term2cat.term2cat
         self.matcher = NERMatcher(term2cat=self.term2cat)
         self.chunker = chunker
-        self.args["term2cat"] = self.term2cat
-        self.args["chunker_usage"] = chunker_usage
+        self.conf["term2cat"] = self.term2cat
+        self.conf["chunker_usage"] = chunker_usage
         if chunker:
-            self.args["chunker"] = chunker.args
+            self.conf["chunker"] = chunker.args
         self.label_names = ["O"] + [
             tag % label
             for label in sorted(set(self.term2cat.values()))

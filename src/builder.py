@@ -28,31 +28,9 @@ def ner_model_builder(config: NERModelConfig, datasets: DatasetDict = None) -> N
     elif config.ner_model_name == "BOND":
         return BONDNERModel(datasets, config)
     elif config.ner_model_name == "TwoStage":
-        return two_stage_model_builder(config, datasets)
-
-
-def chunker_builder(config: ChunkerConfig):
-    if config.chunker_name == "FlairNPChunker":
-        return FlairNPChunker()
-    elif config.chunker_name == "BeneparNPChunker":
-        return BeneparNPChunker()
-    elif config.chunker_name == "SpacyNPChunker":
-        return SpacyNPChunker(config)
-    else:
-        raise NotImplementedError
-
-
-def typer_builder(config: TyperConfig, datasets: DatasetDict):
-    if config.typer_name == "DictMatchTyper":
-        # raise NotImplementedError
-        return DictMatchTyper(config)
-    elif config.typer_name == "Inscon":
-        return InsconTyper(config, datasets)
-    pass
+        return TwoStageModel(config, datasets)
 
 
 def two_stage_model_builder(config: TwoStageConfig, datasets: DatasetDict = None):
-    chunker: Chunker = chunker_builder(config.chunker)
-    typer: Typer = typer_builder(config.typer, datasets)
-    return TwoStageModel(chunker, typer, datasets)
+    return TwoStageModel(config, datasets)
     pass

@@ -24,6 +24,7 @@ def load_term2cat(conf: Term2CatConfig):
     focus_cats = set(conf.focus_cats.split("_"))
     duplicate_cats = set(conf.duplicate_cats.split("_"))
     remained_fc = DBPedia_categories - duplicate_cats  # fc: fake cat
+    # remained_fc = set()
     cats = focus_cats | remained_fc
     cat2terms = dict()
     for cat in cats:

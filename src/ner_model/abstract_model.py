@@ -8,12 +8,12 @@ class NERModel:
     """Abstract Class for Evaluation"""
 
     def __init__(self) -> None:
-        self.args = dict()
+        self.conf = dict()
         self.label_names = []
 
     def __post_init__(self):
         # Please specify args and labels names
-        assert self.args != dict()
+        assert self.conf != dict()
         assert self.label_names != []
 
     def predict(self, tokens: List[str]) -> List[str]:
