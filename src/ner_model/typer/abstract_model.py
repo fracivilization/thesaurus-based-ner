@@ -46,6 +46,12 @@ class Typer:
     ) -> List[List[str]]:
         assert len(tokens) == len(starts)
         assert len(starts) == len(ends)
+        labels = []
+        for tok, st, en in zip(tokens, starts, ends):
+            labels.append(self.predict(tok, st, en))
+        return labels
+
+    def train(self):
         raise NotImplementedError
 
 

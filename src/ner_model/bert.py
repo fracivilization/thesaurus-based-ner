@@ -31,16 +31,18 @@ logger = logging.getLogger(__name__)
 
 
 def accent(text):
-    text_a = re.sub(r"à|â", "a", text)
+    text_a = re.sub(r"à|â|á", "a", text)
     text_i = re.sub(r"ï|î", "i", text_a)
     text_u = re.sub(r"û|ù|ü", "u", text_i)
     text_e = re.sub(r"è|é|ê|ë", "e", text_u)
     text_o = re.sub(r"Ô", "o", text_e)
-    text_A = re.sub(r"À|Â", "A", text_o)
+    text_c = re.sub(r"ç", "c", text_o)
+    text_A = re.sub(r"À|Â", "A", text_c)
     text_I = re.sub(r"Ï|Î", "I", text_A)
     text_U = re.sub(r"Û|Ù", "U", text_I)
     text_E = re.sub(r"È|É|Ê|Ë", "E", text_U)
-    text_O = re.sub(r"Ô", "O", text_E)
+    text_C = re.sub(r"Ç", "C", text_E)
+    text_O = re.sub(r"Ô", "O", text_C)
     return text_O
 
 

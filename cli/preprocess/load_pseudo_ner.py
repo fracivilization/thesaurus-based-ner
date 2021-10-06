@@ -56,7 +56,7 @@ def main(cfg: PseudoAnnoConfig):
             os.path.join(get_original_cwd(), cfg.gold_corpus)
         )
         ret_datasets = join_pseudo_and_gold_dataset(pseudo_dataset, gold_corpus)
-        ret_datasets.save_to_disk(cfg.output_dir)
+        ret_datasets.save_to_disk(os.path.join(get_original_cwd(), cfg.output_dir))
 
 
 if __name__ == "__main__":

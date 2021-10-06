@@ -32,6 +32,9 @@ en_core_sci_sm = {url = "https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/rele
 en_core_web_sm = {url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.0.0/en_core_web_sm-3.0.0.tar.gz"}
 rdflib = "^6.0.1"
 PyYAML = "^5.4.1"
+ipython = "^7.28.0"
+ipymarkup = "^0.9.0"
+loguru = "^0.5.3"
 
 
 [tool.poetry.dev-dependencies]

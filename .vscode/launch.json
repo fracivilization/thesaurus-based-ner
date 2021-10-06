@@ -77,15 +77,20 @@
             "request": "launch",
             "module": "cli.train",
             "justMyCode": false,
-            "args": [],
+            "args": [
+                "++dataset.name_or_path=data/pseudo/828031693f82baaa934bba16e276cfcdc2e2c4fd"
+            ],
         },
         {
-            "name": "Eval",
+            "name": "Compare",
             "type": "python",
             "request": "launch",
-            "module": "cli.eval",
+            "module": "cli.compare_result",
             "justMyCode": false,
-            "args": [],
+            "args": [
+                "outputs/2021-09-28/16-58-30/data/output/0d71eb7b67f1d1aec0d530f0f4ccaf11/prediction_for_validation.dataset/", // Dict Match
+                "outputs/2021-09-28/10-15-11/data/output/17cc08c939356bf90aefb5a5c7015f04/prediction_for_validation.dataset/", // NP Chunker + Classifier + Negative
+            ],
         },
         {
             "name": "Python: Main",

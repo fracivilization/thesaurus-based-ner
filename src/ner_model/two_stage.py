@@ -108,12 +108,13 @@ class TwoStageModel(NERModel):
             snt_ner_tags = ["O"] * len(snt_tokens)
             assert len(snt_starts) == len(snt_ends)
             assert len(snt_ends) == len(snt_types)
-            for s, e, l in zip(snt_starts, snt_ends, snt_types):
-                for i in range(s, e):
-                    if i == s:
-                        snt_ner_tags[i] = "B-%s" % l
-                    else:
-                        snt_ner_tags[i] = "I-%s" % l
+            for s, e, label in zip(snt_starts, snt_ends, snt_types):
+                if label != "O":
+                    for i in range(s, e):
+                        if i == s:
+                            snt_ner_tags[i] = "B-%s" % label
+                        else:
+                            snt_ner_tags[i] = "I-%s" % label
             assert len(snt_tokens) == len(snt_ner_tags)
             ner_tags.append(snt_ner_tags)
         return ner_tags

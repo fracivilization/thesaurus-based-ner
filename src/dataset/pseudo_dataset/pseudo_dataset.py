@@ -50,7 +50,8 @@ def load_pseudo_dataset(raw_corpus: Dataset, ner_model: NERModel) -> Dataset:
         pseudo_dataset = Dataset.from_dict(
             {"tokens": ret_tokens, "ner_tags": ner_tags},
             info=DatasetInfo(
-                description=desc, features=get_ner_dataset_features(ner_labels)
+                description=json.dumps(desc),
+                features=get_ner_dataset_features(ner_labels),
             ),
         )
         pseudo_dataset.save_to_disk(str(buffer_dir))
@@ -76,10 +77,15 @@ def change_ner_label_names(ner_dataset: Dataset, label_names: List[str]):
     raw_ner_tags = []
     for snt in ner_dataset["ner_tags"]:
         raw_ner_tags.append([old_names[tag] for tag in snt])
-    info.features["ner_tags"].feature.names = label_names
+    desc = info.description
     new_ner_dataset = ner_dataset.to_dict()
     new_ner_dataset["ner_tags"] = raw_ner_tags
-    return Dataset.from_dict(new_ner_dataset, info=info)
+    return Dataset.from_dict(
+        new_ner_dataset,
+        info=DatasetInfo(
+            description=desc, features=get_ner_dataset_features(label_names)
+        ),
+    )
 
 
 def join_pseudo_and_gold_dataset(

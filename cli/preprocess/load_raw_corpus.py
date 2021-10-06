@@ -4,6 +4,7 @@ import click
 from src.dataset.raw_corpus import RawCorpusDataset
 import os
 from logging import getLogger
+from datasets import Dataset
 
 logger = getLogger(__name__)
 
@@ -25,7 +26,7 @@ def cmd(raw_sentence_num: int, output_dir: str, source_txt_dir: str):
         raw_corpus = RawCorpusDataset(source_txt_dir, raw_sentence_num)
         tokens = raw_corpus.load_tokens()
         tokens.save_to_disk(output_dir)
-    tokens.load_from_disk(output_dir)
+    tokens = Dataset.load_from_disk(output_dir)
     logger.info(tokens.info.description)
 
 

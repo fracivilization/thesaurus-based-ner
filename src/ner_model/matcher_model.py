@@ -54,23 +54,58 @@ def translate_char_level_to_token_level(
     return token_based_spans
 
 
+from inflection import UNCOUNTABLES, PLURALS
+import re
+
+PLURAL_RULES = [(re.compile(rule), replacement) for rule, replacement in PLURALS]
+
+
+def pluralize(word: str) -> str:
+    """
+    Return the plural form of a word.
+
+    Examples::
+
+        >>> pluralize("posts")
+        'posts'
+        >>> pluralize("octopus")
+        'octopi'
+        >>> pluralize("sheep")
+        'sheep'
+        >>> pluralize("CamelOctopus")
+        'CamelOctopi'
+
+    """
+    if not word or word.lower() in UNCOUNTABLES:
+        return word
+    else:
+        for rule, replacement in PLURAL_RULES:
+            if rule.search(word):
+                return rule.sub(replacement, word)
+        return word
+
+
 class ComplexKeywordProcessor:
     def __init__(self, term2cat: Dict[str, str]) -> None:
         buffer_dir = Path(get_original_cwd()).joinpath(
             "data",
             "buffer",
-            md5(("ComplexKeywordProcessor from " + str(term2cat)).encode()).hexdigest(),
+            md5(
+                (
+                    "ComplexKeywordProcessor from " + str(sorted(term2cat.keys()))
+                ).encode()
+            ).hexdigest(),
         )
         if not buffer_dir.exists():
             term2cat = copy.copy(term2cat)  # pythonでは参照渡しが行われるため
             case_sensitive_term2cat = dict()
             # 小文字化した際に2回以上出現するものを見つける。これらをcase sensitiveとする
-            duplicated_lower_terms = []
+            duplicated_lower_terms = set()
             for term, num in tqdm(
                 Counter([term.lower() for term in term2cat]).most_common()
             ):
                 if num >= 2:
-                    duplicated_lower_terms.append(term)
+                    duplicated_lower_terms.add(term)
                 else:
                     break
             for term, cat in tqdm(term2cat.items()):
@@ -92,18 +127,18 @@ class ComplexKeywordProcessor:
             )
             for term, cat in tqdm(case_sensitive_term2cat.items()):
                 self.reversed_case_sensitive_keyword_processor.add_keyword(
-                    "".join(reversed(term)), cat
+                    term[::-1], cat
                 )
             for term, cat in tqdm(term2cat.items()):
                 # case insensitiveのものに関しては複数形を追加する
-                pluralized_term = inflection.pluralize(term)
+                pluralized_term = pluralize(term)
                 self.reversed_case_insensitive_keyword_processor.add_keyword(
-                    "".join(reversed(term)), cat
+                    term[::-1], cat
                 )
                 self.reversed_case_insensitive_keyword_processor.add_keyword(
-                    "".join(reversed(pluralized_term)), cat
+                    pluralized_term[::-1], cat
                 )
-            sys.setrecursionlimit(10000)
+            sys.setrecursionlimit(1000000000)
             buffer_dir.mkdir()
             with open(
                 buffer_dir.joinpath("reversed_case_sensitive_keyword_processor.pkl"),

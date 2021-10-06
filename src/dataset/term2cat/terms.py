@@ -1,9 +1,13 @@
 import os
+import pickle
 from typing import Dict, Set, List
 from tqdm import tqdm
 from collections import defaultdict
 from rdflib import Graph, URIRef
 import re
+from logging import getLogger
+
+logger = getLogger(__name__)
 
 umls_dir = "data/2021AA-full/data/2021AA"
 mrsty = os.path.join(umls_dir, "META", "MRSTY.RRF")
@@ -181,31 +185,40 @@ def terms_from_Wikipedia_for_cats(cats: List[str]) -> List[str]:
 
 
 def get_entity2names():
-    # Translate DBPedia Entities into string by
-    # DBPedia_WD_labels
-    # DBPedia_WD_alias
-    entity2names = defaultdict(set)
-    pattern = (
-        "(<[^>]+>) "
-        + "<http://www.w3.org/2000/01/rdf-schema#label>"
-        + ' "([^"]+)"@en .'
-    )
-    pattern = re.compile(pattern)
-    with open(DBPedia_WD_labels) as f:
-        for line in tqdm(f):
-            if pattern.match(line):
-                entity, label = pattern.findall(line)[0]
-                entity2names[entity] |= {label}
+    logger.info("loading entity2names")
+    output_dir = "data/buffer/entity2names.pkl"
+    if not os.path.exists(output_dir):
+        # Translate DBPedia Entities into string by
+        # DBPedia_WD_labels
+        # DBPedia_WD_alias
+        entity2names = defaultdict(set)
+        pattern = (
+            "(<[^>]+>) "
+            + "<http://www.w3.org/2000/01/rdf-schema#label>"
+            + ' "([^"]+)"@en .'
+        )
+        pattern = re.compile(pattern)
+        with open(DBPedia_WD_labels) as f:
+            for line in tqdm(f):
+                if pattern.match(line):
+                    entity, label = pattern.findall(line)[0]
+                    entity2names[entity] |= {label}
 
-    pattern = "(<[^>]+>) " + "<http://dbpedia.org/ontology/alias>" + ' "([^"]+)"@en .'
-    pattern = re.compile(pattern)
-    with open(DBPedia_WD_labels) as f:
-        for line in tqdm(f):
-            if pattern.match(line):
-                entity, label = pattern.findall(line)[0]
-                entity2names[entity] |= {label}
-    # DBPedia_WD_labels
-    # DBPedia_WD_alias
+        pattern = (
+            "(<[^>]+>) " + "<http://dbpedia.org/ontology/alias>" + ' "([^"]+)"@en .'
+        )
+        pattern = re.compile(pattern)
+        with open(DBPedia_WD_alias) as f:
+            for line in tqdm(f):
+                if pattern.match(line):
+                    entity, label = pattern.findall(line)[0]
+                    entity2names[entity] |= {label}
+        # DBPedia_WD_labels
+        # DBPedia_WD_alias
+        with open(output_dir, "wb") as f:
+            pickle.dump(entity2names, f)
+    with open(output_dir, "rb") as f:
+        entity2names = pickle.load(f)
     return entity2names
 
 
@@ -230,7 +243,7 @@ def terms_from_Wikidata_for_cats(cats: List[str]) -> List[str]:
     terms = set()
     for entity in entities:
         terms |= entity2names[entity]
-    pass
+    return list(terms)
 
 
 def load_DBPedia_terms(name="Agent") -> Set:

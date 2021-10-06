@@ -86,6 +86,7 @@ class RawCorpusDataset:
         read_snt_num = tqdm(total=self.sentence_num)
         tokens = []
         for text in self.load_texts():
+            text = text.strip()
             tokenized_text = self.tokenize(text)
             assert len(tokenized_text["tokens"])
             for tok in tokenized_text["tokens"]:

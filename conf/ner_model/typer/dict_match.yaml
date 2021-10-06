@@ -1,0 +1,8 @@
+defaults:
+  - base_DictMatchTyper_config
+
+term2cat:
+  focus_cats: T125_T126
+  duplicate_cats: ChemicalSubstance_GeneLocation_Biomolecule_Unknown_TopicalConcept
+    
+  

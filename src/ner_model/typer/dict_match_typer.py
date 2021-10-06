@@ -41,3 +41,6 @@ class DictMatchTyper(Typer):
             else:
                 labels.append("O")
         return labels
+
+    def train(self):
+        pass

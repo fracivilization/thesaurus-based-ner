@@ -2,7 +2,9 @@ defaults:
   - base_train_config
   - dataset: base_dataset_config
   # - ner_model: BERT
+  # - ner_model: BOND
   - ner_model: TwoStage
 
 dataset:
-  name_or_path: "conll2003"
+  # name_or_path: "conll2003"
+  name_or_path: "data/pseudo/828031693f82baaa934bba16e276cfcdc2e2c4fd"  
