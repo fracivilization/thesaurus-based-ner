@@ -23,9 +23,9 @@ class Term2CatConfig:
 def load_term2cat(conf: Term2CatConfig):
     focus_cats = set(conf.focus_cats.split("_"))
     duplicate_cats = set(conf.duplicate_cats.split("_"))
-    remained_fc = DBPedia_categories - duplicate_cats  # fc: fake cat
-    # remained_fc = set()
-    cats = focus_cats | remained_fc
+    remained_nc = DBPedia_categories - duplicate_cats  # nc: negative cat
+    # remained_nc = set()
+    cats = focus_cats | remained_nc
     cat2terms = dict()
     for cat in cats:
         with open(os.path.join(conf.dict_dir, cat)) as f:
@@ -42,8 +42,8 @@ def load_term2cat(conf: Term2CatConfig):
     term2cat = dict()
     for cat, terms in cat2terms.items():
         for non_duplicated_term in terms - duplicate_terms:
-            if cat in remained_fc:
-                term2cat[non_duplicated_term] = "fc-%s" % cat
+            if cat in remained_nc:
+                term2cat[non_duplicated_term] = "nc-%s" % cat
             else:
                 term2cat[non_duplicated_term] = cat
     return term2cat
