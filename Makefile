@@ -1,8 +1,8 @@
 DBPEDIA_CATS = GeneLocation Species Disease Work SportsSeason Device Media SportCompetitionResult EthnicGroup Protocol Award Demographics MeanOfTransportation FileSystem Medicine Area Flag UnitOfWork MedicalSpecialty GrossDomesticProduct Biomolecule Identifier Blazon PersonFunction List TimePeriod Event Relationship Altitude TopicalConcept Spreadsheet Currency Cipher Browser Tank Food Depth Population Statistic StarCluster Language GrossDomesticProductPerCapita ChemicalSubstance ElectionDiagram Diploma Place Algorithm ChartsPlacements Unknown Activity PublicService Agent Name AnatomicalStructure Colour
-UMLS_CATS = T002 T004 T194 T075 T200 T169 T081 T080 T079 T171 T102 T099 T100 T101 T054 T055 T056 T064 T065 T066 T068 T005 T007 T017 T022 T031 T033 T037 T038 T058 T062 T074 T082 T091 T092 T097 T098 T103 T168 T170 T201 T204
+UMLS_CATS = T002 T004 T194 T075 T200 T081 T080 T079 T171 T102 T099 T100 T101 T054 T055 T056 T064 T065 T066 T068 T005 T007 T017 T022 T031 T033 T037 T038 T058 T062 T074 T082 T091 T092 T097 T098 T103 T168 T170 T201 T204
 FOCUS_CATS := T005 T007 T017 T022 T031 T033 T037 T038 T058 T062 T074 T082 T091 T092 T097 T098 T103 T168 T170 T201 T204
-DUPLICATE_CATS := 
-REMOVE_CATS := $(filter-out $(DUPLICATE_CATS), $(DBPEDIA_CATS))
+DUPLICATE_CATS := $(FOCUS_CATS)
+REMOVE_CATS := $(filter-out $(DUPLICATE_CATS), $(DBPEDIA_CATS) $(UMLS_CATS))
 APPEARED_CATS := $(FOCUS_CATS) $(REMOVE_CATS)
 DATA_DIR := data
 DICT_DIR := $(DATA_DIR)/dict
@@ -64,14 +64,16 @@ $(PSEUDO_DATA_DIR): $(DATA_DIR)
 $(GOLD_DIR): $(DATA_DIR)
 	mkdir -p $(GOLD_DIR)
 $(GOLD_DIR)/MedMentions: $(GOLD_DIR)
-	git clone https://github.com/chanzuckerberg/MedMentions
-	for f in `find MedMentions/ | grep gz`; do gunzip $$f; done
-	mv MedMentions $(GOLD_DIR)/MedMentions
+	# git clone https://github.com/chanzuckerberg/MedMentions
+	# for f in `find MedMentions/ | grep gz`; do gunzip $$f; done
+	# mv MedMentions $(GOLD_DIR)/MedMentions
 $(GOLD_DATA): $(GOLD_DIR)/MedMentions
-	poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_DIR)/MedMentions/st21pv/data
+	@echo "Gold Data"
+	@poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_DIR)/MedMentions/st21pv/data
 
 
 all: $(PSEUDO_NER_DATA_DIR) $(GOLD_DATA)
+	@echo $(APPEARED_CATS)
 
 $(DICT_FILES): $(DICT_DIR) $(UMLS_DIR) $(DBPEDIA_DIR)
 	@echo make dict files $@

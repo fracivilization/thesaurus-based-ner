@@ -1,16 +1,13 @@
 from .genia import load_term2cat as genia_load_term2cat
-
-# todo: 本当は UMLSのダウンロードから自動化して書くべきだけど、ちょっと面倒なので後回し
-# 多分 MetamorphoSys の MySQLロードのスクリプトを記載しておいて、
-# あとは各自ダウンロードしておいといてねってすればいいのだろうけど...
 from .twitter import load_twitter_main_dictionary, load_twitter_sibling_dictionary
 from hashlib import md5
 import os
 import json
 from dataclasses import dataclass
 from omegaconf import MISSING
-from .terms import DBPedia_categories
+from .terms import DBPedia_categories, UMLS_Categories
 from hydra.utils import get_original_cwd
+from collections import defaultdict
 
 
 @dataclass
@@ -22,8 +19,9 @@ class Term2CatConfig:
 
 def load_term2cat(conf: Term2CatConfig):
     focus_cats = set(conf.focus_cats.split("_"))
-    duplicate_cats = set(conf.duplicate_cats.split("_"))
-    remained_nc = DBPedia_categories - duplicate_cats  # nc: negative cat
+    duplicate_cats = set(conf.duplicate_cats.split("_")) | focus_cats
+    remained_nc = DBPedia_categories | UMLS_Categories
+    remained_nc = remained_nc - duplicate_cats  # nc: negative cat
     # remained_nc = set()
     cats = focus_cats | remained_nc
     cat2terms = dict()
@@ -33,12 +31,15 @@ def load_term2cat(conf: Term2CatConfig):
             terms = f.read().split("\n")
             cat2terms[cat] = set(terms)
     duplicate_terms = set()
-    for i1, t1 in enumerate(cat2terms.values()):
-        for i2, t2 in enumerate(cat2terms.values()):
+    # term2cats = defaultdict(set)
+    for i1, (c1, t1) in enumerate(cat2terms.items()):
+        for i2, (c2, t2) in enumerate(cat2terms.items()):
             if i2 > i1:
                 duplicated = t1 & t2
                 if duplicated:
                     duplicate_terms |= duplicated
+                    # for t in duplicated:
+                    # term2cats[t] |= {c1, c2}
     term2cat = dict()
     for cat, terms in cat2terms.items():
         for non_duplicated_term in terms - duplicate_terms:

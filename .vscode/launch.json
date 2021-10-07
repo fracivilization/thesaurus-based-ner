@@ -38,11 +38,11 @@
             "justMyCode": false,
             "args": [
                 "--focus-cats",
-                "T125_T126",
+                "T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
                 "--output",
-                "data/gold/f9a32f61ee73c46b459afe5b0c750a0b2ee7b5dc",
+                "data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3",
                 "--input-dir",
-                "data/gold/MedMentions/full/data",
+                "data/gold/MedMentions/st21pv/data",
             ],
         },
         {
@@ -78,7 +78,7 @@
             "module": "cli.train",
             "justMyCode": false,
             "args": [
-                "++dataset.name_or_path=data/pseudo/828031693f82baaa934bba16e276cfcdc2e2c4fd"
+                "++dataset.name_or_path=data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3"
             ],
         },
         {
