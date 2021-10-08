@@ -251,7 +251,8 @@ def remove_span_duplication(docs: List[str]):
                             remove_spans.append(spans[i1])
                             remove_spans.append(spans[i2])
         for rs in remove_spans:
-            remained_spans.remove(rs)
+            if rs in remained_spans:
+                remained_spans.remove(rs)
         screened_docs.append("\n".join([title, abstract] + remained_spans))
     return screened_docs
     pass

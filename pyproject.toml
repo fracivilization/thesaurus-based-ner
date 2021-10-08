@@ -35,6 +35,7 @@ PyYAML = "^5.4.1"
 ipython = "^7.28.0"
 ipymarkup = "^0.9.0"
 loguru = "^0.5.3"
+dartsclone = "^0.9.0"
 
 
 [tool.poetry.dev-dependencies]

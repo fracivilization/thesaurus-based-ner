@@ -120,7 +120,7 @@ class NERTestor:
                 )
             )
         pred_ner_tags = [
-            ["O" if "-fc-" in tag else tag for tag in tags] for tags in pred_ner_tags
+            ["O" if "-nc-" in tag else tag for tag in tags] for tags in pred_ner_tags
         ]
         prediction_for_split = Dataset.from_dict(
             {

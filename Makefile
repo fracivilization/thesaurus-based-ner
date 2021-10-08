@@ -67,6 +67,9 @@ $(GOLD_DIR)/MedMentions: $(GOLD_DIR)
 	# git clone https://github.com/chanzuckerberg/MedMentions
 	# for f in `find MedMentions/ | grep gz`; do gunzip $$f; done
 	# mv MedMentions $(GOLD_DIR)/MedMentions
+	# cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_trng.txt data/gold/MedMentions/st21pv/data/
+	# cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_dev.txt data/gold/MedMentions/st21pv/data/
+	# cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_test.txt data/gold/MedMentions/st21pv/data/
 $(GOLD_DATA): $(GOLD_DIR)/MedMentions
 	@echo "Gold Data"
 	@poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_DIR)/MedMentions/st21pv/data
