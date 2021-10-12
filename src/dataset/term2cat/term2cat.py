@@ -15,14 +15,17 @@ class Term2CatConfig:
     focus_cats: str = MISSING
     duplicate_cats: str = MISSING
     dict_dir: str = os.path.join(os.getcwd(), "data/dict")
+    no_nc: bool = False
 
 
 def load_term2cat(conf: Term2CatConfig):
     focus_cats = set(conf.focus_cats.split("_"))
-    duplicate_cats = set(conf.duplicate_cats.split("_")) | focus_cats
-    remained_nc = DBPedia_categories | UMLS_Categories
-    remained_nc = remained_nc - duplicate_cats  # nc: negative cat
-    # remained_nc = set()
+    if conf.no_nc:
+        remained_nc = set()
+    else:
+        duplicate_cats = set(conf.duplicate_cats.split("_")) | focus_cats
+        remained_nc = DBPedia_categories | UMLS_Categories
+        remained_nc = remained_nc - duplicate_cats  # nc: negative cat
     cats = focus_cats | remained_nc
     cat2terms = dict()
     for cat in cats:

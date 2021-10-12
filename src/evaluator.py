@@ -5,11 +5,51 @@ from seqeval.metrics.sequence_labeling import get_entities
 from datasets import DatasetDict, Dataset
 from src.ner_model.abstract_model import NERModel
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 from copy import deepcopy
 import logging
+from seqeval.metrics.sequence_labeling import get_entities
 
 logger = logging.getLogger(__name__)
+
+
+def calculate_negative_precision(
+    gold_ner_tags: List[List[str]], pred_ner_tags: List[List[str]]
+):
+    """Caluculate negative precision (whether predicted category doesn't partially match positive or not)"""
+    negative_span_predicted_num = 0
+    negative_span_has_no_duplication_num = 0
+    for gold_tags, pred_tags in zip(gold_ner_tags, pred_ner_tags):
+        for l, s, e in get_entities(pred_tags):
+            if "nc-" in l:
+                negative_span_predicted_num += 1
+                if all(tag == "O" for tag in gold_tags[s : e + 1]):
+                    negative_span_has_no_duplication_num += 1
+    return negative_span_has_no_duplication_num / negative_span_predicted_num
+
+
+def calculate_negative_token_PRF(
+    gold_ner_tags: List[List[str]], pred_ner_tags: List[List[str]]
+):
+    """Calculate token level negative recall (how much negative tokens are predicted as negative)"""
+    negative_token_gold = 0
+    negative_token_predicted = 0
+    negative_token_tp = 0  # i.e. tp for postive
+    for gold_tags, pred_tags in zip(gold_ner_tags, pred_ner_tags):
+        for g_tag, p_tag in zip(gold_tags, pred_tags):
+            if g_tag == "O":
+                negative_token_gold += 1
+            if "-nc-" in p_tag:
+                negative_token_predicted += 1
+            if g_tag == "O" and "-nc-" in p_tag:
+                negative_token_tp += 1
+    precision = negative_token_tp / negative_token_predicted
+    recall = negative_token_tp / negative_token_gold
+    if precision != 0 and recall != 0:
+        f1 = 2 / (1 / precision + 1 / recall)
+    else:
+        f1 = 0
+    return precision, recall, f1
 
 
 class NERTestor:
@@ -45,8 +85,14 @@ class NERTestor:
         orig_level = trainer_logger.level
         trainer_logger.setLevel(logging.WARNING)
 
-        self.prediction_for_test = self.load_prediction_for("test")
-        self.prediction_for_dev = self.load_prediction_for("validation")
+        (
+            self.prediction_for_test_w_nc,
+            self.prediction_for_test,
+        ) = self.load_prediction_for("test")
+        (
+            self.prediction_for_dev_w_nc,
+            self.prediction_for_dev,
+        ) = self.load_prediction_for("validation")
 
         trainer_logger.setLevel(orig_level)
 
@@ -56,6 +102,8 @@ class NERTestor:
         self.evaluate_by_sentence_length(self.prediction_for_test)
         self.evaluate_by_predicted_span_num(self.prediction_for_test)
         self.evaluate_span_detection()
+        self.evaluate_negative_category(self.prediction_for_test_w_nc)
+        self.evaluate_negative_by_category(self.prediction_for_test_w_nc)
 
     def load_prediction_for(self, split="test"):
         # transformersのlogging level変更
@@ -119,7 +167,7 @@ class NERTestor:
                     ]
                 )
             )
-        pred_ner_tags = [
+        pred_ner_tags_wo_nc = [
             ["O" if "-nc-" in tag else tag for tag in tags] for tags in pred_ner_tags
         ]
         prediction_for_split = Dataset.from_dict(
@@ -134,7 +182,71 @@ class NERTestor:
             os.path.join(self.output_dir, "prediction_for_%s.dataset" % split)
         )
 
-        return prediction_for_split
+        prediction_for_split_wo_nc = Dataset.from_dict(
+            {
+                "tokens": tokens,
+                "gold_ner_tags": gold_ner_tags,
+                "pred_ner_tags": pred_ner_tags_wo_nc,
+                # "dict_ner_tags": dict_ner_tags,
+            }
+        )
+        return prediction_for_split, prediction_for_split_wo_nc
+
+    def evaluate_negative_category(self, prediction_w_nc: Dataset):
+        (
+            negative_token_precision,
+            negative_token_recall,
+            _,
+        ) = calculate_negative_token_PRF(
+            prediction_w_nc["gold_ner_tags"], prediction_w_nc["pred_ner_tags"]
+        )
+        logger.info(
+            "negative token precision: %.2f" % (100 * negative_token_precision,)
+        )
+        logger.info("negative token recall: %.2f" % (100 * negative_token_recall,))
+        return negative_token_precision, negative_token_recall
+
+    def evaluate_negative_by_category(self, prediction_w_nc: Dataset):
+        gold_ner_tags = prediction_w_nc["gold_ner_tags"]
+        pred_ner_tags = prediction_w_nc["pred_ner_tags"]
+        ncs = sorted(
+            list(
+                set(
+                    [
+                        l
+                        for l, s, e in get_entities(pred_ner_tags)
+                        if l.startswith("nc-")
+                    ]
+                )
+            )
+        )
+        negative_token_precisions = []
+        negative_token_recalls = []
+        for nc in ncs:
+            pred_ner_tags_w_only_focus_nc = []
+            for snt in pred_ner_tags:
+                replaced_tags = []
+                for tag in snt:
+                    if "-nc-" in tag:
+                        if tag[2:] == nc:
+                            replaced_tags.append(tag)
+                        else:
+                            replaced_tags.append("O")
+                    else:
+                        replaced_tags.append(tag)
+                pred_ner_tags_w_only_focus_nc.append(replaced_tags)
+            precision, recall, f1 = calculate_negative_token_PRF(
+                gold_ner_tags, pred_ner_tags_w_only_focus_nc
+            )
+            negative_token_precisions.append("%.2f" % (100 * precision,))
+            negative_token_recalls.append("%.2f" % (100 * recall,))
+        from prettytable import PrettyTable
+
+        ptl = PrettyTable()
+        ptl.add_column("# negative category", ncs)
+        ptl.add_column("negative token precision (%)", negative_token_precisions)
+        ptl.add_column("negative token recall (%)", negative_token_recalls)
+        logger.info(ptl.get_string())
 
     def add_dict_match_prediction(self, pred_dataset):
         raise NotImplementedError

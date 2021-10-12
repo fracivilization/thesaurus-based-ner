@@ -78,7 +78,7 @@
             "module": "cli.train",
             "justMyCode": false,
             "args": [
-                "++dataset.name_or_path=data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3"
+                "++ner_model.ner_model_wrapper.o_label_as_Bo=True"
             ],
         },
         {

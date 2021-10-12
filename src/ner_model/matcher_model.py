@@ -98,7 +98,6 @@ class ComplexKeywordTyper:
             ).hexdigest(),
         )
         term2cat = copy.copy(term2cat)  # pythonでは参照渡しが行われるため
-        self.term2cat = term2cat
         self.cat_labels = sorted(set(term2cat.values()))
         if not buffer_dir.exists():
             case_sensitive_terms = set()
