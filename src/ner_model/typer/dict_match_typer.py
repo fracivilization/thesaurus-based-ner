@@ -17,12 +17,13 @@ from src.dataset.term2cat.term2cat import Term2CatConfig, load_term2cat
 class DictMatchTyperConfig(TyperConfig):
     typer_name: str = "DictMatchTyper"
     term2cat: Term2CatConfig = Term2CatConfig()
+    output_o_as_nc: bool = False
 
 
 class DictMatchTyper(Typer):
     def __init__(self, conf: DictMatchTyperConfig) -> None:
         self.term2cat = load_term2cat(conf.term2cat)
-        self.argss = conf
+        self.conf = conf
         # keyword extractorを追加する
         # argumentを追加する...後でいいか...
         self.keyword_processor = ComplexKeywordTyper(self.term2cat)
@@ -34,6 +35,8 @@ class DictMatchTyper(Typer):
         for start, end in zip(starts, ends):
             term = " ".join(tokens[start:end])
             label = self.keyword_processor.type_chunk(term)
+            if label == "O" and self.conf.output_o_as_nc:
+                label = "nc-Chunk"
             labels.append(label)
         return labels
 

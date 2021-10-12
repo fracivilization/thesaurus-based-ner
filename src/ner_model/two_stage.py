@@ -22,7 +22,6 @@ class TwoStageConfig(NERModelConfig):
 def register_chunker_configs() -> None:
     cs = ConfigStore.instance()
     from .chunker.flair_model import FlairNPChunkerConfig
-
     from .chunker.spacy_model import BeneparNPChunkerConfig, SpacyNPChunkerConfig
 
     cs.store(

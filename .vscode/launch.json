@@ -78,7 +78,7 @@
             "module": "cli.train",
             "justMyCode": false,
             "args": [
-                "++ner_model.ner_model_wrapper.o_label_as_Bo=True"
+                // "++ner_model.ner_model_wrapper.o_label_as_Bo=True"
             ],
         },
         {

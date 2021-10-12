@@ -93,6 +93,7 @@ def get_article2names():
     return article2names
 
 
+# DBPedia_categories = set()
 DBPedia_categories = {
     "ChemicalSubstance",
     "GrossDomesticProduct",

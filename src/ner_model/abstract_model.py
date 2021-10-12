@@ -62,11 +62,15 @@ class NERModelWrapper(NERModel):
 
     def batch_predict(self, tokens: List[List[str]]) -> List[List[str]]:
         predicted_tags = self.ner_model.batch_predict(tokens)
-        return [self.wrap_predicted_tags(tags) for tags in predicted_tags]
+        if self.conf.ner_model_wrapper.o_label_as_Bo:
+            predicted_tags = [self.wrap_predicted_tags(tags) for tags in predicted_tags]
+        return predicted_tags
 
     def predict(self, tokens: List[str]) -> List[str]:
         predicted_tags = self.ner_model.predict(tokens)
-        return self.wrap_predicted_tags(predicted_tags)
+        if self.conf.ner_model_wrapper.o_label_as_Bo:
+            predicted_tags = self.wrap_predicted_tags(predicted_tags)
+        return predicted_tags
 
     def wrap_predicted_tags(self, tags: List[str]) -> List[str]:
         new_tags = tags
