@@ -5,10 +5,11 @@ from seqeval.metrics.sequence_labeling import get_entities
 from datasets import DatasetDict, Dataset
 from src.ner_model.abstract_model import NERModel
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Set
 from copy import deepcopy
 import logging
 from seqeval.metrics.sequence_labeling import get_entities
+from src.ner_model.chunker.abstract_model import Chunker
 
 logger = logging.getLogger(__name__)
 
@@ -52,11 +53,21 @@ def calculate_negative_token_PRF(
     return precision, recall, f1
 
 
+def calculate_set_PRF(pred_set: Set, gold_set: Set):
+    precision = len(pred_set & gold_set) / len(pred_set)
+    recall = len(pred_set & gold_set) / len(gold_set)
+    if precision != 0 and recall != 0:
+        f1 = 2 / (1 / precision + 1 / recall)
+    else:
+        f1 = 0
+    return precision, recall, f1
+
+
 class NERTestor:
+    "NER Testor test NER Mondel on dataset"
+
     def __init__(
-        self,
-        ner_model: NERModel,
-        ner_dataset: DatasetDict,
+        self, ner_model: NERModel, ner_dataset: DatasetDict, chunker: Chunker = None
     ) -> None:
         pass
         self.model = ner_model
@@ -96,6 +107,11 @@ class NERTestor:
 
         trainer_logger.setLevel(orig_level)
 
+        if chunker:
+            self.evaluate_on_negative_chunk(self.prediction_for_test_w_nc, chunker)
+            self.evaluate_on_negative_chunk_by_category(
+                self.prediction_for_test_w_nc, chunker
+            )
         self.evaluate(self.prediction_for_test)
         self.evaluate_on_head(self.prediction_for_test)
         self.lenient_evaluate(self.prediction_for_test)
@@ -104,6 +120,138 @@ class NERTestor:
         self.evaluate_span_detection()
         self.evaluate_negative_category(self.prediction_for_test_w_nc)
         self.evaluate_negative_by_category(self.prediction_for_test_w_nc)
+
+    def get_np_negative_chunks(self, prediction_w_nc: Dataset, chunker: Chunker):
+        # evaluate on NP
+        np_negative_chunks = set()
+        for sid, (gold, snt) in enumerate(
+            zip(prediction_w_nc["gold_ner_tags"], prediction_w_nc["tokens"])
+        ):
+            chunks = chunker.predict(snt)
+            for s, e in chunks:
+                if all(tag == "O" for tag in gold[s:e]):
+                    np_negative_chunks.add((sid, s, e))
+        return np_negative_chunks
+
+    def get_enumerated_negative_spans(self, prediction_w_nc: Dataset, chunker: Chunker):
+        # on enuemerated f1
+        from src.utils.params import span_length
+
+        ## (1) enumerate candidate spans
+        candidate_spans = set()
+        for sid, snt in enumerate(prediction_w_nc):
+            candidate_span = set(
+                [
+                    (sid, i, j)
+                    for i in range(len(snt["tokens"]))
+                    for j in range(i, len(snt["tokens"]))
+                    if j - i <= span_length
+                ]
+            )
+            candidate_spans |= candidate_span
+        ## (2) delete gold spans from (1)
+        gold_chunks = set(
+            [
+                (sid, s, e + 1)
+                for sid, gold in enumerate(prediction_w_nc["gold_ner_tags"])
+                for l, s, e in get_entities(gold)
+            ]
+        )
+        enumerated_negative_spans = candidate_spans - gold_chunks
+        return enumerated_negative_spans
+
+    def evaluate_on_negative_chunk(self, prediction_w_nc: Dataset, chunker: Chunker):
+        np_negative_chunks = self.get_np_negative_chunks(prediction_w_nc, chunker)
+        ## evaluate strict P./R./F.
+        pred_negative_chunks = set(
+            [
+                (sid, s, e + 1)
+                for sid, pred in enumerate(prediction_w_nc["pred_ner_tags"])
+                for l, s, e in get_entities(pred)
+                if "nc-" in l
+            ]
+        )
+
+        precision, recall, f1 = calculate_set_PRF(
+            pred_negative_chunks, np_negative_chunks
+        )
+        logger.info(
+            "P./R./F. for NP Negatives (%%) : %.2f | %.2f | %.2f "
+            % (100 * precision, 100 * recall, 100 * f1)
+        )
+
+        enumerated_negative_spans = self.get_enumerated_negative_spans(
+            prediction_w_nc, chunker
+        )
+        precision, recall, f1 = calculate_set_PRF(
+            pred_negative_chunks, enumerated_negative_spans
+        )
+        # logging result
+        logger.info(
+            "P./R./F. for enumerated negatives (%%) : %.2f | %.2f | %.2f "
+            % (100 * precision, 100 * recall, 100 * f1)
+        )
+
+    def evaluate_on_negative_chunk_by_category(
+        self, prediction_w_nc: Dataset, chunker: Chunker
+    ):
+        np_negative_chunks = self.get_np_negative_chunks(prediction_w_nc, chunker)
+        enumerated_negative_spans = self.get_enumerated_negative_spans(
+            prediction_w_nc, chunker
+        )
+
+        # 何周もするの大変なので、一周だけするようにする
+        nc2pred_negative_chunks = defaultdict(set)
+        for sid, pred in enumerate(prediction_w_nc["pred_ner_tags"]):
+            for l, s, e in get_entities(pred):
+                if l.startswith("nc-"):
+                    nc2pred_negative_chunks[l].add((sid, s, e + 1))
+
+        ncs = []
+        np_negative_prf = []
+        enumerated_negative_prf = []
+        for nc, pred_negative_chunks in nc2pred_negative_chunks.items():
+            ncs.append(nc[3:])
+            precision, recall, f1 = calculate_set_PRF(
+                pred_negative_chunks, np_negative_chunks
+            )
+            np_negative_prf.append((precision, recall, f1))
+
+            enumerated_negative_spans = self.get_enumerated_negative_spans(
+                prediction_w_nc, chunker
+            )
+            precision, recall, f1 = calculate_set_PRF(
+                pred_negative_chunks, enumerated_negative_spans
+            )
+            enumerated_negative_prf.append((precision, recall, f1))
+        from prettytable import PrettyTable
+
+        ptl = PrettyTable()
+        ptl.add_column("# negative category", ncs)
+        ptl.add_column(
+            "negative np precision (%)",
+            ["%.2f" % (100 * p,) for p, r, f in np_negative_prf],
+        )
+        ptl.add_column(
+            "negative np recall (%)",
+            ["%.2f" % (100 * r,) for p, r, f in np_negative_prf],
+        )
+        ptl.add_column(
+            "negative np f1 (%)", ["%.2f" % (100 * f,) for p, r, f in np_negative_prf]
+        )
+        ptl.add_column(
+            "negative enumerated precision (%)",
+            ["%.2f" % (100 * p,) for p, r, f in enumerated_negative_prf],
+        )
+        ptl.add_column(
+            "negative enumerated recall (%)",
+            ["%.2f" % (100 * r,) for p, r, f in enumerated_negative_prf],
+        )
+        ptl.add_column(
+            "negative enumerated f1 (%)",
+            ["%.2f" % (100 * f,) for p, r, f in enumerated_negative_prf],
+        )
+        logger.info(ptl.get_string())
 
     def load_prediction_for(self, split="test"):
         # transformersのlogging level変更

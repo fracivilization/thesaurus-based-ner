@@ -87,3 +87,6 @@ def get_ner_dataset_features(ner_labels: list) -> datasets.Features:
         }
     )
     return features
+
+
+span_length = 6

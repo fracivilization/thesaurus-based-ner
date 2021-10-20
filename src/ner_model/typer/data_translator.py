@@ -10,13 +10,14 @@ import dataclasses
 from seqeval.metrics.sequence_labeling import get_entities
 from collections import defaultdict
 from logging import getLogger
+from src.utils.params import span_length
 
 logger = getLogger(__name__)
 
 
 @dataclasses.dataclass
 class SpanClassificationDatasetArgs:
-    span_length: int = 6
+    span_length: int = span_length
     label_balance: bool = False
     hard_o_sampling: bool = False
     o_outside_entity: bool = False

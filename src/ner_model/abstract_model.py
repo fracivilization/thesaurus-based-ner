@@ -4,17 +4,24 @@ from dataclasses import dataclass
 from omegaconf.omegaconf import MISSING
 
 
+@dataclass
+class NERModelWrapperConfig:
+    o_label_as_Bo: bool = MISSING
+
+
+@dataclass
+class NERModelConfig:
+    ner_model_name: str = MISSING
+    ner_model_wrapper: NERModelWrapperConfig = NERModelWrapperConfig(
+        o_label_as_Bo=False
+    )
+
+
 class NERModel:
     """Abstract Class for Evaluation"""
 
     def __init__(self) -> None:
-        self.conf = dict()
-        self.label_names = []
-
-    def __post_init__(self):
-        # Please specify args and labels names
-        assert self.conf != dict()
-        assert self.label_names != []
+        self.conf: NERModelConfig = NERModelConfig()
 
     def predict(self, tokens: List[str]) -> List[str]:
         """predict class
@@ -40,19 +47,6 @@ class NERModel:
 
     def train(self):
         raise NotImplementedError
-
-
-@dataclass
-class NERModelWrapperConfig:
-    o_label_as_Bo: bool = MISSING
-
-
-@dataclass
-class NERModelConfig:
-    ner_model_name: str = MISSING
-    ner_model_wrapper: NERModelWrapperConfig = NERModelWrapperConfig(
-        o_label_as_Bo=False
-    )
 
 
 class NERModelWrapper(NERModel):

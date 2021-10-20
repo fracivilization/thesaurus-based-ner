@@ -10,7 +10,7 @@ from src.utils.params import (
 from typing import Dict, List, Tuple
 from flashtext import KeywordProcessor
 from logging import getLogger
-from .abstract_model import NERModel
+from .abstract_model import NERModel, NERModelConfig
 from collections import Counter
 import inflection
 from .chunker.abstract_model import Chunker, Span
@@ -22,6 +22,9 @@ from src.dataset.term2cat.term2cat import Term2Cat
 import os
 from hydra.utils import get_original_cwd
 import dartsclone
+from hydra.core.config_store import ConfigStore
+from dataclasses import dataclass
+from src.dataset.term2cat.term2cat import Term2CatConfig, load_term2cat
 
 logger = getLogger(__name__)
 
@@ -236,6 +239,41 @@ class ComplexKeywordTyper:
         else:
             return "O"
 
+    def detect_and_labels(self, snt: str):
+        labeled_chunks = []
+        for end in range(len(snt)):
+            if snt[end] == " ":
+                substring = snt[:end]
+                reversed_substring = substring[::-1]
+                common_suffixes = (
+                    self.reversed_case_sensitive_darts.common_prefix_search(
+                        reversed_substring.lower().encode("utf-8")
+                    )
+                )
+                common_suffixes += (
+                    self.reversed_case_insensitive_darts.common_prefix_search(
+                        reversed_substring.lower().encode("utf-8")
+                    )
+                )
+
+                confirmed_common_suffixes = []
+                for cat, start in common_suffixes:
+                    if start < len(substring) and reversed_substring[start] != " ":
+                        pass
+                    if end < start:
+                        pass
+                    else:
+                        confirmed_common_suffixes.append((cat, start))
+
+                common_suffixes = confirmed_common_suffixes
+                if common_suffixes:
+                    cats, starts = zip(*common_suffixes)
+                    start = max(starts)
+                    cat = self.cat_labels[cats[starts.index(start)]]
+                    assert end - start >= 0
+                    labeled_chunks.append((cat, end - start, end))
+        return labeled_chunks
+
 
 def leave_only_longet_match(
     matches: List[Tuple[TokenBasedSpan, Label]]
@@ -332,11 +370,9 @@ class NERMatcher:
     def __call__(
         self,
         tokens: Tokens,
-        chunks: List[Span] = None,
-        chunker_usage: str = "endswith",
     ) -> List[Tuple[TokenBasedSpan, Label]]:
         snt = " ".join(tokens)
-        keywords_found = self.keyword_processor.type_chunk(snt)
+        keywords_found = self.keyword_processor.detect_and_labels(snt)
         if keywords_found:
             labels, char_based_starts, char_based_ends = zip(*keywords_found)
             spans, labels = map(
@@ -361,17 +397,7 @@ class NERMatcher:
             # 文字列重複無くして追加されたのに対処
         else:
             matches = list()
-        if chunks:
-            # chunks = self.chunker(tokens)
-            if chunker_usage == "endswith":
-                matches = ends_with_match(chunks, matches)
-            elif chunker_usage == "exact":
-                matches = exact_match(chunks, matches)
-            elif chunker_usage == "right_shift":
-                matches = right_shift_match(chunks, matches)
-            else:
-                raise NotImplementedError
-        return leave_only_longet_match(matches)
+        return matches
 
 
 def joint_adjacent_term(matches):
@@ -401,33 +427,33 @@ def joint_adjacent_term(matches):
         return matches
 
 
+@dataclass
+class NERMatcherConfig(NERModelConfig):
+    ner_model_name: str = "NERMatcher"
+    term2cat: Term2CatConfig = Term2CatConfig()
+
+
+def register_ner_matcher_configs() -> None:
+    cs = ConfigStore.instance()
+    cs.store(
+        group="ner_model", name="base_NERMatcher_model_config", node=NERMatcherConfig
+    )
+
+
 class NERMatcherModel(NERModel):
-    def __init__(
-        self,
-        chunker_usage: str = "endswith",
-        chunker: Chunker = None,
-        term2cat: Term2Cat = None,
-    ):
+    def __init__(self, conf: NERMatcherConfig):
         super().__init__()
-        self.chunker_usage = chunker_usage
-        self.term2cat = term2cat.term2cat
+        self.term2cat = load_term2cat(conf.term2cat)
         self.matcher = NERMatcher(term2cat=self.term2cat)
-        self.chunker = chunker
-        self.conf["term2cat"] = self.term2cat
-        self.conf["chunker_usage"] = chunker_usage
-        if chunker:
-            self.conf["chunker"] = chunker.args
         self.label_names = ["O"] + [
             tag % label
             for label in sorted(set(self.term2cat.values()))
             for tag in {"B-%s", "I-%s"}
         ]
 
-    def predict(self, tokens: List[str], chunks: List[str] = None) -> List[str]:
-        if chunks == None and self.chunker:
-            chunks = self.chunker.batch_predict([tokens])[0]
+    def predict(self, tokens: List[str]) -> List[str]:
         ner_tags = ["O" for tok in tokens]
-        matches = joint_adjacent_term(self.matcher(tokens, chunks, self.chunker_usage))
+        matches = joint_adjacent_term(self.matcher(tokens))
         for (s, e), label in matches:
             for tokid in range(s, e):
                 if tokid == s:
@@ -436,12 +462,5 @@ class NERMatcherModel(NERModel):
                     ner_tags[tokid] = "I-%s" % label
         return ner_tags
 
-    def batch_predict(
-        self, tokens: List[List[str]], poss: List[List[str]] = None
-    ) -> List[List[str]]:
-        chunks = None
-        if self.chunker:
-            chunks = self.chunker.batch_predict(tokens, poss)
-        else:
-            chunks = [None] * len(tokens)
-        return [self.predict(tok, cks) for tok, cks in zip(tokens, chunks)]
+    def batch_predict(self, tokens: List[List[str]]) -> List[List[str]]:
+        return [self.predict(tok) for tok in tokens]

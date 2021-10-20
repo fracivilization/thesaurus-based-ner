@@ -4,6 +4,7 @@ defaults:
   # - ner_model: BERT
   # - ner_model: BOND
   - ner_model: TwoStage
+  # - ner_model: matcher
 
 dataset:
   # name_or_path: "conll2003"
