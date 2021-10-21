@@ -36,14 +36,20 @@ def calculate_negative_token_PRF(
     negative_token_gold = 0
     negative_token_predicted = 0
     negative_token_tp = 0  # i.e. tp for postive
+    negative_cat_count = sum(["-nc-" in tag for tags in pred_ner_tags for tag in tags])
     for gold_tags, pred_tags in zip(gold_ner_tags, pred_ner_tags):
         for g_tag, p_tag in zip(gold_tags, pred_tags):
             if g_tag == "O":
                 negative_token_gold += 1
             if "-nc-" in p_tag:
                 negative_token_predicted += 1
+            elif negative_cat_count == 0 and p_tag == "O":
+                negative_token_predicted += 1
+
             if g_tag == "O" and "-nc-" in p_tag:
                 negative_token_tp += 1
+            elif negative_cat_count == 0 and g_tag == "O" and p_tag == "O":
+                pass
     precision = negative_token_tp / negative_token_predicted
     recall = negative_token_tp / negative_token_gold
     if precision != 0 and recall != 0:
@@ -124,14 +130,16 @@ class NERTestor:
     def get_np_negative_chunks(self, prediction_w_nc: Dataset, chunker: Chunker):
         # evaluate on NP
         np_negative_chunks = set()
+        all_np_chunks = set()
         for sid, (gold, snt) in enumerate(
             zip(prediction_w_nc["gold_ner_tags"], prediction_w_nc["tokens"])
         ):
             chunks = chunker.predict(snt)
             for s, e in chunks:
+                all_np_chunks.add((sid, s, e))
                 if all(tag == "O" for tag in gold[s:e]):
                     np_negative_chunks.add((sid, s, e))
-        return np_negative_chunks
+        return all_np_chunks, np_negative_chunks
 
     def get_enumerated_negative_spans(self, prediction_w_nc: Dataset, chunker: Chunker):
         # on enuemerated f1
@@ -158,10 +166,15 @@ class NERTestor:
             ]
         )
         enumerated_negative_spans = candidate_spans - gold_chunks
-        return enumerated_negative_spans
+        return candidate_spans, enumerated_negative_spans
 
     def evaluate_on_negative_chunk(self, prediction_w_nc: Dataset, chunker: Chunker):
-        np_negative_chunks = self.get_np_negative_chunks(prediction_w_nc, chunker)
+        all_np_chunks, np_negative_chunks = self.get_np_negative_chunks(
+            prediction_w_nc, chunker
+        )
+        candidate_spans, enumerated_negative_spans = self.get_enumerated_negative_spans(
+            prediction_w_nc, chunker
+        )
         ## evaluate strict P./R./F.
         pred_negative_chunks = set(
             [
@@ -171,20 +184,29 @@ class NERTestor:
                 if "nc-" in l
             ]
         )
+        if not pred_negative_chunks:
+            pred_positive_chunks = set(
+                [
+                    (sid, s, e + 1)
+                    for sid, pred in enumerate(prediction_w_nc["pred_ner_tags"])
+                    for l, s, e in get_entities(pred)
+                    if not l.startswith("nc-")
+                ]
+            )
+            pred_negative_np = all_np_chunks - pred_positive_chunks
+            pred_negative_enumerated = candidate_spans - pred_positive_chunks
+        else:
+            pred_negative_np = pred_negative_chunks
+            pred_negative_enumerated = pred_negative_chunks
 
-        precision, recall, f1 = calculate_set_PRF(
-            pred_negative_chunks, np_negative_chunks
-        )
+        precision, recall, f1 = calculate_set_PRF(pred_negative_np, np_negative_chunks)
         logger.info(
             "P./R./F. for NP Negatives (%%) : %.2f | %.2f | %.2f "
             % (100 * precision, 100 * recall, 100 * f1)
         )
 
-        enumerated_negative_spans = self.get_enumerated_negative_spans(
-            prediction_w_nc, chunker
-        )
         precision, recall, f1 = calculate_set_PRF(
-            pred_negative_chunks, enumerated_negative_spans
+            pred_negative_enumerated, enumerated_negative_spans
         )
         # logging result
         logger.info(
@@ -195,8 +217,10 @@ class NERTestor:
     def evaluate_on_negative_chunk_by_category(
         self, prediction_w_nc: Dataset, chunker: Chunker
     ):
-        np_negative_chunks = self.get_np_negative_chunks(prediction_w_nc, chunker)
-        enumerated_negative_spans = self.get_enumerated_negative_spans(
+        all_np_chunks, np_negative_chunks = self.get_np_negative_chunks(
+            prediction_w_nc, chunker
+        )
+        candidate_spans, enumerated_negative_spans = self.get_enumerated_negative_spans(
             prediction_w_nc, chunker
         )
 
@@ -206,6 +230,7 @@ class NERTestor:
             for l, s, e in get_entities(pred):
                 if l.startswith("nc-"):
                     nc2pred_negative_chunks[l].add((sid, s, e + 1))
+        # TODO: Negative Categoryがないときの評価を追加する
 
         ncs = []
         np_negative_prf = []
@@ -217,9 +242,6 @@ class NERTestor:
             )
             np_negative_prf.append((precision, recall, f1))
 
-            enumerated_negative_spans = self.get_enumerated_negative_spans(
-                prediction_w_nc, chunker
-            )
             precision, recall, f1 = calculate_set_PRF(
                 pred_negative_chunks, enumerated_negative_spans
             )

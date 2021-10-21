@@ -33,17 +33,23 @@ class TyperConfig:
     typer_name: str = MISSING
 
 
+@dataclass
+class TyperOutput:
+    labels: List[str]
+    logits: np.array
+
+
 class Typer:
     conf = dict()
 
     def predict(
         self, tokens: List[str], starts: List[str], ends: List[str]
-    ) -> List[str]:
+    ) -> TyperOutput:
         raise NotImplementedError
 
     def batch_predict(
         self, tokens: List[List[str]], starts: List[List[int]], ends: List[List[int]]
-    ) -> List[List[str]]:
+    ) -> List[TyperOutput]:
         assert len(tokens) == len(starts)
         assert len(starts) == len(ends)
         labels = []

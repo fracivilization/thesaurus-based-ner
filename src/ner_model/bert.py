@@ -198,6 +198,10 @@ from transformers.trainer_utils import (
     SchedulerType,
     ShardedDDPOption,
 )
+from src.utils.hydra import (
+    HydraAddaptedTrainingArguments,
+    get_orig_transoformers_train_args_from_hydra_addapted_train_args,
+)
 
 
 @dataclass
@@ -245,7 +249,9 @@ class TrainingArguments(OrigTrainingArguments):
 @dataclass
 class BERTModelConfig(NERModelConfig):
     ner_model_name: str = "BERT"
-    train_args: TrainingArguments = TrainingArguments(output_dir=".")
+    train_args: HydraAddaptedTrainingArguments = HydraAddaptedTrainingArguments(
+        output_dir="."
+    )
     data_args: DataTrainingArguments = DataTrainingArguments()
     model_args: ModelArguments = ModelArguments(
         model_name_or_path="dmis-lab/biobert-base-cased-v1.1"
@@ -276,8 +282,9 @@ class BERTNERModel(BERTNERModelBase):
     def __init__(self, ner_dataset: DatasetDict, config: BERTModelConfig):
         super().__init__()
         self.conf["config"] = config
-        train_args_dict = {k: v for k, v in config.train_args.items() if k != "_n_gpu"}
-        train_args = OrigTrainingArguments(**train_args_dict)
+        train_args = get_orig_transoformers_train_args_from_hydra_addapted_train_args(
+            config.train_args
+        )
         self.train_args = train_args
         data_args = config.data_args
         model_args = config.model_args

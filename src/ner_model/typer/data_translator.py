@@ -11,6 +11,8 @@ from seqeval.metrics.sequence_labeling import get_entities
 from collections import defaultdict
 from logging import getLogger
 from src.utils.params import span_length
+from hydra.utils import get_original_cwd
+from hashlib import md5
 
 logger = getLogger(__name__)
 
@@ -19,9 +21,9 @@ logger = getLogger(__name__)
 class SpanClassificationDatasetArgs:
     span_length: int = span_length
     label_balance: bool = False
-    hard_o_sampling: bool = False
-    o_outside_entity: bool = False
-    weight_of_hard_o_for_easy_o: float = 0.5  #
+    # hard_o_sampling: bool = False
+    # o_outside_entity: bool = False
+    # weight_of_hard_o_for_easy_o: float = 0.5  #
 
 
 from tqdm import tqdm
@@ -379,3 +381,20 @@ def join_span_classification_datasets(
         else:
             new_dataset_dict[key] = split
     return DatasetDict(new_dataset_dict)
+
+
+def translate_into_msc_datasets(
+    ner_datasets: DatasetDict, msc_args: SpanClassificationDatasetArgs
+):
+    input_hash = {k: v._fingerprint for k, v in ner_datasets.items()}
+    output_dir = Path(get_original_cwd()).joinpath(
+        "data", "buffer", md5(str(input_hash).encode()).hexdigest()
+    )
+    if not output_dir.exists():
+        msc_datasets = ner_datasets_to_span_classification_datasets(
+            ner_datasets, msc_args
+        )
+        msc_datasets.save_to_disk(output_dir)
+    else:
+        msc_datasets = DatasetDict.load_from_disk(output_dir)
+    return msc_datasets

@@ -151,15 +151,17 @@ class ComplexKeywordTyper:
                 case_sensitive_terms, values=case_sensitive_cats
             )
             case_insensitive_terms = []
+            case_insensitive_terms_append = case_insensitive_terms.append
             case_insensitive_cats = []
+            case_insensitive_cats_append = case_insensitive_cats.append
             for term in tqdm(case_insensitive_base_terms):
                 # case insensitiveのものに関しては複数形を追加する
                 cat = term2cat[term]
-                case_insensitive_terms.append(term.lower()[::-1])
-                case_insensitive_cats.append(cat)
+                case_insensitive_terms_append(term.lower()[::-1])
+                case_insensitive_cats_append(cat)
                 pluralized_term = pluralize(term)
-                case_insensitive_terms.append(pluralized_term.lower()[::-1])
-                case_insensitive_cats.append(cat)
+                case_insensitive_terms_append(pluralized_term.lower()[::-1])
+                case_insensitive_cats_append(cat)
 
                 # self.reversed_case_insensitive_keyword_processor.add_keyword(
                 #     term[::-1], cat

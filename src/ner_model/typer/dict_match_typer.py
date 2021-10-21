@@ -1,9 +1,10 @@
-from typing import Dict, List
+from typing import Dict, List, Type
 from .abstract_model import (
     Typer,
     SpanClassifierDataTrainingArguments,
     SpanClassifierOutput,
     TyperConfig,
+    TyperOutput,
 )
 from datasets import DatasetDict
 from src.ner_model.matcher_model import ComplexKeywordTyper
@@ -30,7 +31,7 @@ class DictMatchTyper(Typer):
 
     def predict(
         self, tokens: List[str], starts: List[str], ends: List[str]
-    ) -> List[str]:
+    ) -> TyperOutput:
         labels = []
         for start, end in zip(starts, ends):
             term = " ".join(tokens[start:end])
@@ -38,6 +39,8 @@ class DictMatchTyper(Typer):
             if label == "O" and self.conf.output_o_as_nc:
                 label = "nc-Chunk"
             labels.append(label)
+        raise NotImplementedError
+        # TODO; Change into Typer Output
         return labels
 
     def train(self):
