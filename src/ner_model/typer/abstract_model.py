@@ -36,7 +36,7 @@ class TyperConfig:
 @dataclass
 class TyperOutput:
     labels: List[str]
-    logits: np.array
+    max_probs: np.array  # prediction probability for label
 
 
 class Typer:

@@ -108,14 +108,21 @@ class TwoStageModel(NERModel):
         types = self.typer.batch_predict(tokens, starts, ends)
         # chunksとtypesを組み合わせて、BIO形式に変換する
         ner_tags = []
-        for snt_tokens, snt_starts, snt_ends, snt_types in zip(
+        for snt_tokens, snt_starts, snt_ends, snt_type_and_max_probs in zip(
             tokens, starts, ends, types
         ):
+            snt_types = snt_type_and_max_probs.labels
+            max_probs = snt_type_and_max_probs.max_probs
             snt_ner_tags = ["O"] * len(snt_tokens)
             assert len(snt_starts) == len(snt_ends)
             assert len(snt_ends) == len(snt_types)
-            for s, e, label in zip(snt_starts, snt_ends, snt_types):
-                if label != "O":
+            labeled_chunks = sorted(
+                zip(snt_starts, snt_ends, snt_types, max_probs),
+                key=lambda x: x[3],
+                reverse=True,
+            )
+            for s, e, label, max_prob in labeled_chunks:
+                if label != "O" and all(tag == "O" for tag in snt_ner_tags[s:e]):
                     for i in range(s, e):
                         if i == s:
                             snt_ner_tags[i] = "B-%s" % label

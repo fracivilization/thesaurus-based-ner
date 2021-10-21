@@ -1,9 +1,7 @@
 import os
 from typing import List, Optional
 import numpy as np
-
 from transformers.trainer_utils import set_seed
-
 from src.ner_model.typer.data_translator import (
     SpanClassificationDatasetArgs,
     translate_into_msc_datasets,
@@ -14,8 +12,6 @@ from .abstract_model import (
     TyperOutput,
 )
 from dataclasses import field, dataclass
-
-# from transformers import TrainingArguments
 from src.utils.hydra import (
     HydraAddaptedTrainingArguments,
     get_orig_transoformers_train_args_from_hydra_addapted_train_args,
@@ -37,6 +33,7 @@ from transformers.modeling_outputs import (
 from tqdm import tqdm
 from typing import Dict
 import itertools
+from scipy.special import softmax
 
 span_start_token = "[unused1]"
 span_end_token = "[unused2]"
@@ -432,12 +429,11 @@ class EnumeratedTyper(Typer):
         ret_list = []
         assert all(len(s) == len(e) for s, e in zip(starts, ends))
         for logit, span_num in zip(logits, map(len, starts)):
+            logit = logit[:span_num]
             ret_list.append(
                 TyperOutput(
-                    labels=[
-                        self.label_list[l] for l in logit[:span_num].argmax(axis=1)
-                    ],
-                    logits=logit[:span_num],
+                    labels=[self.label_list[l] for l in logit.argmax(axis=1)],
+                    max_probs=softmax(logit, axis=1).max(axis=1),
                 )
             )
         return ret_list
