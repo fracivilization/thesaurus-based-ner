@@ -13,14 +13,16 @@ from logging import getLogger
 from src.utils.params import span_length
 from hydra.utils import get_original_cwd
 from hashlib import md5
+import prettytable
+
 
 logger = getLogger(__name__)
 
 
 @dataclasses.dataclass
 class SpanClassificationDatasetArgs:
-    span_length: int = span_length
-    label_balance: bool = False
+    with_enumerated_o_label: bool = False
+    o_sampling_ratio: float = 0.3
     # hard_o_sampling: bool = False
     # o_outside_entity: bool = False
     # weight_of_hard_o_for_easy_o: float = 0.5  #
@@ -94,7 +96,7 @@ def get_o_under_sampling_ratio(
 
 def ner_datasets_to_span_classification_datasets(
     ner_datasets: datasets.DatasetDict,
-    span_classification_dataset_args: SpanClassificationDatasetArgs,
+    data_args: SpanClassificationDatasetArgs,
 ) -> datasets.DatasetDict:
     pre_span_classification_datasets = dict()
 
@@ -107,6 +109,8 @@ def ner_datasets_to_span_classification_datasets(
             ]
         )
     )
+    if data_args.with_enumerated_o_label:
+        label_names = ["nc-O"] + label_names
     info = datasets.DatasetInfo(
         features=datasets.Features(
             {
@@ -121,6 +125,7 @@ def ner_datasets_to_span_classification_datasets(
         pre_span_classification_dataset = defaultdict(list)
         ner_tag_labels = ner_datasets[key].features["ner_tags"].feature.names
         for snt in tqdm(ner_datasets[key]):
+            registered_chunks = set()
             ner_tags = [ner_tag_labels[tag] for tag in snt["ner_tags"]]
             starts = []
             ends = []
@@ -129,6 +134,15 @@ def ner_datasets_to_span_classification_datasets(
                 starts.append(s)
                 ends.append(e + 1)
                 labels.append(label)
+                registered_chunks.add((s, e))
+            if data_args.with_enumerated_o_label and key in {"train", "validation"}:
+                for i in range(len(snt["tokens"])):
+                    for j in range(i + 1, len(snt["tokens"]) + 1):
+                        if (i, j) not in registered_chunks:
+                            if random.random() < data_args.o_sampling_ratio:
+                                starts.append(i)
+                                ends.append(j)
+                                labels.append("nc-O")
             if labels:
                 pre_span_classification_dataset["tokens"].append(snt["tokens"])
                 pre_span_classification_dataset["starts"].append(starts)
@@ -383,10 +397,23 @@ def join_span_classification_datasets(
     return DatasetDict(new_dataset_dict)
 
 
+def log_label_ratio(msc_datasets: DatasetDict):
+    table = prettytable.PrettyTable(["Label", "Count", "Ratio (%)"])
+    pass
+    train_dataset = msc_datasets["train"]
+    label_names = train_dataset.features["labels"].feature.names
+    c = Counter([label for snt in train_dataset["labels"] for label in snt])
+    label_sum = sum(c.values())
+    for lid, count in c.most_common():
+        table.add_row([label_names[lid], count, "%.2f" % (100 * count / label_sum)])
+    logger.info(table.get_string())
+
+
 def translate_into_msc_datasets(
     ner_datasets: DatasetDict, msc_args: SpanClassificationDatasetArgs
 ):
     input_hash = {k: v._fingerprint for k, v in ner_datasets.items()}
+    input_hash["msc_args"] = str(msc_args)
     output_dir = Path(get_original_cwd()).joinpath(
         "data", "buffer", md5(str(input_hash).encode()).hexdigest()
     )
@@ -397,4 +424,5 @@ def translate_into_msc_datasets(
         msc_datasets.save_to_disk(output_dir)
     else:
         msc_datasets = DatasetDict.load_from_disk(output_dir)
+    log_label_ratio(msc_datasets)
     return msc_datasets

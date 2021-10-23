@@ -378,7 +378,7 @@ def train(
                     word_embed = model.distilbert.get_input_embeddings()
 
                 if not word_embed:
-                    print(
+                    logger.info(
                         "Model type not supported. Unable to retrieve word embeddings."
                     )
                 else:
@@ -415,7 +415,7 @@ def train(
                     norm = vat_embeds.grad.norm()
 
                     if torch.isnan(norm) or torch.isinf(norm):
-                        print("Hit nan gradient in embed vat")
+                        logger.info("Hit nan gradient in embed vat")
                     else:
                         adv_direct = vat_embeds.grad / (
                             vat_embeds.grad.abs().max(-1, keepdim=True)[0] + 1e-4

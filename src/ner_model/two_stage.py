@@ -16,7 +16,6 @@ class TwoStageConfig(NERModelConfig):
     ner_model_name: str = "TwoStage"
     chunker: ChunkerConfig = MISSING
     typer: TyperConfig = MISSING
-    pass
 
 
 def register_chunker_configs() -> None:
@@ -87,7 +86,8 @@ class TwoStageModel(NERModel):
         chunk = self.chunker.predict(tokens)
         starts = [s for s, e in chunk]
         ends = [e for s, e in chunk]
-        types = self.typer.predict(tokens, starts, ends)
+        typer_output = self.typer.predict(tokens, starts, ends)
+        types = typer_output.labels
         ner_tags = ["O"] * len(tokens)
         assert len(starts) == len(ends)
         assert len(ends) == len(types)

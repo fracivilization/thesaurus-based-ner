@@ -12,6 +12,9 @@ from tqdm import tqdm
 from dataclasses import dataclass
 from omegaconf import MISSING
 from src.dataset.term2cat.term2cat import Term2CatConfig, load_term2cat
+import numpy as np
+
+np.ones(13)
 
 
 @dataclass
@@ -37,11 +40,9 @@ class DictMatchTyper(Typer):
             term = " ".join(tokens[start:end])
             label = self.keyword_processor.type_chunk(term)
             if label == "O" and self.conf.output_o_as_nc:
-                label = "nc-Chunk"
+                label = "nc-O"
             labels.append(label)
-        raise NotImplementedError
-        # TODO; Change into Typer Output
-        return labels
+        return TyperOutput(labels=labels, max_probs=np.ones(len(labels)))
 
     def train(self):
         pass

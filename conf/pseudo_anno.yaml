@@ -1,6 +1,6 @@
 defaults:
   - base_pseudo_anno
-  # - ner_model: BERT
+  - ner_model: TwoStage
 
 
 

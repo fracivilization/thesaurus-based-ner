@@ -1,4 +1,7 @@
 from pandas.core.indexing import convert_to_index_sliceable
+from logging import getLogger
+
+logger = getLogger(__name__)
 
 
 def test_main():
@@ -37,5 +40,5 @@ def test_negative_evaluate():
     assert 0 <= negative_precision and negative_precision <= 1
     negative_token_recall = calculate_negative_token_PRF(gold_ner_tags, pred_ner_tags)
     assert 0 <= negative_token_recall and negative_token_recall <= 1
-    print("negative precision* %.2f" % (100 * negative_precision,))
-    print("negative token recall* %.2f" % (100 * negative_token_recall,))
+    logger.info("negative precision* %.2f" % (100 * negative_precision,))
+    logger.info("negative token recall* %.2f" % (100 * negative_token_recall,))

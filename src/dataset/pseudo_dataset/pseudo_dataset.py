@@ -7,7 +7,7 @@ import os
 import datasets
 from datasets import Dataset, DatasetDict
 from src.utils.params import get_ner_dataset_features, task_name2ner_label_names
-from src.ner_model.abstract_model import NERModel
+from src.ner_model.abstract_model import NERModel, NERModelConfig
 from hashlib import md5
 from src.utils.params import pseudo_annotated_time
 import shutil
@@ -20,11 +20,51 @@ import yaml
 from omegaconf import OmegaConf
 from hydra.utils import get_original_cwd
 from typing import List
+from src.ner_model.two_stage import TwoStageConfig
+from src.ner_model.chunker.spacy_model import SpacyNPChunkerConfig
+from src.ner_model.typer.dict_match_typer import DictMatchTyperConfig
+from omegaconf import MISSING
 
 logger = getLogger(__name__)
 
 
-def load_pseudo_dataset(raw_corpus: Dataset, ner_model: NERModel) -> Dataset:
+@dataclass
+class PseudoAnnoConfig:
+    ner_model: NERModelConfig = TwoStageConfig(
+        chunker=SpacyNPChunkerConfig(), typer=DictMatchTyperConfig()
+    )
+    output_dir: str = MISSING
+    raw_corpus: str = MISSING
+    gold_corpus: str = MISSING
+    remove_fp_instance: bool = False
+    # duplicate_cats: str = MISSING
+    # focus_cats: str = MISSING
+
+
+def remove_fp_ents(pred_tags: List[str], gold_tags: List[str]):
+    new_tags = ["O"] * len(pred_tags)
+    for pred_label, s, e in get_entities(pred_tags):
+        remain_flag = False
+        if pred_label.startswith("nc-"):
+            remain_flag = True
+        else:
+            partially_match_labels = [
+                l for l, s, e in get_entities(gold_tags[s : e + 1])
+            ]
+            if pred_label in partially_match_labels:
+                remain_flag = True
+        if remain_flag:
+            for i in range(s, e + 1):
+                if i == s:
+                    new_tags[i] = "B-%s" % pred_label
+                else:
+                    new_tags[i] = "I-%s" % pred_label
+    return new_tags
+
+
+def load_pseudo_dataset(
+    raw_corpus: Dataset, ner_model: NERModel, conf: PseudoAnnoConfig
+) -> Dataset:
     desc = dict()
     desc["raw_corpus"] = json.loads(raw_corpus.info.description)
     desc["ner_model"] = yaml.safe_load(OmegaConf.to_yaml(ner_model.conf))
@@ -38,11 +78,25 @@ def load_pseudo_dataset(raw_corpus: Dataset, ner_model: NERModel) -> Dataset:
     if not buffer_dir.exists():
         ret_tokens = []
         ner_tags = []
-        for tokens in tqdm(raw_corpus["tokens"]):
-            pred_tags = ner_model.predict(tokens)
-            if any(tag != "O" for tag in pred_tags):
-                ret_tokens.append(tokens)
-                ner_tags.append(pred_tags)
+        if conf.remove_fp_instance:
+            label_names = raw_corpus.features["ner_tags"].feature.names
+            for tokens, gold_tags in tqdm(
+                zip(raw_corpus["tokens"], raw_corpus["ner_tags"])
+            ):
+                pred_tags = ner_model.predict(tokens)
+                gold_tags = [label_names[tagid] for tagid in gold_tags]
+                if conf.remove_fp_instance:
+                    pred_tags = remove_fp_ents(pred_tags, gold_tags)
+                if any(tag != "O" for tag in pred_tags):
+                    ret_tokens.append(tokens)
+                    ner_tags.append(pred_tags)
+        else:
+            for tokens in tqdm(raw_corpus["tokens"]):
+                pred_tags = ner_model.predict(tokens)
+                if any(tag != "O" for tag in pred_tags):
+                    ret_tokens.append(tokens)
+                    ner_tags.append(pred_tags)
+
         ner_labels = [
             l
             for l, c in Counter([tag for snt in ner_tags for tag in snt]).most_common()

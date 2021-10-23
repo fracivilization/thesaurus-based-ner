@@ -16,24 +16,13 @@ import json
 from datasets import Dataset
 import os
 from src.dataset.pseudo_dataset.pseudo_dataset import (
+    PseudoAnnoConfig,
     load_pseudo_dataset,
     join_pseudo_and_gold_dataset,
 )
 from hydra.utils import get_original_cwd, to_absolute_path
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class PseudoAnnoConfig:
-    ner_model: NERModelConfig = TwoStageConfig(
-        chunker=SpacyNPChunkerConfig(), typer=DictMatchTyperConfig()
-    )
-    output_dir: str = MISSING
-    raw_corpus: str = MISSING
-    gold_corpus: str = MISSING
-    # duplicate_cats: str = MISSING
-    # focus_cats: str = MISSING
 
 
 from src.ner_model.two_stage import register_two_stage_configs
@@ -47,11 +36,18 @@ register_two_stage_configs()
 @hydra.main(config_path="../../conf", config_name="pseudo_anno")
 def main(cfg: PseudoAnnoConfig):
     if not os.path.exists(os.path.join(get_original_cwd(), cfg.output_dir)):
-        raw_corpus = Dataset.load_from_disk(
-            os.path.join(get_original_cwd(), cfg.raw_corpus)
-        )
+        if cfg.raw_corpus.startswith("data/gold"):
+            raw_corpus = DatasetDict.load_from_disk(
+                os.path.join(get_original_cwd(), cfg.raw_corpus)
+            )["train"]
+            # TODO: remove fp, fn などの介入処理は基本的にどれか一つのみになることをassertする
+        elif cfg.raw_corpus.startswith("data/raw"):
+            raw_corpus = Dataset.load_from_disk(
+                os.path.join(get_original_cwd(), cfg.raw_corpus)
+            )
+            assert not cfg.remove_fp_instance
         ner_model: NERModel = ner_model_builder(cfg.ner_model)
-        pseudo_dataset = load_pseudo_dataset(raw_corpus, ner_model)
+        pseudo_dataset = load_pseudo_dataset(raw_corpus, ner_model, cfg)
         gold_corpus = DatasetDict.load_from_disk(
             os.path.join(get_original_cwd(), cfg.gold_corpus)
         )

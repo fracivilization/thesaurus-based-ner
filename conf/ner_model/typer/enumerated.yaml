@@ -1,2 +1,5 @@
 defaults:
   - base_EnumeratedTyper_config
+
+msc_args:
+  with_enumerated_o_label: True

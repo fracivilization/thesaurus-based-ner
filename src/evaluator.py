@@ -10,6 +10,7 @@ from copy import deepcopy
 import logging
 from seqeval.metrics.sequence_labeling import get_entities
 from src.ner_model.chunker.abstract_model import Chunker
+from src.utils.mlflow import MlflowWriter
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,11 @@ class NERTestor:
     "NER Testor test NER Mondel on dataset"
 
     def __init__(
-        self, ner_model: NERModel, ner_dataset: DatasetDict, chunker: Chunker = None
+        self,
+        ner_model: NERModel,
+        ner_dataset: DatasetDict,
+        writer: MlflowWriter,
+        chunker: Chunker = None,
     ) -> None:
         pass
         self.model = ner_model
@@ -88,6 +93,7 @@ class NERTestor:
         self.output_dir = Path("data/output").joinpath(
             md5(str(self.args).encode()).hexdigest()
         )
+        self.writer = writer
         logger.info("output_dir for NERTestor: %s" % str(self.output_dir))
         if not self.output_dir.exists():
             os.makedirs(self.output_dir)
@@ -113,11 +119,6 @@ class NERTestor:
 
         trainer_logger.setLevel(orig_level)
 
-        if chunker:
-            self.evaluate_on_negative_chunk(self.prediction_for_test_w_nc, chunker)
-            self.evaluate_on_negative_chunk_by_category(
-                self.prediction_for_test_w_nc, chunker
-            )
         self.evaluate(self.prediction_for_test)
         self.evaluate_on_head(self.prediction_for_test)
         self.lenient_evaluate(self.prediction_for_test)
@@ -126,6 +127,11 @@ class NERTestor:
         self.evaluate_span_detection()
         self.evaluate_negative_category(self.prediction_for_test_w_nc)
         self.evaluate_negative_by_category(self.prediction_for_test_w_nc)
+        if chunker:
+            self.evaluate_on_negative_chunk(self.prediction_for_test_w_nc, chunker)
+            self.evaluate_on_negative_chunk_by_category(
+                self.prediction_for_test_w_nc, chunker
+            )
 
     def get_np_negative_chunks(self, prediction_w_nc: Dataset, chunker: Chunker):
         # evaluate on NP
@@ -448,7 +454,9 @@ class NERTestor:
         )
         logger.info("| P. | R. | F. |")
         logger.info("| %.2f | %.2f | %.2f |" % (100 * P, 100 * R, 100 * F))
-        pass
+        self.writer.log_metric("precision", 100 * P)
+        self.writer.log_metric("recall", 100 * R)
+        self.writer.log_metric("f1", 100 * F)
 
     def evaluate_on_head(self, prediction_for_test: Dataset):
         logger.info("evaluate on head")
@@ -532,6 +540,9 @@ class NERTestor:
         logger.info(
             "| total | %.2f | %.2f | %.2f |" % (100 * precision, 100 * recall, 100 * f1)
         )
+        self.writer.log_metric("lenient P.", 100 * precision)
+        self.writer.log_metric("lenient R.", 100 * recall)
+        self.writer.log_metric("lenient F.", 100 * f1)
         # logger.info(
         #     classification_report(
         #         prediction_for_test["gold_ner_tags"],
@@ -614,7 +625,7 @@ class NERTestor:
             ["recall"] + ["{:.2f}".format(100 * pred_num2rec[n]) for n in pred_nums]
         )
         ptl.add_row(["f1"] + ["{:.2f}".format(100 * pred_num2f1[n]) for n in pred_nums])
-        print(ptl.get_string())
+        logger.info(ptl.get_string())
 
     def evaluate_span_detection(self):
         logger.info("evaluate span detection")

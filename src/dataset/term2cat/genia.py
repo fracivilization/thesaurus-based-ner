@@ -58,10 +58,10 @@ def get_descendants_cuis(cui):
     start_time = time()
     num_cpus = 10
     while len(unsearched_cuis) > 0:
-        print("number of searched_cuis: %d" % len(searched_cuis))
-        print("number of unsearched_cuis: %d" % len(unsearched_cuis))
-        print("%.2f [s]" % (time() - start_time,))
-        print(datetime.datetime.now())
+        logger.info("number of searched_cuis: %d" % len(searched_cuis))
+        logger.info("number of unsearched_cuis: %d" % len(unsearched_cuis))
+        logger.info("%.2f [s]" % (time() - start_time,))
+        logger.info(datetime.datetime.now())
         one_step_children = list()
         for chunk in tqdm(list(chunked(unsearched_cuis, 1024))):
             one_step_children += get_children_of_chis(chunk)

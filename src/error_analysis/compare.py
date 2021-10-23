@@ -131,7 +131,6 @@ class CompareNEROutput:
             for l, s, e in more_predicteds - g_ents:
                 start = max(0, s - 5)
                 end = e + 6
-                #         print(l,s,e)
                 span_words = set(range(s, e + 1))
                 if span_words & gold_words:
                     gl, gs, ge = [
