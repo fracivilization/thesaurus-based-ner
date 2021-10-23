@@ -106,36 +106,36 @@ $(PSEUDO_NER_DATA_DIR): $(DICT_FILES) $(PSEUDO_DATA_DIR) $(GOLD_DATA) $(RAW_CORP
 	@echo output dir: $(PSEUDO_NER_DATA_DIR)
 	poetry run python -m cli.preprocess.load_pseudo_ner \
 		+raw_corpus=$(RAW_CORPUS_OUT) \
-		+ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
-		+ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
+		++ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
+		++ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
 		+output_dir=$(PSEUDO_NER_DATA_DIR) \
         +gold_corpus=$(GOLD_DATA) 
         
-$(FP_REMOVED_PSEUDO_DATA): $(DICT_FILES) $(GOLD_DATA)
+$(FP_REMOVED_PSEUDO_DATA): $(DICT_FILES) $(GOLD_DATA) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR)
 	@echo make pseudo data whose FP is removed according to Gold dataset
 	@echo make from Gold: $(GOLD_DATA)
 	@echo focused categories: $(FOCUS_CATS)
 	@echo duplicated categories: $(DUPLICATE_CATS)
-	@FP_REMOVED_PSEUDO_DATA: $(FP_REMOVED_PSEUDO_DATA)
+	@echo FP_REMOVED_PSEUDO_DATA: $(FP_REMOVED_PSEUDO_DATA)
 	poetry run python -m cli.preprocess.load_pseudo_ner \
 		+raw_corpus=$(GOLD_DATA) \
-		+ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
-		+ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
+		++ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
+		++ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
 		+output_dir=$(FP_REMOVED_PSEUDO_DATA) \
-        +gold_corpus=$(GOLD_DATA) 
-		+remove_fp_instance=True
+        +gold_corpus=$(GOLD_DATA) \
+		++remove_fp_instance=True
 
-$(PSEUDO_DATA_ON_GOLD):
-	@make pseudo data on Gold dataset for comparison
-	@make from Gold: $(GOLD_DATA)
-	@focused categories: $(FOCUS_CATS)
-	@duplicated categories: $(DUPLICATE_CATS)
-	@PSEUDO_DATA_ON_GOLD: $(PSEUDO_DATA_ON_GOLD)
+$(PSEUDO_DATA_ON_GOLD): $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR)
+	@echo make pseudo data on Gold dataset for comparison
+	@echo make from Gold: $(GOLD_DATA)
+	@echo focused categories: $(FOCUS_CATS)
+	@echo duplicated categories: $(DUPLICATE_CATS)
+	@echo PSEUDO_DATA_ON_GOLD: $(PSEUDO_DATA_ON_GOLD)
 	poetry run python -m cli.preprocess.load_pseudo_ner \
 		+raw_corpus=$(GOLD_DATA) \
-		+ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
-		+ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
-		+output_dir=$(FP_REMOVED_PSEUDO_DATA) \
+		++ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
+		++ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
+		+output_dir=$(PSEUDO_DATA_ON_GOLD) \
         +gold_corpus=$(GOLD_DATA) 
 
 
