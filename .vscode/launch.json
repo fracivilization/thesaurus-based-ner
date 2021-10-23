@@ -83,7 +83,7 @@
             ],
         },
         {
-            "name": "Compare",
+            "name": "Compare Result",
             "type": "python",
             "request": "launch",
             "module": "cli.compare_result",
@@ -91,6 +91,19 @@
             "args": [
                 "outputs/2021-09-28/16-58-30/data/output/0d71eb7b67f1d1aec0d530f0f4ccaf11/prediction_for_validation.dataset/", // Dict Match
                 "outputs/2021-09-28/10-15-11/data/output/17cc08c939356bf90aefb5a5c7015f04/prediction_for_validation.dataset/", // NP Chunker + Classifier + Negative
+            ],
+        },
+        {
+            "name": "Compare Metrics",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.compare_metrics",
+            "justMyCode": false,
+            "args": [
+                "--base-run-id",
+                "5c13c05ba0c745e8bf1671ef8ec2fa95",
+                "--focus-run-id",
+                "c2afdb78eca3414bba3cbdba53d9d551",
             ],
         },
         {
