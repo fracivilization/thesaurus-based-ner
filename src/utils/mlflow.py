@@ -2,6 +2,12 @@ import mlflow
 from mlflow.exceptions import MlflowException
 from omegaconf import DictConfig, ListConfig
 import hydra
+from transformers.integrations import MLflowCallback
+import os
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class MlflowWriter:
@@ -47,3 +53,47 @@ class MlflowWriter:
 
     def set_terminated(self):
         self.client.set_terminated(self.run_id)
+
+
+class MLflowCallback(MLflowCallback):
+    def setup(self, args, state, model, nested=True):
+        """
+        Setup the optional MLflow integration.
+
+        Environment:
+            HF_MLFLOW_LOG_ARTIFACTS (:obj:`str`, `optional`):
+                Whether to use MLflow .log_artifact() facility to log artifacts.
+
+                This only makes sense if logging to a remote server, e.g. s3 or GCS. If set to `True` or `1`, will copy
+                whatever is in :class:`~transformers.TrainingArguments`'s ``output_dir`` to the local or remote
+                artifact storage. Using it without a remote storage will just copy the files to your artifact location.
+        """
+        log_artifacts = os.getenv("HF_MLFLOW_LOG_ARTIFACTS", "FALSE").upper()
+        if log_artifacts in {"TRUE", "1"}:
+            self._log_artifacts = True
+        if state.is_world_process_zero:
+            self._ml_flow.start_run(nested=nested)
+            combined_dict = args.to_dict()
+            if hasattr(model, "config") and model.config is not None:
+                model_config = model.config.to_dict()
+                combined_dict = {**model_config, **combined_dict}
+            # remove params that are too long for MLflow
+            for name, value in list(combined_dict.items()):
+                # internally, all values are converted to str in MLflow
+                if len(str(value)) > self._MAX_PARAM_VAL_LENGTH:
+                    logger.warning(
+                        f"Trainer is attempting to log a value of "
+                        f'"{value}" for key "{name}" as a parameter. '
+                        f"MLflow's log_param() only accepts values no longer than "
+                        f"250 characters so we dropped this attribute."
+                    )
+                    del combined_dict[name]
+            # MLflow cannot log more than 100 values in one go, so we have to split it
+            combined_dict_items = list(combined_dict.items())
+            for i in range(
+                0, len(combined_dict_items), self._MAX_PARAMS_TAGS_PER_BATCH
+            ):
+                self._ml_flow.log_params(
+                    dict(combined_dict_items[i : i + self._MAX_PARAMS_TAGS_PER_BATCH])
+                )
+        self._initialized = True

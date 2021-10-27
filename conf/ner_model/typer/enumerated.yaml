@@ -1,5 +1,14 @@
 defaults:
   - base_EnumeratedTyper_config
 
-msc_args:
-  with_enumerated_o_label: True
+# msc_args:
+  # with_enumerated_o_label: True
+train_args:
+  do_train: True
+  overwrite_output_dir: True
+  num_train_epochs: 10
+  # gradient_accumulation_steps: 8
+  # learning_rate: 5e-7
+  # adam_epsilon: 100
+  # adam_beta1: 0.0
+  # adam_beta2: 0.0

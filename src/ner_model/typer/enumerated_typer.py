@@ -6,6 +6,8 @@ from src.ner_model.typer.data_translator import (
     SpanClassificationDatasetArgs,
     translate_into_msc_datasets,
 )
+from src.utils.mlflow import MlflowWriter
+from src.utils.utils import remain_specified_data
 from .abstract_model import (
     Typer,
     TyperConfig,
@@ -34,6 +36,8 @@ from tqdm import tqdm
 from typing import Dict
 import itertools
 from scipy.special import softmax
+from src.utils.mlflow import MLflowCallback
+from psutil import cpu_count
 
 span_start_token = "[unused1]"
 span_end_token = "[unused2]"
@@ -195,6 +199,7 @@ class EnumeratedTyper(Typer):
         self,
         conf: EnumeratedTyperConfig,
         ner_datasets: DatasetDict,
+        writer: MlflowWriter,
     ) -> None:
         """[summary]
 
@@ -289,16 +294,18 @@ class EnumeratedTyper(Typer):
         self.tokenizer = tokenizer
         self.model = model
 
-        span_classification_datasets = DatasetDict(
+        train_val_span_classification_datasets = DatasetDict(
             {
                 "train": span_classification_datasets["train"],
                 "validation": span_classification_datasets["validation"],
             }
         )
-        tokenized_datasets = span_classification_datasets.map(
+
+        tokenized_datasets = train_val_span_classification_datasets.map(
             self.preprocess_function,
             batched=True,
             load_from_cache_file=not data_args.overwrite_cache,
+            num_proc=cpu_count(logical=False),
         )
 
         # Data collator
@@ -333,6 +340,10 @@ class EnumeratedTyper(Typer):
             }
 
         # Initialize our Trainer
+        if isinstance(writer, MlflowWriter):
+            callbacks = [MLflowCallback()]
+        else:
+            callbacks = []
         from transformers import default_data_collator
 
         trainer = Trainer(
@@ -347,6 +358,7 @@ class EnumeratedTyper(Typer):
             tokenizer=tokenizer,
             data_collator=default_data_collator,
             compute_metrics=compute_metrics,
+            callbacks=callbacks,
         )
         self.trainer = trainer
 

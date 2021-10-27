@@ -94,9 +94,7 @@ class BERTSupervisedDetector(Chunker):
     def __init__(
         self,
         span_detection_datasets: DatasetDict,
-        training_args: TrainingArguments = TrainingArguments(
-            output_dir="data/output/default"
-        ),
+        training_args: TrainingArguments = TrainingArguments(output_dir="."),
         data_args: DataTrainingArguments = DataTrainingArguments(),
         model_args: ModelArguments = ModelArguments(
             model_name_or_path="bert-base-uncased"

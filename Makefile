@@ -1,8 +1,15 @@
+# pseudo dataset related args
 DBPEDIA_CATS = GeneLocation Species Disease Work SportsSeason Device Media SportCompetitionResult EthnicGroup Protocol Award Demographics MeanOfTransportation FileSystem Medicine Area Flag UnitOfWork MedicalSpecialty GrossDomesticProduct Biomolecule Identifier Blazon PersonFunction List TimePeriod Event Relationship Altitude TopicalConcept Spreadsheet Currency Cipher Browser Tank Food Depth Population Statistic StarCluster Language GrossDomesticProductPerCapita ChemicalSubstance ElectionDiagram Diploma Place Algorithm ChartsPlacements Unknown Activity PublicService Agent Name AnatomicalStructure Colour
 UMLS_CATS = T002 T004 T194 T075 T200 T081 T080 T079 T171 T102 T099 T100 T101 T054 T055 T056 T064 T065 T066 T068 T005 T007 T017 T022 T031 T033 T037 T038 T058 T062 T074 T082 T091 T092 T097 T098 T103 T168 T170 T201 T204
 FOCUS_CATS := T005 T007 T017 T022 T031 T033 T037 T038 T058 T062 T074 T082 T091 T092 T097 T098 T103 T168 T170 T201 T204
-DUPLICATE_CATS := $(FOCUS_CATS)
-REMOVE_CATS := $(filter-out $(DUPLICATE_CATS), $(DBPEDIA_CATS) $(UMLS_CATS))
+DUPLICATE_CATS := $(DBPEDIA_CATS)
+NO_NC := True
+OUTPUT_O_AS_NC := True
+O_SAMPLING_RATIO := 1.0
+
+PSEUDO_DATA_ARGS := $(FOCUS_CATS) $(DUPLICATE_CATS) $(NO_NC) $(OUTPUT_O_AS_NC) $(O_SAMPLING_RATIO)
+
+REMOVE_CATS := $(filter-out $(FOCUS_CATS), $(filter-out $(DUPLICATE_CATS), $(DBPEDIA_CATS) $(UMLS_CATS)))
 APPEARED_CATS := $(FOCUS_CATS) $(REMOVE_CATS)
 DATA_DIR := data
 DICT_DIR := $(DATA_DIR)/dict
@@ -16,13 +23,13 @@ PUBMED := $(RAW_CORPUS_DIR)/pubmed
 SOURCE_TXT_DIR := $(PUBMED)
 RAW_CORPUS_OUT := $(RAW_CORPUS_DIR)/$(firstword $(shell echo $(RAW_CORPUS_NUM) | sha1sum))
 PSEUDO_DATA_DIR := $(DATA_DIR)/pseudo
-PSEUDO_NER_DATA_DIR := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo $(APPEARED_CATS) $(RAW_CORPUS_NUM) | sha1sum))
+PSEUDO_NER_DATA_DIR := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo $(PSEUDO_DATA_ARGS) $(RAW_CORPUS_NUM) | sha1sum))
 
 GOLD_DIR := $(DATA_DIR)/gold
 GOLD_DATA := $(GOLD_DIR)/$(firstword $(shell echo "MedMentions" $(FOCUS_CATS) | sha1sum))
 
-FP_REMOVED_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "FP_REMOVED_PSEUDO_DATA" $(APPEARED_CATS) $(GOLD_DATA) | sha1sum))
-PSEUDO_DATA_ON_GOLD := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "PSEUDO_DATA_ON_GOLD" $(APPEARED_CATS) $(GOLD_DATA) | sha1sum)) 
+FP_REMOVED_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "FP_REMOVED_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
+PSEUDO_DATA_ON_GOLD := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "PSEUDO_DATA_ON_GOLD" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum)) 
 
 show_focus_cats:
 	@echo UMLS Categories
@@ -108,6 +115,9 @@ $(PSEUDO_NER_DATA_DIR): $(DICT_FILES) $(PSEUDO_DATA_DIR) $(GOLD_DATA) $(RAW_CORP
 		+raw_corpus=$(RAW_CORPUS_OUT) \
 		++ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
 		++ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
+		++ner_model.typer.term2cat.no_nc=$(NO_NC) \
+		++ner_model.typer.output_o_as_nc=$(OUTPUT_O_AS_NC) \
+		++ner_model.typer.msc_args.o_sampling_ratio=$(O_SAMPLING_RATIO) \
 		+output_dir=$(PSEUDO_NER_DATA_DIR) \
         +gold_corpus=$(GOLD_DATA) 
         
@@ -121,6 +131,9 @@ $(FP_REMOVED_PSEUDO_DATA): $(DICT_FILES) $(GOLD_DATA) $(PSEUDO_DATA_DIR) $(PSEUD
 		+raw_corpus=$(GOLD_DATA) \
 		++ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
 		++ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
+		++ner_model.typer.term2cat.no_nc=$(NO_NC) \
+		++ner_model.typer.output_o_as_nc=$(OUTPUT_O_AS_NC) \
+		++ner_model.typer.msc_args.o_sampling_ratio=$(O_SAMPLING_RATIO) \
 		+output_dir=$(FP_REMOVED_PSEUDO_DATA) \
         +gold_corpus=$(GOLD_DATA) \
 		++remove_fp_instance=True
@@ -135,6 +148,8 @@ $(PSEUDO_DATA_ON_GOLD): $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_N
 		+raw_corpus=$(GOLD_DATA) \
 		++ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
 		++ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
+		++ner_model.typer.output_o_as_nc=$(OUTPUT_O_AS_NC) \
+		++ner_model.typer.msc_args.o_sampling_ratio=$(O_SAMPLING_RATIO) \
 		+output_dir=$(PSEUDO_DATA_ON_GOLD) \
         +gold_corpus=$(GOLD_DATA) 
 

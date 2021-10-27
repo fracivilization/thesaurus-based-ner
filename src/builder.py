@@ -12,6 +12,8 @@ from logging import getLogger
 from hydra.utils import get_original_cwd
 import os
 
+from src.utils.mlflow import MlflowWriter
+
 logger = getLogger(__name__)
 
 
@@ -24,13 +26,15 @@ def dataset_builder(config: DatasetConfig) -> DatasetDict:
         )
 
 
-def ner_model_builder(config: NERModelConfig, datasets: DatasetDict = None) -> NERModel:
+def ner_model_builder(
+    config: NERModelConfig, datasets: DatasetDict = None, writer: MlflowWriter = None
+) -> NERModel:
     if config.ner_model_name == "BERT":
         ner_model = BERTNERModel(datasets, config)
     elif config.ner_model_name == "BOND":
         ner_model = BONDNERModel(datasets, config)
     elif config.ner_model_name == "TwoStage":
-        ner_model = TwoStageModel(config, datasets)
+        ner_model = TwoStageModel(config, datasets, writer)
     elif config.ner_model_name == "NERMatcher":
         ner_model = NERMatcherModel(config)
     return NERModelWrapper(ner_model, config)

@@ -19,6 +19,7 @@ from .data_translator import (
 from pathlib import Path
 from hashlib import md5
 import itertools
+from psutil import cpu_count
 
 
 class BertForSpanInsconClassification(BertForTokenClassification):
@@ -403,6 +404,7 @@ class InsconTyper(Typer):
             self.preprocess_function,
             batched=True,
             load_from_cache_file=not data_args.overwrite_cache,
+            num_proc=cpu_count(logical=False),
         )
         tokenized_datasets = self.span_classification_datasets
 
@@ -528,18 +530,17 @@ class InsconTyper(Typer):
         if isinstance(logits, tuple):
             assert logits[0].shape[1] == len(self.label_list)
             logits = logits[0]
-        probs = logits.argmax(-1)
-        labels = []
-        for snt_probs, snt_starts in zip(probs, starts):
+        max_ids = logits.argmax(-1)
+        ret = []
+        for snt_max_ids, snt_logits, snt_starts in zip(max_ids, logits, starts):
             snt_labels = [
-                self.label_list[l] for l in snt_probs[: len(snt_starts)].tolist()
+                self.label_list[l] for l in snt_max_ids[: len(snt_starts)].tolist()
             ]
+            snt_max_probs = snt_logits.max(axis=1)[: len(snt_starts)]
+            ret.append(TyperOutput(labels=snt_labels, max_probs=snt_max_probs))
             assert len(snt_labels) == len(snt_starts)
-            labels.append(snt_labels)
-
-        raise NotImplementedError
-        # TODO: Adapt into TyperOutput
-        return labels
+            assert len(snt_max_probs) == len(snt_starts)
+        return ret
 
     def preprocess_function(self, example: Dict, max_span_num=None) -> Dict:
         new_example = self.get_spanned_tokens(

@@ -139,15 +139,23 @@ def ner_datasets_to_span_classification_datasets(
                 for i in range(len(snt["tokens"])):
                     for j in range(i + 1, len(snt["tokens"]) + 1):
                         if (i, j) not in registered_chunks:
-                            if random.random() < data_args.o_sampling_ratio:
-                                starts.append(i)
-                                ends.append(j)
-                                labels.append("nc-O")
+                            starts.append(i)
+                            ends.append(j)
+                            labels.append("nc-O")
+            sampled_starts = []
+            sampled_ends = []
+            sampled_labels = []
+            for s, e, l in zip(starts, ends, labels):
+                if l == "nc-O" and data_args.o_sampling_ratio > random.random():
+                    continue
+                sampled_starts.append(s)
+                sampled_ends.append(e)
+                sampled_labels.append(l)
             if labels:
                 pre_span_classification_dataset["tokens"].append(snt["tokens"])
-                pre_span_classification_dataset["starts"].append(starts)
-                pre_span_classification_dataset["ends"].append(ends)
-                pre_span_classification_dataset["labels"].append(labels)
+                pre_span_classification_dataset["starts"].append(sampled_starts)
+                pre_span_classification_dataset["ends"].append(sampled_ends)
+                pre_span_classification_dataset["labels"].append(sampled_labels)
         pre_span_classification_datasets[key] = datasets.Dataset.from_dict(
             pre_span_classification_dataset, info=info
         )

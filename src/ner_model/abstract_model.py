@@ -74,4 +74,4 @@ class NERModelWrapper(NERModel):
         return new_tags
 
     def train(self):
-        pass
+        self.ner_model.train()

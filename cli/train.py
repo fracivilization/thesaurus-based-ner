@@ -55,7 +55,7 @@ def main(cfg: TrainConfig):
         }
     )
     writer.log_params_from_omegaconf_dict(dataset_config)
-    ner_model: NERModelWrapper = ner_model_builder(cfg.ner_model, dataset)
+    ner_model: NERModelWrapper = ner_model_builder(cfg.ner_model, dataset, writer)
     ner_model.train()
 
     if isinstance(ner_model.ner_model, TwoStageModel):

@@ -298,9 +298,7 @@ class BERTNERModel(BERTNERModelBase):
             key: split.__hash__() for key, split in ner_dataset.items()
         }
         self.conf["ner_dataset"] = self.datasets_hash
-        config.train_args.output_dir = os.path.join(
-            "data/output", md5(str(self.conf).encode()).hexdigest()
-        )
+        config.train_args.output_dir = "."
         logger.info("output dir: %s" % config.train_args.output_dir)
         logger.info("Start Loading BERT")
         if (

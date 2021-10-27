@@ -27,7 +27,7 @@
                 "+raw_corpus=data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3",
                 "+output_dir=data/pseudo/828031693f82baaa934bba16e276cfcdc2e2c4fd",
                 "+gold_corpus=data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3",
-                "+remove_fp_instance=True"
+                // "++remove_fp_instance=True"
             ],
         },
         {
@@ -79,7 +79,7 @@
             "justMyCode": false,
             "args": [
                 // "++ner_model.ner_model_wrapper.o_label_as_Bo=True"
-                "++dataset.name_or_path=data/pseudo/aa27af3ea75cd004b8a385e7318527373e8a9595"
+                "++dataset.name_or_path=data/pseudo/96137bd66572b07e5c2ada84430f05570cc40787"
             ],
         },
         {

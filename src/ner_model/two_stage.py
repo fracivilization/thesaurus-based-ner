@@ -3,6 +3,8 @@ from src.ner_model.typer import typer_builder
 from src.ner_model.typer.abstract_model import TyperConfig
 from typing import List
 from hydra.core.config_store import ConfigStore
+
+from src.utils.mlflow import MlflowWriter
 from .abstract_model import NERModelConfig, NERModel
 from dataclasses import dataclass
 from src.ner_model.chunker.abstract_model import Chunker, ChunkerConfig
@@ -75,11 +77,14 @@ def register_two_stage_configs() -> None:
 
 
 class TwoStageModel(NERModel):
-    def __init__(self, config: TwoStageConfig, datasets: DatasetDict) -> None:
+    def __init__(
+        self, config: TwoStageConfig, datasets: DatasetDict, writer: MlflowWriter
+    ) -> None:
         super().__init__()
         self.conf = config
+        self.writer = writer
         self.chunker = chunker_builder(config.chunker)
-        self.typer = typer_builder(config.typer, datasets)
+        self.typer = typer_builder(config.typer, datasets, writer)
         self.datasets = datasets
 
     def predict(self, tokens: List[str]) -> List[str]:

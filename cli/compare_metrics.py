@@ -33,7 +33,7 @@ def cmd(base_run_id, focus_run_id):
     print(focus_run.data.metrics)
 
     metric2delta = dict()
-    assert set(base_metrics.keys()) == set(focus_metrics.keys())
+    # assert set(base_metrics.keys()) == set(focus_metrics.keys())
     for key in base_run.data.metrics:
         metric2delta[key] = focus_metrics[key] - base_metrics[key]
 

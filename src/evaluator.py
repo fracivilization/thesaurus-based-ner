@@ -61,7 +61,10 @@ def calculate_negative_token_PRF(
 
 
 def calculate_set_PRF(pred_set: Set, gold_set: Set):
-    precision = len(pred_set & gold_set) / len(pred_set)
+    if len(pred_set) == 0:
+        precision = 0
+    else:
+        precision = len(pred_set & gold_set) / len(pred_set)
     recall = len(pred_set & gold_set) / len(gold_set)
     if precision != 0 and recall != 0:
         f1 = 2 / (1 / precision + 1 / recall)
@@ -90,9 +93,7 @@ class NERTestor:
             "ner_dataset": self.datasets_hash,
             "ner_model": ner_model.conf,
         }
-        self.output_dir = Path("data/output").joinpath(
-            md5(str(self.args).encode()).hexdigest()
-        )
+        self.output_dir = Path(".")
         self.writer = writer
         logger.info("output_dir for NERTestor: %s" % str(self.output_dir))
         if not self.output_dir.exists():

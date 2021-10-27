@@ -1,0 +1,6 @@
+defaults:
+  - base_InsconTyper_config
+
+train_args:
+  do_train: True
+  overwrite_output_dir: True

@@ -175,9 +175,7 @@ class BONDNERModel(BERTNERModelBase):
             key: split.__hash__() for key, split in ner_dataset.items()
         }
         self.conf["bond_args"] = bond_args
-        output_dir = Path("data/output").joinpath(
-            md5(str(self.conf).encode()).hexdigest()
-        )
+        output_dir = Path(".")
         self.output_dir = output_dir
         logger.info("output_dir is %s" % str(output_dir))
         if (
