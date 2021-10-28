@@ -37,6 +37,7 @@ class PseudoAnnoConfig:
     raw_corpus: str = MISSING
     gold_corpus: str = MISSING
     remove_fp_instance: bool = False
+    add_erosion_fn: bool = False
     # duplicate_cats: str = MISSING
     # focus_cats: str = MISSING
 
@@ -62,6 +63,10 @@ def remove_fp_ents(pred_tags: List[str], gold_tags: List[str]):
     return new_tags
 
 
+def add_erosion_fn(pred_tags, gold_tags):
+    pass
+
+
 def load_pseudo_dataset(
     raw_corpus: Dataset, ner_model: NERModel, conf: PseudoAnnoConfig
 ) -> Dataset:
@@ -78,7 +83,7 @@ def load_pseudo_dataset(
     if not buffer_dir.exists():
         ret_tokens = []
         ner_tags = []
-        if conf.remove_fp_instance:
+        if conf.remove_fp_instance or conf.add_erosion_fn:
             label_names = raw_corpus.features["ner_tags"].feature.names
             for tokens, gold_tags in tqdm(
                 zip(raw_corpus["tokens"], raw_corpus["ner_tags"])
@@ -87,6 +92,8 @@ def load_pseudo_dataset(
                 gold_tags = [label_names[tagid] for tagid in gold_tags]
                 if conf.remove_fp_instance:
                     pred_tags = remove_fp_ents(pred_tags, gold_tags)
+                if conf.add_erosion_fn:
+                    pred_tags = add_erosion_fn(pred_tags, gold_tags)
                 if any(tag != "O" for tag in pred_tags):
                     ret_tokens.append(tokens)
                     ner_tags.append(pred_tags)
