@@ -93,6 +93,7 @@ class Term2CatConfig:
     duplicate_cats: str = MISSING
     dict_dir: str = os.path.join(os.getcwd(), "data/dict")
     no_nc: bool = False
+    remove_anomaly_suffix: bool = False  # remove suffix term (e.g. "migration": nc-T054 for "cell migration": T038)
 
 
 def load_term2cat(conf: Term2CatConfig):
