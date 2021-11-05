@@ -58,37 +58,6 @@ def translate_char_level_to_token_level(
     return token_based_spans
 
 
-from inflection import UNCOUNTABLES, PLURALS
-import re
-
-PLURAL_RULES = [(re.compile(rule), replacement) for rule, replacement in PLURALS]
-
-
-def pluralize(word: str) -> str:
-    """
-    Return the plural form of a word.
-
-    Examples::
-
-        >>> pluralize("posts")
-        'posts'
-        >>> pluralize("octopus")
-        'octopi'
-        >>> pluralize("sheep")
-        'sheep'
-        >>> pluralize("CamelOctopus")
-        'CamelOctopi'
-
-    """
-    if not word or word.lower() in UNCOUNTABLES:
-        return word
-    else:
-        for rule, replacement in PLURAL_RULES:
-            if rule.search(word):
-                return rule.sub(replacement, word)
-        return word
-
-
 class ComplexKeywordTyper:
     def __init__(self, term2cat: Dict[str, str]) -> None:
         buffer_dir = Path(get_original_cwd()).joinpath(
@@ -159,9 +128,9 @@ class ComplexKeywordTyper:
                 cat = term2cat[term]
                 case_insensitive_terms_append(term.lower()[::-1])
                 case_insensitive_cats_append(cat)
-                pluralized_term = pluralize(term)
-                case_insensitive_terms_append(pluralized_term.lower()[::-1])
-                case_insensitive_cats_append(cat)
+                # pluralized_term = pluralize(term)
+                # case_insensitive_terms_append(pluralized_term.lower()[::-1])
+                # case_insensitive_cats_append(cat)
 
                 # self.reversed_case_insensitive_keyword_processor.add_keyword(
                 #     term[::-1], cat

@@ -3,8 +3,9 @@ defaults:
   - dataset: base_dataset_config
   # - ner_model: BERT
   # - ner_model: BOND
-  - ner_model: TwoStage
+  # - ner_model: TwoStage
   # - ner_model: matcher
+  - ner_model: PseudoTwoStage
 
 dataset:
   # name_or_path: "conll2003"

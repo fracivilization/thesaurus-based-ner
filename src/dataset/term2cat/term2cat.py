@@ -1,3 +1,4 @@
+from typing import List
 from .genia import load_term2cat as genia_load_term2cat
 from .twitter import load_twitter_main_dictionary, load_twitter_sibling_dictionary
 from hashlib import md5
@@ -8,6 +9,82 @@ from omegaconf import MISSING
 from .terms import DBPedia_categories, UMLS_Categories
 from hydra.utils import get_original_cwd
 from collections import defaultdict
+from inflection import UNCOUNTABLES, PLURALS, SINGULARS
+import re
+from tqdm import tqdm
+
+PLURAL_RULES = [(re.compile(rule), replacement) for rule, replacement in PLURALS]
+SINGULAR_RULES = [(re.compile(rule), replacement) for rule, replacement in SINGULARS]
+
+
+def pluralize(word: str) -> str:
+    """
+    Return the plural form of a word.
+
+    Examples::
+
+        >>> pluralize("posts")
+        'posts'
+        >>> pluralize("octopus")
+        'octopi'
+        >>> pluralize("sheep")
+        'sheep'
+        >>> pluralize("CamelOctopus")
+        'CamelOctopi'
+
+    """
+    if not word or word.lower() in UNCOUNTABLES:
+        return word
+    else:
+        for rule, replacement in PLURAL_RULES:
+            if rule.search(word):
+                return rule.sub(replacement, word)
+        return word
+
+
+def singularize(word: str) -> str:
+    """
+    Return the singular form of a word, the reverse of :func:`pluralize`.
+
+    Examples::
+
+        >>> singularize("posts")
+        'post'
+        >>> singularize("octopi")
+        'octopus'
+        >>> singularize("sheep")
+        'sheep'
+        >>> singularize("word")
+        'word'
+        >>> singularize("CamelOctopi")
+        'CamelOctopus'
+
+    """
+    for inflection in UNCOUNTABLES:
+        if re.search(r"(?i)\b(%s)\Z" % inflection, word):
+            return word
+
+    for rule, replacement in SINGULAR_RULES:
+        if re.search(rule, word):
+            return re.sub(rule, replacement, word)
+    return word
+
+
+def load_inflected_terms(dict_dir: str, cat: str):
+    # TODO: 辞書作成の手続きに統合してしまう
+    buffer_file = os.path.join(get_original_cwd(), dict_dir, cat + "_inflected")
+    if not os.path.exists(buffer_file):
+        with open(os.path.join(dict_dir, cat)) as f:
+            terms = f.read().split("\n")
+        with open(buffer_file, "w") as f:
+            for term in tqdm(terms):
+                singular = singularize(term)
+                plural = pluralize(term)
+                f.write("%s\n" % singular)
+                f.write("%s\n" % plural)
+    with open(buffer_file) as f:
+        ret_terms = f.read().split("\n")
+    return ret_terms
 
 
 @dataclass
@@ -29,10 +106,8 @@ def load_term2cat(conf: Term2CatConfig):
     cats = focus_cats | remained_nc
     cat2terms = dict()
     for cat in cats:
-        with open(os.path.join(conf.dict_dir, cat)) as f:
-            pass
-            terms = f.read().split("\n")
-            cat2terms[cat] = set(terms)
+        terms = load_inflected_terms(conf.dict_dir, cat)
+        cat2terms[cat] = set(terms)
     duplicate_terms = set()
     # term2cats = defaultdict(set)
     for i1, (c1, t1) in enumerate(cat2terms.items()):

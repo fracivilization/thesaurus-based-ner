@@ -11,6 +11,7 @@ import logging
 from seqeval.metrics.sequence_labeling import get_entities
 from src.ner_model.chunker.abstract_model import Chunker
 from src.utils.mlflow import MlflowWriter
+from prettytable import PrettyTable
 
 logger = logging.getLogger(__name__)
 
@@ -123,9 +124,11 @@ class NERTestor:
         self.evaluate(self.prediction_for_test)
         self.evaluate_on_head(self.prediction_for_test)
         self.lenient_evaluate(self.prediction_for_test)
+        self.analyze_fp(self.prediction_for_test)
         self.evaluate_by_sentence_length(self.prediction_for_test)
         self.evaluate_by_predicted_span_num(self.prediction_for_test)
         self.evaluate_span_detection()
+        self.analyze_nc_fn(self.prediction_for_test_w_nc)
         self.evaluate_negative_category(self.prediction_for_test_w_nc)
         self.evaluate_negative_by_category(self.prediction_for_test_w_nc)
         if chunker:
@@ -133,6 +136,103 @@ class NERTestor:
             self.evaluate_on_negative_chunk_by_category(
                 self.prediction_for_test_w_nc, chunker
             )
+
+    def analyze_nc_fn(self, prediction_for_test_w_nc: Dataset):
+        count_for_fn_miss_classification_on_end = 0
+        count_for_fn_miss_classification_on_non_end = 0
+        for snt in prediction_for_test_w_nc:
+            pred_tags = snt["pred_ner_tags"]
+            gold_tags = snt["gold_ner_tags"]
+            for l, s, e in get_entities(pred_tags):
+                if l.startswith("nc-"):
+                    gold_labels = [l for l, s, e in get_entities(gold_tags[s : e + 1])]
+                    gold_ends = [
+                        s + e2 for l, s2, e2 in get_entities(gold_tags[s : e + 1])
+                    ]
+                    if gold_labels:  # check fn or not
+                        if e in gold_ends:
+                            count_for_fn_miss_classification_on_end += 1
+                        else:
+                            count_for_fn_miss_classification_on_non_end += 1
+        ptl = PrettyTable(["class", "count", "ratio (%)"])
+        fp_num = (
+            +count_for_fn_miss_classification_on_end
+            + count_for_fn_miss_classification_on_non_end
+        )
+        ptl.add_row(
+            [
+                "miss nc on end",
+                count_for_fn_miss_classification_on_end,
+                count_for_fn_miss_classification_on_end / fp_num * 100,
+            ],
+        )
+        ptl.add_row(
+            [
+                "miss classification on non-end",
+                count_for_fn_miss_classification_on_non_end,
+                count_for_fn_miss_classification_on_non_end / fp_num * 100,
+            ],
+        )
+        logger.info(ptl.get_string())
+
+    def get_np_negative_chunks(self, prediction_w_nc: Dataset, chunker: Chunker):
+        # evaluate on NP
+        np_negative_chunks = set()
+        all_np_chunks = set()
+        for sid, (gold, snt) in enumerate(
+            zip(prediction_w_nc["gold_ner_tags"], prediction_w_nc["tokens"])
+        ):
+            chunks = chunker.predict(snt)
+            for s, e in chunks:
+                all_np_chunks.add((sid, s, e))
+                if all(tag == "O" for tag in gold[s:e]):
+                    np_negative_chunks.add((sid, s, e))
+        return all_np_chunks, np_negative_chunks
+        pass
+
+    def analyze_fp(self, prediction_for_test: Dataset):
+        """
+        Analyze the false positive (FP) in the prediction.
+        """
+        # Check whether the error on "O" or another category
+        count_for_fp_on_o = 0
+        count_for_fp_miss_classification_on_end = 0
+        count_for_fp_miss_classification_on_non_end = 0
+        for snt in prediction_for_test:
+            pred_tags = snt["pred_ner_tags"]
+            gold_tags = snt["gold_ner_tags"]
+            for l, s, e in get_entities(pred_tags):
+                gold_labels = [l for l, s, e in get_entities(gold_tags[s : e + 1])]
+                gold_ends = [e for l, s, e in get_entities(gold_tags[s : e + 1])]
+                if l in gold_labels:  # check fp or not
+                    if e in gold_ends:
+                        count_for_fp_miss_classification_on_end += 1
+                    else:
+                        count_for_fp_miss_classification_on_non_end += 1
+                elif all(tag == "O" for tag in gold_tags[s : e + 1]):
+                    count_for_fp_on_o += 1
+        ptl = PrettyTable(["class", "count", "ratio (%)"])
+        fp_num = (
+            count_for_fp_on_o
+            + count_for_fp_miss_classification_on_end
+            + count_for_fp_miss_classification_on_non_end
+        )
+        ptl.add_row(["on all O", count_for_fp_on_o, count_for_fp_on_o / fp_num * 100])
+        ptl.add_row(
+            [
+                "miss classification on end",
+                count_for_fp_miss_classification_on_end,
+                count_for_fp_miss_classification_on_end / fp_num * 100,
+            ],
+        )
+        ptl.add_row(
+            [
+                "miss classification on non-end",
+                count_for_fp_miss_classification_on_non_end,
+                count_for_fp_miss_classification_on_non_end / fp_num * 100,
+            ],
+        )
+        logger.info(ptl.get_string())
 
     def get_np_negative_chunks(self, prediction_w_nc: Dataset, chunker: Chunker):
         # evaluate on NP
@@ -253,7 +353,6 @@ class NERTestor:
                 pred_negative_chunks, enumerated_negative_spans
             )
             enumerated_negative_prf.append((precision, recall, f1))
-        from prettytable import PrettyTable
 
         ptl = PrettyTable()
         ptl.add_column("# negative category", ncs)
