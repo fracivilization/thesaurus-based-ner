@@ -137,7 +137,15 @@ class ComplexKeywordTyper:
         # ) as f:
         #     self.reversed_case_insensitive_darts = pickle.load(f)
 
-    def type_chunk(self, chunk: str, **kwargs) -> str:
+    def get_confirmed_common_suffixes(self, chunk: str):
+        """Return confirmed common suffixes
+
+        Args:
+            chunk (str): chunk for string match
+
+        Returns: confirmed_common_suffixes
+            [type]: List of tuple of (type, start)
+        """
         reversed_chunk = "".join(reversed(chunk))
         common_suffixes = self.reversed_case_sensitive_darts.common_prefix_search(
             reversed_chunk.lower().encode("utf-8")
@@ -151,12 +159,16 @@ class ComplexKeywordTyper:
             if start < len(chunk) and reversed_chunk[start] != " ":
                 pass
             else:
-                confirmed_common_suffixes.append((cat, start))
+                confirmed_common_suffixes.append(
+                    (self.cat_labels[cat], len(chunk) - start)
+                )
+        return confirmed_common_suffixes
 
-        common_suffixes = confirmed_common_suffixes
+    def type_chunk(self, chunk: str, **kwargs) -> str:
+        common_suffixes = self.get_confirmed_common_suffixes(chunk)
         if common_suffixes:
             cats, starts = zip(*common_suffixes)
-            return self.cat_labels[cats[starts.index(max(starts))]]
+            return cats[starts.index(min(starts))]
         else:
             return "O"
 
