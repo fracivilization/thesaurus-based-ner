@@ -12,6 +12,7 @@ from collections import defaultdict
 from inflection import UNCOUNTABLES, PLURALS, SINGULARS
 import re
 from tqdm import tqdm
+from src.utils.string_match import ComplexKeywordTyper
 
 PLURAL_RULES = [(re.compile(rule), replacement) for rule, replacement in PLURALS]
 SINGULAR_RULES = [(re.compile(rule), replacement) for rule, replacement in SINGULARS]
@@ -96,6 +97,35 @@ class Term2CatConfig:
     remove_anomaly_suffix: bool = False  # remove suffix term (e.g. "migration": nc-T054 for "cell migration": T038)
 
 
+def get_anomaly_suffixes(term2cat):
+    buffer_file = os.path.join(
+        get_original_cwd(),
+        "data/buffer/%s"
+        % md5(("anomaly_suffixes" + str(term2cat)).encode()).hexdigest(),
+    )
+    if not os.path.exists(buffer_file):
+        anomaly_suffixes = set()
+        complex_typer = ComplexKeywordTyper(term2cat)
+        lowered2orig = defaultdict(list)
+        for term in term2cat:
+            lowered2orig[term.lower()].append(term)
+        for term, cat in term2cat.items():
+            confirmed_common_suffixes = complex_typer.get_confirmed_common_suffixes(
+                term
+            )
+            for pred_cat, start in confirmed_common_suffixes:
+                if pred_cat != cat and start != 0:
+                    anomaly_suffix = term[start:]
+                    lowered2orig[anomaly_suffix]
+                    for orig_term in lowered2orig[anomaly_suffix]:
+                        anomaly_suffixes.add(orig_term)
+        with open(buffer_file, "w") as f:
+            f.write("\n".join(anomaly_suffixes))
+    with open(buffer_file, "r") as f:
+        anomaly_suffixes = f.read().split("\n")
+    return anomaly_suffixes
+
+
 def load_term2cat(conf: Term2CatConfig):
     focus_cats = set(conf.focus_cats.split("_"))
     if conf.no_nc:
@@ -109,23 +139,28 @@ def load_term2cat(conf: Term2CatConfig):
     for cat in cats:
         terms = load_inflected_terms(conf.dict_dir, cat)
         cat2terms[cat] = set(terms)
-    duplicate_terms = set()
+    remove_terms = set()
     # term2cats = defaultdict(set)
     for i1, (c1, t1) in enumerate(cat2terms.items()):
         for i2, (c2, t2) in enumerate(cat2terms.items()):
             if i2 > i1:
                 duplicated = t1 & t2
                 if duplicated:
-                    duplicate_terms |= duplicated
+                    remove_terms |= duplicated
                     # for t in duplicated:
                     # term2cats[t] |= {c1, c2}
     term2cat = dict()
     for cat, terms in cat2terms.items():
-        for non_duplicated_term in terms - duplicate_terms:
+        for non_duplicated_term in terms - remove_terms:
             if cat in remained_nc:
                 term2cat[non_duplicated_term] = "nc-%s" % cat
             else:
                 term2cat[non_duplicated_term] = cat
+
+    if conf.remove_anomaly_suffix:
+        anomaly_suffixes = get_anomaly_suffixes(term2cat)
+        for term in anomaly_suffixes:
+            del term2cat[term]
     return term2cat
 
 
