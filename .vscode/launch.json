@@ -83,7 +83,7 @@
             "args": [
                 // "++ner_model.ner_model_wrapper.o_label_as_Bo=True"
                 // "++dataset.name_or_path=data/pseudo/96137bd66572b07e5c2ada84430f05570cc40787"
-                "++ner_model.teerm2cat.remove_anomaly_suffix=True"
+                // "++ner_model.teerm2cat.remove_anomaly_suffix=True"
             ],
         },
         {
