@@ -6,6 +6,8 @@ from transformers.trainer_utils import (
     IntervalStrategy,
     SchedulerType,
 )
+import os
+from hashlib import md5
 
 
 @dataclass
