@@ -3,9 +3,9 @@ DBPEDIA_CATS = GeneLocation Species Disease Work SportsSeason Device Media Sport
 UMLS_CATS = T002 T004 T194 T075 T200 T081 T080 T079 T171 T102 T099 T100 T101 T054 T055 T056 T064 T065 T066 T068 T005 T007 T017 T022 T031 T033 T037 T038 T058 T062 T074 T082 T091 T092 T097 T098 T103 T168 T170 T201 T204
 FOCUS_CATS := T005 T007 T017 T022 T031 T033 T037 T038 T058 T062 T074 T082 T091 T092 T097 T098 T103 T168 T170 T201 T204
 DUPLICATE_CATS := $(DBPEDIA_CATS)
-NO_NC := True
-OUTPUT_O_AS_NC := True
-O_SAMPLING_RATIO := 1.0
+NO_NC ?= False
+OUTPUT_O_AS_NC ?= False
+O_SAMPLING_RATIO ?= 1.0
 
 PSEUDO_DATA_ARGS := $(FOCUS_CATS) $(DUPLICATE_CATS) $(NO_NC) $(OUTPUT_O_AS_NC) $(O_SAMPLING_RATIO)
 
@@ -32,6 +32,10 @@ PSEUDO_DATA_ON_GOLD := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "PSEUDO_DATA_
 FP_REMOVED_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "FP_REMOVED_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
 EROSION_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "EROSION_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
 
+test:
+	echo "test"
+	echo $(SHELL)
+	echo $(NO_NC)
 show_focus_cats:
 	@echo UMLS Categories
 	@echo T116: "Amino Acid, Peptide, or Protein"
@@ -111,7 +115,7 @@ $(PSEUDO_NER_DATA_DIR): $(DICT_FILES) $(PSEUDO_DATA_DIR) $(GOLD_DATA) $(RAW_CORP
 	@echo make pseudo ner data from $(DICT_FILES)
 	@echo focused categories: $(FOCUS_CATS)
 	@echo duplicated categories: $(DUPLICATE_CATS)
-	@echo output dir: $(PSEUDO_NER_DATA_DIR)
+	@echo PSEUDO_NER_DATA_DIR: $(PSEUDO_NER_DATA_DIR)
 	poetry run python -m cli.preprocess.load_pseudo_ner \
 		+raw_corpus=$(RAW_CORPUS_OUT) \
 		++ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \

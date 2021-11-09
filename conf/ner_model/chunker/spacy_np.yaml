@@ -1,0 +1,4 @@
+defaults: 
+  - SpacyNPChunker
+chunker_name: "SpacyNPChunker"
+spacy_model: "en_core_web_sm"

@@ -21,7 +21,7 @@ class Chunker:
         span_detection_datasets: DatasetDict,
     ) -> None:
         self.span_detection_datasets = span_detection_datasets
-        self.conf = []
+        self.config = []
 
     def predict(self, tokens: List[str]) -> List[Span]:
         raise NotImplementedError
@@ -50,3 +50,25 @@ class Chunker:
 
     def train(self):
         raise NotImplementedError
+
+
+@dataclass
+class EnumeratedChunkerConfig(ChunkerConfig):
+    chunker_name: str = "enumerated"
+
+
+class EnumeratedChunker(Chunker):
+    def __init__(self, config: EnumeratedChunkerConfig) -> None:
+        self.config = config
+        pass
+
+    def predict(self, tokens: List[str]) -> List[Span]:
+        raise NotImplementedError
+
+    def batch_predict(
+        self,
+        tokens: List[List[str]],
+    ) -> List[Span]:
+        return [self.predict(token) for token in tokens]
+
+    pass
