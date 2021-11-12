@@ -39,6 +39,7 @@ from transformers.modeling_outputs import (
     TokenClassifierOutput,
 )
 from scipy.special import softmax
+import psutil
 
 span_start_token = "[unused1]"
 span_end_token = "[unused2]"
@@ -106,6 +107,8 @@ class HAMNERLikeModelArguments:
     turn_off_context: bool = False
     use_span_relational_position_embedding: bool = False
     relational_position_embedding_dim: int = 128
+    o_label_id: int = 0  # Update when model loading, so 0 is temporal number
+    o_sampling_ratio: float = 0.3  # O sampling in train
 
 
 def translate_mask_into_multi_head_attention_mask(mask: torch.Tensor):
@@ -181,6 +184,33 @@ class BertForHAMNERLikeSpanClassification(BertForTokenClassification):
                     attention_dim, attention_dim
                 )
 
+    def get_valid_entities(self, starts, ends, labels):
+        """
+        Get valid entities from start, end and label, cut tensor by no-ent label.
+        """
+        max_filled_ent_id = (labels != -1).sum(dim=1).max()
+        valid_labels = labels[:, :max_filled_ent_id]
+        valid_starts = starts[:, :max_filled_ent_id]
+        valid_ends = ends[:, :max_filled_ent_id]
+        return valid_starts, valid_ends, valid_labels
+
+    def under_sample_o(self, starts, ends, labels):
+        """
+        Get valid entities from start, end and label, cut tensor by no-ent label.
+        """
+        # O ラベルをサンプリングする
+        o_label_mask = labels == self.model_args.o_label_id
+        sample_mask = (
+            torch.rand(labels.shape) >= self.model_args.o_sampling_ratio
+        )  # 1-sample ratio の割合で True となる mask
+        sampled_labels = torch.where(o_label_mask * sample_mask, -1, labels)
+        # サンプリングに合わせて、-1に当たる部分をソートして外側に出す
+        sort_arg = torch.argsort(sampled_labels, descending=True, dim=1)
+        sorted_sampled_labels = torch.take_along_dim(sampled_labels, sort_arg, dim=1)
+        sorted_starts = torch.take_along_dim(starts, sort_arg, dim=1)
+        sorted_ends = torch.take_along_dim(ends, sort_arg, dim=1)
+        return sorted_starts, sorted_ends, sorted_sampled_labels
+
     def forward(
         self, input_ids=None, attention_mask=None, labels=None, starts=None, ends=None
     ):
@@ -189,7 +219,8 @@ class BertForHAMNERLikeSpanClassification(BertForTokenClassification):
             Labels for computing the token classification loss. Indices should be in ``[0, ..., config.num_labels -
             1]``.
         """
-        # return_dict = self.config.use_return_dict
+        starts, ends, labels = self.under_sample_o(starts, ends, labels)
+        starts, ends, labels = self.get_valid_entities(starts, ends, labels)
         minibatch_size, max_seq_lens = input_ids.shape
         outputs = self.bert(
             input_ids,
@@ -293,338 +324,23 @@ class BertForHAMNERLikeSpanClassification(BertForTokenClassification):
                     inside_mask,
                 )
                 mention_vecs.append(inside_vec)
-        # start_positions = starts.reshape(starts.shape + (1,)).expand(
-        #     starts.shape + (hidden_states_dim,)
-        # )
-        # start_hidden_states = torch.gather(hidden_states, -2, start_positions)
-
-        # end_positions = ends.reshape(ends.shape + (1,)).expand(
-        #     ends.shape + (hidden_states_dim,)
-        # )
-        # end_hidden_states = torch.gather(hidden_states, -2, end_positions)
-
-        # # start_logits = self.start_classifier(self.dropout(start_hidden_states))
-        # # end_logits = self.end_classifier(self.dropout(end_hidden_states))
 
         mention_vector = torch.cat(mention_vecs, dim=1)
         pooled_output = self.dropout(mention_vector)
         logits = self.classifier(pooled_output).reshape(
             minibatch_size, max_span_num, -1
         )
-        # logits = start_logits + end_logits
         loss = None
         if labels is not None:
             loss_fct = torch.nn.CrossEntropyLoss(ignore_index=-1)
-            # loss = loss_fct(
-            #     start_logits.view(-1, self.num_labels), labels.view(-1)
-            # ) + loss_fct(end_logits.view(-1, self.num_labels), labels.view(-1))
             loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
 
-        # return MultiSpanClassifierModelOutput(
-        #     loss=loss,
-        #     logits=logits,
-        #     hidden_states=outputs.hidden_states,
-        #     attentions=outputs.attentions,
-        # )
         return TokenClassifierOutput(
             loss=loss,
             logits=logits,
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
         )
-
-
-class BertForHAMNERLikeSpanInsideClassification(BertForTokenClassification):
-    @classmethod
-    def from_pretrained(cls, model_args: HAMNERLikeModelArguments, *args, **kwargs):
-        cls.model_args = model_args
-        return super().from_pretrained(model_args.model_name_or_path, *args, **kwargs)
-
-    def __init__(self, config):
-        super().__init__(config)
-        self.classifier = torch.nn.Linear(2 * config.hidden_size, config.num_labels)
-        self.start_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
-        self.end_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
-        self.config = config
-        if self.model_args.multi_head:
-            pass
-            self.left_context_query = torch.nn.parameter.Parameter(
-                torch.Tensor(1, 1, config.hidden_size)
-            )
-            self.left_context_attention_pooler = torch.nn.MultiheadAttention(
-                config.hidden_size, config.num_labels
-            )
-            self.right_context_attention_pooler = torch.nn.MultiheadAttention(
-                config.hidden_size, config.num_labels
-            )
-            self.inside_attention_pooler = torch.nn.MultiheadAttention(
-                config.hidden_size, config.num_labels
-            )
-        else:
-            self.left_context_attention_pooler = AttentionPooler(
-                config.hidden_size, config.hidden_size
-            )
-            self.right_context_attention_pooler = AttentionPooler(
-                config.hidden_size, config.hidden_size
-            )
-            self.inside_attention_pooler = AttentionPooler(
-                config.hidden_size, config.hidden_size
-            )
-
-    def forward(
-        self, input_ids=None, attention_mask=None, labels=None, starts=None, ends=None
-    ):
-        r"""
-        labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size, sequence_length)`, `optional`):
-            Labels for computing the token classification loss. Indices should be in ``[0, ..., config.num_labels -
-            1]``.
-        """
-        # return_dict = self.config.use_return_dict
-
-        minibatch_size, max_seq_lens = input_ids.shape
-        outputs = self.bert(
-            input_ids,
-            attention_mask=attention_mask,
-        )
-        hidden_states = outputs.last_hidden_state
-        hidden_states_dim = hidden_states.shape[-1]
-        max_seq_len = input_ids.shape[1]
-        # start_vectors = (sequence_output * start_mask).sum(dim=1)
-        # end_vectors = (sequence_output * end_mask).sum(dim=1)
-        # sequence_output = torch.cat([start_vectors, end_vectors], dim=1)
-        device = starts.device
-        arange = torch.arange(max_seq_len, device=device)[None, None, :]
-        _starts = starts[:, :, None]
-        _ends = ends[:, :, None]
-        max_span_num = starts.shape[1]
-        hidden_states_per_span = (
-            hidden_states[:, None, :, :]
-            .expand(minibatch_size, max_span_num, max_seq_lens, hidden_states_dim)
-            .reshape(minibatch_size * max_span_num, max_seq_lens, hidden_states_dim)
-        )
-
-        left_context_mask = (arange < _starts).reshape(
-            minibatch_size * max_span_num, max_seq_len
-        )
-        # inside_mask = torch.logical_and(_starts <= arange, arange < _ends).reshape(
-        #     minibatch_size * max_span_num, max_seq_len
-        # )
-        # 後で文内のみを使うように修正する
-        snt_mask = attention_mask[:, None, :].expand(
-            minibatch_size, max_span_num, max_seq_len
-        )
-        right_context_mask = torch.logical_and(_ends <= arange, snt_mask).reshape(
-            minibatch_size * max_span_num, max_seq_len
-        )
-        if self.model_args.multi_head:
-            left_context_mask = translate_mask_into_multi_head_attention_mask(
-                left_context_mask
-            )
-            left_context_vec = self.left_context_attention_pooler(
-                self.left_context_query.expand(
-                    1, minibatch_size * max_span_num, hidden_states_dim
-                ),
-                hidden_states_per_span.transpose(0, 1),
-                hidden_states_per_span.transpose(0, 1),
-                attn_mask=left_context_mask,
-            )
-            pass
-        else:
-            left_context_vec = self.left_context_attention_pooler(
-                hidden_states_per_span,
-                left_context_mask,
-            )
-            # inside_vec = self.inside_attention_pooler(
-            #     hidden_states_per_span,
-            #     inside_mask,
-            # )
-            right_context_vec = self.right_context_attention_pooler(
-                hidden_states_per_span,
-                right_context_mask,
-            )
-        # start_positions = starts.reshape(starts.shape + (1,)).expand(
-        #     starts.shape + (hidden_states_dim,)
-        # )
-        # start_hidden_states = torch.gather(hidden_states, -2, start_positions)
-
-        # end_positions = ends.reshape(ends.shape + (1,)).expand(
-        #     ends.shape + (hidden_states_dim,)
-        # )
-        # end_hidden_states = torch.gather(hidden_states, -2, end_positions)
-
-        # # start_logits = self.start_classifier(self.dropout(start_hidden_states))
-        # # end_logits = self.end_classifier(self.dropout(end_hidden_states))
-
-        mention_vector = torch.cat([left_context_vec, right_context_vec], dim=1)
-        pooled_output = self.dropout(mention_vector)
-        logits = self.classifier(pooled_output).reshape(
-            minibatch_size, max_span_num, -1
-        )
-        # logits = start_logits + end_logits
-        loss = None
-        if labels is not None:
-            loss_fct = torch.nn.CrossEntropyLoss(ignore_index=-1)
-            # loss = loss_fct(
-            #     start_logits.view(-1, self.num_labels), labels.view(-1)
-            # ) + loss_fct(end_logits.view(-1, self.num_labels), labels.view(-1))
-            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-
-        # return MultiSpanClassifierModelOutput(
-        #     loss=loss,
-        #     logits=logits,
-        #     hidden_states=outputs.hidden_states,
-        #     attentions=outputs.attentions,
-        # )
-        return TokenClassifierOutput(
-            loss=loss,
-            logits=logits,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
-        )
-
-
-class BertForHAMNERLikeSpanContextClassification(BertForTokenClassification):
-    @classmethod
-    def from_pretrained(cls, model_args: HAMNERLikeModelArguments, *args, **kwargs):
-        cls.model_args = model_args
-        return super().from_pretrained(model_args.model_name_or_path, *args, **kwargs)
-
-    def __init__(self, config):
-        super().__init__(config)
-        self.classifier = torch.nn.Linear(2 * config.hidden_size, config.num_labels)
-        self.start_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
-        self.end_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
-        self.config = config
-        if self.model_args.multi_head:
-            pass
-            self.left_context_query = torch.nn.parameter.Parameter(
-                torch.Tensor(1, 1, config.hidden_size)
-            )
-            self.left_context_attention_pooler = torch.nn.MultiheadAttention(
-                config.hidden_size, config.num_labels
-            )
-            self.right_context_attention_pooler = torch.nn.MultiheadAttention(
-                config.hidden_size, config.num_labels
-            )
-            self.inside_attention_pooler = torch.nn.MultiheadAttention(
-                config.hidden_size, config.num_labels
-            )
-        else:
-            self.left_context_attention_pooler = AttentionPooler(
-                config.hidden_size, config.hidden_size
-            )
-            self.right_context_attention_pooler = AttentionPooler(
-                config.hidden_size, config.hidden_size
-            )
-            self.inside_attention_pooler = AttentionPooler(
-                config.hidden_size, config.hidden_size
-            )
-
-    def forward(
-        self, input_ids=None, attention_mask=None, labels=None, starts=None, ends=None
-    ):
-        r"""
-        labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size, sequence_length)`, `optional`):
-            Labels for computing the token classification loss. Indices should be in ``[0, ..., config.num_labels -
-            1]``.
-        """
-        # return_dict = self.config.use_return_dict
-
-        minibatch_size, max_seq_lens = input_ids.shape
-        outputs = self.bert(
-            input_ids,
-            attention_mask=attention_mask,
-        )
-        hidden_states = outputs.last_hidden_state
-        hidden_states_dim = hidden_states.shape[-1]
-        max_seq_len = input_ids.shape[1]
-        # start_vectors = (sequence_output * start_mask).sum(dim=1)
-        # end_vectors = (sequence_output * end_mask).sum(dim=1)
-        # sequence_output = torch.cat([start_vectors, end_vectors], dim=1)
-        device = starts.device
-        arange = torch.arange(max_seq_len, device=device)[None, None, :]
-        _starts = starts[:, :, None]
-        _ends = ends[:, :, None]
-        max_span_num = starts.shape[1]
-        hidden_states_per_span = (
-            hidden_states[:, None, :, :]
-            .expand(minibatch_size, max_span_num, max_seq_lens, hidden_states_dim)
-            .reshape(minibatch_size * max_span_num, max_seq_lens, hidden_states_dim)
-        )
-
-        left_context_mask = (arange < _starts).reshape(
-            minibatch_size * max_span_num, max_seq_len
-        )
-        # inside_mask = torch.logical_and(_starts <= arange, arange < _ends).reshape(
-        #     minibatch_size * max_span_num, max_seq_len
-        # )
-        # 後で文内のみを使うように修正する
-        snt_mask = attention_mask[:, None, :].expand(
-            minibatch_size, max_span_num, max_seq_len
-        )
-        right_context_mask = torch.logical_and(_ends <= arange, snt_mask).reshape(
-            minibatch_size * max_span_num, max_seq_len
-        )
-        if self.model_args.multi_head:
-            left_context_mask = translate_mask_into_multi_head_attention_mask(
-                left_context_mask
-            )
-            left_context_vec = self.left_context_attention_pooler(
-                self.left_context_query.expand(
-                    1, minibatch_size * max_span_num, hidden_states_dim
-                ),
-                hidden_states_per_span.transpose(0, 1),
-                hidden_states_per_span.transpose(0, 1),
-                attn_mask=left_context_mask,
-            )
-            pass
-        else:
-            left_context_vec = self.left_context_attention_pooler(
-                hidden_states_per_span,
-                left_context_mask,
-            )
-            # inside_vec = self.inside_attention_pooler(
-            #     hidden_states_per_span,
-            #     inside_mask,
-            # )
-            right_context_vec = self.right_context_attention_pooler(
-                hidden_states_per_span,
-                right_context_mask,
-            )
-        # start_positions = starts.reshape(starts.shape + (1,)).expand(
-        #     starts.shape + (hidden_states_dim,)
-        # )
-        # start_hidden_states = torch.gather(hidden_states, -2, start_positions)
-
-        # end_positions = ends.reshape(ends.shape + (1,)).expand(
-        #     ends.shape + (hidden_states_dim,)
-        # )
-        # end_hidden_states = torch.gather(hidden_states, -2, end_positions)
-
-        # # start_logits = self.start_classifier(self.dropout(start_hidden_states))
-        # # end_logits = self.end_classifier(self.dropout(end_hidden_states))
-
-        mention_vector = torch.cat([left_context_vec, right_context_vec], dim=1)
-        pooled_output = self.dropout(mention_vector)
-        logits = self.classifier(pooled_output).reshape(
-            minibatch_size, max_span_num, -1
-        )
-        # logits = start_logits + end_logits
-        loss = None
-        if labels is not None:
-            loss_fct = torch.nn.CrossEntropyLoss(ignore_index=-1)
-            # loss = loss_fct(
-            #     start_logits.view(-1, self.num_labels), labels.view(-1)
-            # ) + loss_fct(end_logits.view(-1, self.num_labels), labels.view(-1))
-            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-        # TODO: TyperOutputにする
-        raise NotImplementedError
-        # return MultiSpanClassifierModelOutput(
-        #     loss=loss,
-        #     logits=logits,
-        #     hidden_states=outputs.hidden_states,
-        #     attentions=outputs.attentions,
-        # )
 
 
 @dataclass
@@ -638,8 +354,8 @@ class HAMNERLikeDataTrainingArguments:
         metadata={"help": "Overwrite the cached preprocessed datasets or not."},
     )
     max_span_num: int = field(
-        default=15,
-        metadata={"help": "Max sequence length in training."},
+        default=1024,
+        metadata={"help": "Max span num in training."},
     )
 
     task_name: Optional[str] = field(
@@ -651,11 +367,6 @@ class HAMNERLikeDataTrainingArguments:
             "help": "The configuration name of the dataset to use (via the datasets library)."
         },
     )
-
-    # overwrite_cache: bool = field(
-    #     default=False,
-    #     metadata={"help": "Overwrite the cached training and evaluation sets"},
-    # )
     preprocessing_num_workers: Optional[int] = field(
         default=None,
         metadata={"help": "The number of processes to use for the preprocessing."},
@@ -671,8 +382,6 @@ class HAMNERLikeDataTrainingArguments:
         default=512,
         metadata={"help": "Max sequence length in training."},
     )
-    # def __post_init__(self):
-    #     self.task_name = self.task_name.lower()
 
 
 @dataclass
@@ -781,6 +490,7 @@ class HAMNERTyper(Typer):
             use_fast=True,
             additional_special_tokens=[span_start_token, span_end_token],
         )
+        model_args.o_label_id = label_list.index("nc-O")
         model = BertForHAMNERLikeSpanClassification.from_pretrained(
             model_args,
             from_tf=bool(".ckpt" in model_args.model_name_or_path),
@@ -815,8 +525,14 @@ class HAMNERTyper(Typer):
             self.preprocess_function,
             batched=True,
             load_from_cache_file=True,
-            cache_file_names=cache_file_names,
+            # cache_file_names=cache_file_names,
+            num_proc=psutil.cpu_count(logical=False),
         )
+        assert (
+            len(self.span_classification_datasets["train"]["labels"][0])
+            == data_args.max_span_num
+        )
+
         tokenized_datasets = self.span_classification_datasets
 
         # Data collator
@@ -976,7 +692,15 @@ class HAMNERTyper(Typer):
         labels: List[List[int]] = None,
         max_span_num=10000,
     ):
-        args = (tokens, starts, ends, labels, max_span_num, self.data_args)
+        args = (
+            tokens,
+            starts,
+            ends,
+            labels,
+            max_span_num,
+            self.data_args,
+            max_span_num,
+        )
         buffer_file = os.path.join(
             get_original_cwd(), "data/buffer", md5(str(args).encode()).hexdigest()
         )
