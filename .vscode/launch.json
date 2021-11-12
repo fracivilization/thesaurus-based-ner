@@ -110,7 +110,7 @@
                 "ner_model.typer.train_args.do_train=True",
                 "ner_model.typer.train_args.overwrite_output_dir=True",
             ],
-        }
+        },
         {
             "name": "Compare Result",
             "type": "python",

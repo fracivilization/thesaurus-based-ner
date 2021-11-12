@@ -1,41 +1,5 @@
 * TODOs
-** ner model を 実装する
-*** Chunking
-**** DONE Abastract Model
-     基本的にはdistendのモデルを持ってくる
-**** TODO Random Chunkerを実装する
-     とりあえずランダムにスパンを返す分類器を実装する
-**** ChunkerEvaluatorを実装する
-     EntityDetectorEvaluator を持ってくればいいかな
-***** load_dataset/translate into span detection あたりも entity_detection のデータセットから持ってくる
-*** Typing
-**** Abstract Model
-     基本的にはdistendのモデルを持ってくる
-**** Random Typer を実装する
-     とりあえずランダムにラベルを返す分類器を実装する
-**** TyperEvaluator を実装する
-***** load_dataset/translate into span classification あたりも entity_typingのデータセットから持ってくる
-*** NER Model
-    基本的にはdistendのモデルを持ってくる
-    Typingモデルに合わせて、 (s,e,l) の リストで出力するようにしとくか...
-*** NER Evaluator
-    基本的にはdistendのものを持ってくればOK
-** Medmentions に 適応させる
-*** Medmentions の データセットをロードして NEREvaluatorで評価する
-**** Sequential Labellerを作る
-     比較対象としてあった方がいいか...
-** 擬似データセットを作成する
-*** Term2Catを作る
-**** ついでにPubMedの初期化手続き書くか...?
-*** RawCorpus 持ってくる
-*** ChunkedCorpus を 作成する
-    Chunkerを適用させる
-*** TypingAnnotatedCorpus を作成する
-*** 擬似データセット上で SeqLabeller動かす
-** Distant Supervisionと比較する
-   +BONDはハイパラ調整面倒なので、とりあえずスパン全列挙モデルと+
-   最初からBONDと比較しとくか...
-*** Sequencial Labelling用にラベルを修正する
-    Sequencial Model Wrapper でも作ってモデルを List[Tuple[int, int, int]] 方式に対応させるか...
-*** BONDに読み込ませて分類する
-    
+** 動的ランダムサンプルをする
+*** TODO ランダムサンプルの数値をモデルに組み込む
+    これまではmsc_argsに追加してたけど、モデルの変数に追加するようにする
+*** "O"クラスを教えるようにする
