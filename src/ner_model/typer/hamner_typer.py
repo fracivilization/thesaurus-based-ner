@@ -1011,8 +1011,8 @@ class HAMNERTyper(Typer):
                         pass
                         new_starts[i] = 0
                         new_ends[i] = 0
-                    assert all(s <= self.data_args.max_length for s in new_starts)
-                    assert all(e <= self.data_args.max_length for e in new_ends)
+                assert all(s <= self.data_args.max_length for s in new_starts)
+                assert all(e <= self.data_args.max_length for e in new_ends)
                 all_starts.append(new_starts)
                 all_ends.append(new_ends)
                 # token_ids = [sw for word in subwords for sw in word]

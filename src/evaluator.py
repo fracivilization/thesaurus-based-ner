@@ -159,20 +159,36 @@ class NERTestor:
             +count_for_fn_miss_classification_on_end
             + count_for_fn_miss_classification_on_non_end
         )
-        ptl.add_row(
-            [
-                "miss nc on end",
-                count_for_fn_miss_classification_on_end,
-                count_for_fn_miss_classification_on_end / fp_num * 100,
-            ],
-        )
-        ptl.add_row(
-            [
-                "miss classification on non-end",
-                count_for_fn_miss_classification_on_non_end,
-                count_for_fn_miss_classification_on_non_end / fp_num * 100,
-            ],
-        )
+        if fp_num == 0:
+            ptl.add_row(
+                [
+                    "miss nc on end",
+                    0,
+                    0,
+                ],
+            )
+            ptl.add_row(
+                [
+                    "miss classification on non-end",
+                    0,
+                    0,
+                ],
+            )
+        else:
+            ptl.add_row(
+                [
+                    "miss nc on end",
+                    count_for_fn_miss_classification_on_end,
+                    count_for_fn_miss_classification_on_end / fp_num * 100,
+                ],
+            )
+            ptl.add_row(
+                [
+                    "miss classification on non-end",
+                    count_for_fn_miss_classification_on_non_end,
+                    count_for_fn_miss_classification_on_non_end / fp_num * 100,
+                ],
+            )
         logger.info(ptl.get_string())
 
     def get_np_negative_chunks(self, prediction_w_nc: Dataset, chunker: Chunker):

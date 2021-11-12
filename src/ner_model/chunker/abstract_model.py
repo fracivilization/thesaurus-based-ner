@@ -6,6 +6,7 @@ from dataclasses import MISSING, dataclass, field
 import numpy as np
 from tqdm import tqdm
 from omegaconf import MISSING
+from src.utils.params import span_length
 
 Span = Tuple[int, int]
 
@@ -63,7 +64,12 @@ class EnumeratedChunker(Chunker):
         pass
 
     def predict(self, tokens: List[str]) -> List[Span]:
-        raise NotImplementedError
+        chunks = []
+        for start in range(len(tokens)):
+            for end in range(start + 1, len(tokens) + 1):
+                if end - start <= span_length:
+                    chunks.append((start, end))
+        return chunks
 
     def batch_predict(
         self,
@@ -71,4 +77,5 @@ class EnumeratedChunker(Chunker):
     ) -> List[Span]:
         return [self.predict(token) for token in tokens]
 
-    pass
+    def train(self):
+        pass

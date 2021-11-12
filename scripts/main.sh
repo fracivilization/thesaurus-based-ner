@@ -1,22 +1,63 @@
 # All Negatives
-PSEUDO_NER_DATA_DIR=$(make -n all | grep PSEUDO_NER_DATA_DIR | awk '{print $3}')
+NO_NC=True
+OUTPUT_O_AS_NC=False
+O_SAMPLING_RATIO=0.1
+NO_NC=${NO_NC} OUTPUT_O_AS_NC=${OUTPUT_O_AS_NC} make all -j$(nproc)
+PSEUDO_NER_DATA_DIR=$(NO_NC=${NO_NC} OUTPUT_O_AS_NC=${OUTPUT_O_AS_NC} make -n all | grep PSEUDO_NER_DATA_DIR | awk '{print $3}')
 CHUNKER="enumerated"
-RUN_OUT=$(python -m cli.train ner_model/chunker=${CHUNKER} ++dataset.name_or_path=${PSEUDO_NER_DATA_DIR})
+RUN_OUT=$(
+    poetry run python -m cli.train \
+        ner_model/chunker=${CHUNKER} \
+        ++dataset.name_or_path=${PSEUDO_NER_DATA_DIR} \
+        ner_model.typer.msc_args.with_enumerated_o_label=True \
+        ner_model.typer.msc_args.o_sampling_ratio=${O_SAMPLING_RATIO} \
+        ner_model.typer.train_args.per_device_eval_batch_size=4 \
+        ner_model.typer.train_args.per_device_train_batch_size=16 \
+        ner_model.typer.train_args.do_train=True \
+        ner_model.typer.train_args.overwrite_output_dir=True \
+)
 echo $RUN_OUT
-RUN_ID_WO_FP=$(echo $RUN_OUT | grep "mlflow_run_id" | awk '{print $2}')
-echo "RUN_ID_WO_FP" ${RUN_ID_WO_FP}
+RUN_ID_AllNegatives=$(echo $RUN_OUT | grep "mlflow_run_id" | awk '{print $2}')
+echo "RUN_ID_AllNegatives" ${RUN_ID_AllNegatives}
 
-python -m cli.compare_metrics --base-run-id ${RUN_ID_BASE} --focus-run-id ${RUN_ID_WO_FP}
 # All Negatives (NP)
 NO_NC=True
 OUTPUT_O_AS_NC=True
+O_SAMPLING_RATIO=1.0
+PSEUDO_DATA=$(NO_NC=${NO_NC} OUTPUT_O_AS_NC=${OUTPUT_O_AS_NC} make -n all | grep PSEUDO_NER_DATA_DIR | awk '{print $3}')
+NO_NC=${NO_NC} OUTPUT_O_AS_NC=${OUTPUT_O_AS_NC} make all -j$(nproc)
+CHUNKER="spacy_np"
+
+RUN_OUT=$(
+    poetry run python -m cli.train \
+        ner_model/chunker=${CHUNKER} \
+        ++dataset.name_or_path=${PSEUDO_DATA} \
+        ner_model.typer.msc_args.o_sampling_ratio=${O_SAMPLING_RATIO} \
+        ner_model.typer.train_args.do_train=True \
+        ner_model.typer.train_args.overwrite_output_dir=True \
+        ner_model.typer.train_args.per_device_train_batch_size=16 \
+        ner_model.typer.train_args.per_device_eval_batch_size=32 \
+)
+echo $RUN_OUT
+RUN_ID_AllNegatives_NP=$(echo $RUN_OUT | grep "mlflow_run_id" | awk '{print $2}')
+echo "RUN_ID_AllNegatives (NP)" ${RUN_ID_AllNegatives_NP}
+
+# Thesaurus Negatives (UMLS)
+NO_NC=False
+OUTPUT_O_AS_NC=False
 NO_NC=${NO_NC} OUTPUT_O_AS_NC=${OUTPUT_O_AS_NC} make all -j$(nproc)
 PSEUDO_DATA=$(NO_NC=${NO_NC} OUTPUT_O_AS_NC=${OUTPUT_O_AS_NC} make -n all | grep PSEUDO_NER_DATA_DIR | awk '{print $3}')
 CHUNKER="spacy_np"
-RUN_OUT=$(python -m cli.train ner_model/chunker=${CHUNKER} ++dataset.name_or_path=${FP_REMOVED_PSEUDO_DATA})
+RUN_OUT=$(
+    poetry run python -m cli.train \
+        ner_model/chunker=${CHUNKER} \
+        ++dataset.name_or_path=${PSEUDO_DATA} \
+        ner_model.typer.train_args.do_train=True \
+        ner_model.typer.train_args.overwrite_output_dir=True \
+        ner_model.typer.train_args.per_device_train_batch_size=16 \
+        ner_model.typer.train_args.per_device_eval_batch_size=32 \
+)
 echo $RUN_OUT
-RUN_ID_AllNegatives=$(echo $RUN_OUT | grep "mlflow_run_id" | awk '{print $2}')
-echo "RUN_ID_AllNegatives (NP)" ${RUN_ID_AllNegatives (NP)}
-# Thesaurus Negatives (UMLS)
-PSEUDO_DATA=$(NO_NC=False OUTPUT_O_AS_NC=False make -n all | grep PSEUDO_NER_DATA_DIR | awk '{print $3}')
+RUN_ID_Thesaurus_Negatives_UMLS=$(echo $RUN_OUT | grep "mlflow_run_id" | awk '{print $2}')
+echo "RUN_ID_Thesaurus_Negatives (UMLS)" ${RUN_ID_Thesaurus_Negatives_UMLS}
 # Thesaurus Negatives (UMLS + DBPedia)

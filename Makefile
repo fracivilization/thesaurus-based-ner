@@ -5,9 +5,8 @@ FOCUS_CATS := T005 T007 T017 T022 T031 T033 T037 T038 T058 T062 T074 T082 T091 T
 DUPLICATE_CATS := $(DBPEDIA_CATS)
 NO_NC ?= False
 OUTPUT_O_AS_NC ?= False
-O_SAMPLING_RATIO ?= 1.0
 
-PSEUDO_DATA_ARGS := $(FOCUS_CATS) $(DUPLICATE_CATS) $(NO_NC) $(OUTPUT_O_AS_NC) $(O_SAMPLING_RATIO)
+PSEUDO_DATA_ARGS := $(FOCUS_CATS) $(DUPLICATE_CATS) $(NO_NC) $(OUTPUT_O_AS_NC) 
 
 REMOVE_CATS := $(filter-out $(FOCUS_CATS), $(filter-out $(DUPLICATE_CATS), $(DBPEDIA_CATS) $(UMLS_CATS)))
 APPEARED_CATS := $(FOCUS_CATS) $(REMOVE_CATS)
@@ -122,7 +121,6 @@ $(PSEUDO_NER_DATA_DIR): $(DICT_FILES) $(PSEUDO_DATA_DIR) $(GOLD_DATA) $(RAW_CORP
 		++ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
 		++ner_model.typer.term2cat.no_nc=$(NO_NC) \
 		++ner_model.typer.output_o_as_nc=$(OUTPUT_O_AS_NC) \
-		++ner_model.typer.msc_args.o_sampling_ratio=$(O_SAMPLING_RATIO) \
 		+output_dir=$(PSEUDO_NER_DATA_DIR) \
         +gold_corpus=$(GOLD_DATA) 
         
@@ -138,7 +136,6 @@ $(FP_REMOVED_PSEUDO_DATA): $(DICT_FILES) $(GOLD_DATA) $(PSEUDO_DATA_DIR) $(PSEUD
 		++ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
 		++ner_model.typer.term2cat.no_nc=$(NO_NC) \
 		++ner_model.typer.output_o_as_nc=$(OUTPUT_O_AS_NC) \
-		++ner_model.typer.msc_args.o_sampling_ratio=$(O_SAMPLING_RATIO) \
 		+output_dir=$(FP_REMOVED_PSEUDO_DATA) \
         +gold_corpus=$(GOLD_DATA) \
 		++remove_fp_instance=True
@@ -154,7 +151,6 @@ $(PSEUDO_DATA_ON_GOLD): $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_N
 		++ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
 		++ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
 		++ner_model.typer.output_o_as_nc=$(OUTPUT_O_AS_NC) \
-		++ner_model.typer.msc_args.o_sampling_ratio=$(O_SAMPLING_RATIO) \
 		+output_dir=$(PSEUDO_DATA_ON_GOLD) \
         +gold_corpus=$(GOLD_DATA) 
 
@@ -169,7 +165,6 @@ $(EROSION_PSEUDO_DATA):  $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_
 		++ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
 		++ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
 		++ner_model.typer.output_o_as_nc=$(OUTPUT_O_AS_NC) \
-		++ner_model.typer.msc_args.o_sampling_ratio=$(O_SAMPLING_RATIO) \
 		+output_dir=$(PSEUDO_DATA_ON_GOLD) \
         +gold_corpus=$(GOLD_DATA) 
 		++add_erosion_fn=True

@@ -7,7 +7,11 @@ from hydra.core.config_store import ConfigStore
 from src.utils.mlflow import MlflowWriter
 from .abstract_model import NERModelConfig, NERModel
 from dataclasses import dataclass
-from src.ner_model.chunker.abstract_model import Chunker, ChunkerConfig
+from src.ner_model.chunker.abstract_model import (
+    Chunker,
+    ChunkerConfig,
+    EnumeratedChunker,
+)
 from src.ner_model.typer.abstract_model import Typer
 from datasets import DatasetDict
 from omegaconf import MISSING
@@ -24,6 +28,7 @@ def register_chunker_configs() -> None:
     cs = ConfigStore.instance()
     from .chunker.flair_model import FlairNPChunkerConfig
     from .chunker.spacy_model import BeneparNPChunkerConfig, SpacyNPChunkerConfig
+    from .chunker.abstract_model import EnumeratedChunkerConfig
 
     cs.store(
         group="ner_model/chunker",
@@ -41,6 +46,11 @@ def register_chunker_configs() -> None:
         group="ner_model/chunker",
         name="SpacyNPChunker",
         node=SpacyNPChunkerConfig,
+    )
+    cs.store(
+        group="ner_model/chunker",
+        name="EnumeratedChunker",
+        node=EnumeratedChunkerConfig,
     )
 
 

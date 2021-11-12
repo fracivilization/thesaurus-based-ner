@@ -110,7 +110,8 @@ def ner_datasets_to_span_classification_datasets(
         )
     )
     if data_args.with_enumerated_o_label:
-        label_names = ["nc-O"] + label_names
+        if "nc-O" not in label_names:
+            label_names = ["nc-O"] + label_names
     info = datasets.DatasetInfo(
         features=datasets.Features(
             {
@@ -138,7 +139,7 @@ def ner_datasets_to_span_classification_datasets(
             if data_args.with_enumerated_o_label and key in {"train", "validation"}:
                 for i in range(len(snt["tokens"])):
                     for j in range(i + 1, len(snt["tokens"]) + 1):
-                        if (i, j) not in registered_chunks:
+                        if j - i < span_length and (i, j) not in registered_chunks:
                             starts.append(i)
                             ends.append(j)
                             labels.append("nc-O")
@@ -146,7 +147,7 @@ def ner_datasets_to_span_classification_datasets(
             sampled_ends = []
             sampled_labels = []
             for s, e, l in zip(starts, ends, labels):
-                if l == "nc-O" and data_args.o_sampling_ratio > random.random():
+                if l == "nc-O" and data_args.o_sampling_ratio <= random.random():
                     continue
                 sampled_starts.append(s)
                 sampled_ends.append(e)
@@ -425,6 +426,7 @@ def translate_into_msc_datasets(
     output_dir = Path(get_original_cwd()).joinpath(
         "data", "buffer", md5(str(input_hash).encode()).hexdigest()
     )
+    logger.info("output_dir of msc_datasets: " + str(output_dir))
     if not output_dir.exists():
         msc_datasets = ner_datasets_to_span_classification_datasets(
             ner_datasets, msc_args
