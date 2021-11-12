@@ -219,8 +219,9 @@ class BertForHAMNERLikeSpanClassification(BertForTokenClassification):
             Labels for computing the token classification loss. Indices should be in ``[0, ..., config.num_labels -
             1]``.
         """
-        starts, ends, labels = self.under_sample_o(starts, ends, labels)
-        starts, ends, labels = self.get_valid_entities(starts, ends, labels)
+        if self.training:
+            starts, ends, labels = self.under_sample_o(starts, ends, labels)
+            starts, ends, labels = self.get_valid_entities(starts, ends, labels)
         minibatch_size, max_seq_lens = input_ids.shape
         outputs = self.bert(
             input_ids,
