@@ -83,13 +83,13 @@
             "args": [
                 // "++ner_model.ner_model_wrapper.o_label_as_Bo=True"
                 // "++ner_model.chunker.chunker_name=enumerated"
-                "ner_model/chunker=spacy_np",
+                "ner_model=PseudoTwoStage",
                 "++dataset.name_or_path=data/pseudo/aa281afa205aa50b598378bd9b1754f45211ed24",
-                "ner_model.typer.msc_args.o_sampling_ratio=0.01",
-                "ner_model.typer.train_args.overwrite_output_dir=True",
-                "ner_model.typer.train_args.do_train=True",
-                "ner_model.typer.train_args.per_device_train_batch_size=16",
-                "ner_model.typer.train_args.per_device_eval_batch_size=32",
+                // "ner_model.typer.msc_args.o_sampling_ratio=0.01",
+                // "ner_model.typer.train_args.overwrite_output_dir=True",
+                // "ner_model.typer.train_args.do_train=True",
+                // "ner_model.typer.train_args.per_device_train_batch_size=16",
+                // "ner_model.typer.train_args.per_device_eval_batch_size=32",
             ],
         },
         {
@@ -103,11 +103,12 @@
                 "ner_model/chunker=enumerated",
                 "++dataset.name_or_path=data/pseudo/ae0066e412378c8cb49ac6f632bedc7f63ad82dd",
                 "ner_model.typer.msc_args.with_enumerated_o_label=True",
-                "ner_model.typer.data_args.max_span_num=128",
-                "ner_model.typer.train_args.per_device_eval_batch_size=2",
-                "ner_model.typer.train_args.per_device_train_batch_size=2",
-                // "ner_model.typer.train_args.do_train=True",
+                // "ner_model.typer.data_args.max_span_num=128",
+                "ner_model.typer.train_args.per_device_eval_batch_size=32",
+                "ner_model.typer.train_args.per_device_train_batch_size=24",
+                "ner_model.typer.train_args.do_train=True",
                 "ner_model.typer.train_args.overwrite_output_dir=True",
+                "ner_model.typer.model_args.o_sampling_ratio=0.0004",
             ],
         },
         {

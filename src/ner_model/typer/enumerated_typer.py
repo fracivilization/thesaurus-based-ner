@@ -1,4 +1,5 @@
 import os
+import pickle
 from typing import List, Optional
 import numpy as np
 from transformers.trainer_utils import set_seed
@@ -6,18 +7,18 @@ from src.ner_model.typer.data_translator import (
     SpanClassificationDatasetArgs,
     translate_into_msc_datasets,
 )
-from src.utils.mlflow import MlflowWriter
-from src.utils.utils import remain_specified_data
+
+from src.utils.hydra import (
+    HydraAddaptedTrainingArguments,
+    get_orig_transoformers_train_args_from_hydra_addapted_train_args,
+)
 from .abstract_model import (
     Typer,
     TyperConfig,
     TyperOutput,
 )
 from dataclasses import field, dataclass
-from src.utils.hydra import (
-    HydraAddaptedTrainingArguments,
-    get_orig_transoformers_train_args_from_hydra_addapted_train_args,
-)
+from transformers import TrainingArguments, training_args
 from datasets import DatasetDict, Dataset
 from loguru import logger
 from transformers import (
@@ -26,86 +27,27 @@ from transformers import (
     Trainer,
     set_seed,
 )
-from transformers.modeling_utils import ModelOutput
 import torch
+import torch.nn
 from transformers.models.bert.modeling_bert import BertForTokenClassification
-from transformers.modeling_outputs import (
-    TokenClassifierOutput,
-)
 from tqdm import tqdm
 from typing import Dict
 import itertools
+from hashlib import md5
+from hydra.utils import get_original_cwd
+from transformers.modeling_outputs import (
+    TokenClassifierOutput,
+)
 from scipy.special import softmax
-from src.utils.mlflow import MLflowCallback
-from psutil import cpu_count
+import psutil
+import itertools
 
 span_start_token = "[unused1]"
 span_end_token = "[unused2]"
 
 
-class BertForEnumeratedSpanClassification(BertForTokenClassification):
-    def __init__(self, config):
-        super().__init__(config)
-        self.classifier = torch.nn.Linear(2 * config.hidden_size, config.num_labels)
-        self.start_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
-        self.end_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
-
-    def forward(
-        self, input_ids=None, attention_mask=None, labels=None, starts=None, ends=None
-    ):
-        r"""
-        labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size, sequence_length)`, `optional`):
-            Labels for computing the token classification loss. Indices should be in ``[0, ..., config.num_labels -
-            1]``.
-        """
-        # return_dict = self.config.use_return_dict
-
-        minibatch_size, max_seq_lens = input_ids.shape
-        outputs = self.bert(
-            input_ids,
-            attention_mask=attention_mask,
-        )
-        hidden_states = outputs.last_hidden_state
-        hidden_states_dim = hidden_states.shape[-1]
-        # start_vectors = (sequence_output * start_mask).sum(dim=1)
-        # end_vectors = (sequence_output * end_mask).sum(dim=1)
-        # sequence_output = torch.cat([start_vectors, end_vectors], dim=1)
-
-        start_positions = starts.reshape(starts.shape + (1,)).expand(
-            starts.shape + (hidden_states_dim,)
-        )
-        start_hidden_states = torch.gather(hidden_states, -2, start_positions)
-
-        end_positions = ends.reshape(ends.shape + (1,)).expand(
-            ends.shape + (hidden_states_dim,)
-        )
-        end_hidden_states = torch.gather(hidden_states, -2, end_positions)
-
-        # start_logits = self.start_classifier(self.dropout(start_hidden_states))
-        # end_logits = self.end_classifier(self.dropout(end_hidden_states))
-
-        mention_vector = torch.cat([start_hidden_states, end_hidden_states], dim=-1)
-        pooled_output = self.dropout(mention_vector)
-        logits = self.classifier(pooled_output)
-        # logits = start_logits + end_logits
-        loss = None
-        if labels is not None:
-            loss_fct = torch.nn.CrossEntropyLoss(ignore_index=-1)
-            # loss = loss_fct(
-            #     start_logits.view(-1, self.num_labels), labels.view(-1)
-            # ) + loss_fct(end_logits.view(-1, self.num_labels), labels.view(-1))
-            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-
-        return TokenClassifierOutput(
-            loss=loss,
-            logits=logits,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
-        )
-
-
 @dataclass
-class EnumeratedTyperModelArguments:
+class EnumeratedModelArguments:
     """
     Arguments pertaining to which model/config/tokenizer we are going to fine-tune from.
     """
@@ -137,10 +79,111 @@ class EnumeratedTyperModelArguments:
         default=None,
         metadata={"help": "Fine-Tuned parameters. If there is, load this parameter."},
     )
+    o_label_id: int = 0  # Update when model loading, so 0 is temporal number
+    o_sampling_ratio: float = 0.3  # O sampling in train
+
+
+class BertForEnumeratedTyper(BertForTokenClassification):
+    @classmethod
+    def from_pretrained(cls, model_args: EnumeratedModelArguments, *args, **kwargs):
+        cls.model_args = model_args
+        self = super().from_pretrained(model_args.model_name_or_path, *args, **kwargs)
+        self.model_args = model_args
+        return self
+
+    def __init__(self, config):
+        super().__init__(config)
+        self.start_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
+        self.end_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
+        self.config = config
+
+    def get_valid_entities(self, starts, ends, labels):
+        """
+        Get valid entities from start, end and label, cut tensor by no-ent label.
+        """
+        max_filled_ent_id = (labels != -1).sum(dim=1).max()
+        valid_labels = labels[:, :max_filled_ent_id]
+        valid_starts = starts[:, :max_filled_ent_id]
+        valid_ends = ends[:, :max_filled_ent_id]
+        return valid_starts, valid_ends, valid_labels
+
+    def under_sample_o(self, starts, ends, labels):
+        """
+        Get valid entities from start, end and label, cut tensor by no-ent label.
+        """
+        # O ラベルをサンプリングする
+        o_label_mask = labels == self.model_args.o_label_id
+        sample_mask = (
+            torch.rand(labels.shape, device=labels.device)
+            >= self.model_args.o_sampling_ratio
+        )  # 1-sample ratio の割合で True となる mask
+        sampled_labels = torch.where(o_label_mask * sample_mask, -1, labels)
+        # サンプリングに合わせて、-1に当たる部分をソートして外側に出す
+        sort_arg = torch.argsort(sampled_labels, descending=True, dim=1)
+        sorted_sampled_labels = torch.take_along_dim(sampled_labels, sort_arg, dim=1)
+        sorted_starts = torch.take_along_dim(starts, sort_arg, dim=1)
+        sorted_ends = torch.take_along_dim(ends, sort_arg, dim=1)
+        return sorted_starts, sorted_ends, sorted_sampled_labels
+
+    def forward(
+        self, input_ids=None, attention_mask=None, labels=None, starts=None, ends=None
+    ):
+        r"""
+        labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size, sequence_length)`, `optional`):
+            Labels for computing the token classification loss. Indices should be in ``[0, ..., config.num_labels -
+            1]``.
+        """
+        if self.training:
+            starts, ends, labels = self.under_sample_o(starts, ends, labels)
+            # starts, ends, labels = self.get_valid_entities(starts, ends, labels)
+        minibatch_size, max_seq_lens = input_ids.shape
+        outputs = self.bert(
+            input_ids,
+            attention_mask=attention_mask,
+        )
+        hidden_states = outputs.last_hidden_state  # (BatchSize, SeqLength, EmbedDim)
+        # device = starts.device
+        droped_hidden_states = self.dropout(hidden_states)
+        start_logits = self.start_classifier(
+            droped_hidden_states
+        )  # (BatchSize, SeqLength, ClassNum)
+        end_logits = self.end_classifier(
+            droped_hidden_states
+        )  # (BatchSize, SeqLength, ClassNum)
+        starts = starts  # (BatchSize, SeqLength, SpanNum)
+        minibatch_size, max_span_num = starts.shape
+        start_logits_per_span = torch.gather(
+            start_logits,
+            1,
+            starts[:, :, None].expand(
+                minibatch_size, max_span_num, self.config.num_labels
+            ),
+        )  # (BatchSize, SpanNum, ClassNum)
+        # starts_logits_per_span[i,j,k] = start_logits[i,starts[i,j,k],k]
+        end_logits_per_span = torch.gather(
+            end_logits,
+            1,
+            ends[:, :, None].expand(
+                minibatch_size, max_span_num, self.config.num_labels
+            ),
+        )  # (BatchSize, SpanNum, ClassNum)
+        # ends_logits_per_span[i,j,k] = ends_logits[i,starts[i,j,k],k]
+        logits = start_logits_per_span + end_logits_per_span
+        loss = None
+        if labels is not None:
+            loss_fct = torch.nn.CrossEntropyLoss(ignore_index=-1)
+            loss = loss_fct(logits.view(-1, self.num_labels), labels.reshape(-1))
+
+        return TokenClassifierOutput(
+            loss=loss,
+            logits=logits,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+        )
 
 
 @dataclass
-class EnumerateTyperDataTrainingArguments:
+class EnumeratedDataTrainingArguments:
     """
     Arguments pertaining to what data we are going to input our model for training and eval.
     """
@@ -150,9 +193,10 @@ class EnumerateTyperDataTrainingArguments:
         metadata={"help": "Overwrite the cached preprocessed datasets or not."},
     )
     max_span_num: int = field(
-        default=15,
-        metadata={"help": "Max sequence length in training."},
+        default=512,
+        metadata={"help": "Max span num in training."},
     )
+
     task_name: Optional[str] = field(
         default="ner", metadata={"help": "The name of the task (ner, pos...)."}
     )
@@ -180,70 +224,73 @@ class EnumerateTyperDataTrainingArguments:
 
 
 @dataclass
+class EnumeratedTrainingArguments(TrainingArguments):
+    load_best_model_at_end: Optional[bool] = field(
+        default=False,
+        metadata={
+            "help": "Whether or not to load the best model found during training at the end of training."
+        },
+    )
+
+
+@dataclass
 class EnumeratedTyperConfig(TyperConfig):
     typer_name: str = "Enumerated"
+    model_args: EnumeratedModelArguments = EnumeratedModelArguments(
+        model_name_or_path="dmis-lab/biobert-base-cased-v1.1"
+    )
+    data_args: EnumeratedDataTrainingArguments = EnumeratedDataTrainingArguments()
     train_args: HydraAddaptedTrainingArguments = HydraAddaptedTrainingArguments(
         output_dir="."
     )
-    data_args: EnumerateTyperDataTrainingArguments = (
-        EnumerateTyperDataTrainingArguments()
-    )
-    model_args: EnumeratedTyperModelArguments = EnumeratedTyperModelArguments(
-        model_name_or_path="dmis-lab/biobert-base-cased-v1.1"
-    )
     msc_args: SpanClassificationDatasetArgs = SpanClassificationDatasetArgs()
+    pass
 
 
 class EnumeratedTyper(Typer):
     def __init__(
         self,
-        conf: EnumeratedTyperConfig,
+        config: EnumeratedTyperConfig,
         ner_datasets: DatasetDict,
-        writer: MlflowWriter,
     ) -> None:
         """[summary]
 
         Args:
             span_classification_datasets (DatasetDict): with context tokens
         """
-        model_args = conf.model_args
-        data_args = conf.data_args
-        training_args = (
-            get_orig_transoformers_train_args_from_hydra_addapted_train_args(
-                conf.train_args
-            )
+        train_args = get_orig_transoformers_train_args_from_hydra_addapted_train_args(
+            config.train_args
         )
-        self.model_args = model_args
-        self.data_args = data_args
-        self.training_args = training_args
+        model_args = config.model_args
+        data_args = config.data_args
+        self.model_args = config.model_args
+        self.data_args = config.data_args
+        self.training_args = train_args
         logger.info("Start Loading BERT")
         if (
-            os.path.exists(training_args.output_dir)
-            and os.listdir(training_args.output_dir)
-            and training_args.do_train
-            and not training_args.overwrite_output_dir
+            os.path.exists(train_args.output_dir)
+            and os.listdir(train_args.output_dir)
+            and train_args.do_train
+            and not train_args.overwrite_output_dir
         ):
             raise ValueError(
-                f"Output directory ({training_args.output_dir}) already exists and is not empty."
+                f"Output directory ({train_args.output_dir}) already exists and is not empty."
                 "Use --overwrite_output_dir to overcome."
             )
         logger.warning(
-            f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu}"
-            + f"distributed training: {bool(training_args.local_rank != -1)}, 16-bits training: {training_args.fp16}"
+            f"Process rank: {train_args.local_rank}, device: {train_args.device}, n_gpu: {train_args.n_gpu}"
+            + f"distributed training: {bool(train_args.local_rank != -1)}, 16-bits training: {train_args.fp16}"
         )
-        logger.info("Training/evaluation parameters %s", training_args)
+        logger.info("Training/evaluation parameters %s", train_args)
         # Set seed before initializing model.
-        set_seed(training_args.seed)
+        set_seed(train_args.seed)
 
+        # TODO: translate ner_dataset into span_classification_dataset
         span_classification_datasets = translate_into_msc_datasets(
-            ner_datasets, conf.msc_args
+            ner_datasets, config.msc_args
         )
-
         datasets = span_classification_datasets
-        datasets = DatasetDict(
-            {"train": datasets["train"], "validation": datasets["validation"]}
-        )
-        if training_args.do_train:
+        if train_args.do_train:
             column_names = datasets["train"].column_names
             features = datasets["train"].features
         else:
@@ -272,6 +319,7 @@ class EnumeratedTyper(Typer):
             num_labels=num_labels,
             finetuning_task=data_args.task_name,
             cache_dir=model_args.cache_dir,
+            model_args=model_args,
         )
         tokenizer = AutoTokenizer.from_pretrained(
             model_args.tokenizer_name
@@ -281,8 +329,9 @@ class EnumeratedTyper(Typer):
             use_fast=True,
             additional_special_tokens=[span_start_token, span_end_token],
         )
-        model = BertForEnumeratedSpanClassification.from_pretrained(
-            model_args.model_name_or_path,
+        model_args.o_label_id = label_list.index("nc-O")
+        model = BertForEnumeratedTyper.from_pretrained(
+            model_args,
             from_tf=bool(".ckpt" in model_args.model_name_or_path),
             config=config,
             cache_dir=model_args.cache_dir,
@@ -294,19 +343,36 @@ class EnumeratedTyper(Typer):
         self.tokenizer = tokenizer
         self.model = model
 
-        train_val_span_classification_datasets = DatasetDict(
+        span_classification_datasets = DatasetDict(
             {
                 "train": span_classification_datasets["train"],
                 "validation": span_classification_datasets["validation"],
             }
         )
 
-        tokenized_datasets = train_val_span_classification_datasets.map(
+        def get_buffer_path(arg_str: str):
+
+            return os.path.join(
+                get_original_cwd(), "data/buffer", md5(arg_str.encode()).hexdigest()
+            )
+
+        cache_file_names = {
+            k: get_buffer_path(v._fingerprint)
+            for k, v in span_classification_datasets.items()
+        }
+        self.span_classification_datasets = span_classification_datasets.map(
             self.preprocess_function,
             batched=True,
-            load_from_cache_file=not data_args.overwrite_cache,
-            num_proc=cpu_count(logical=False),
+            load_from_cache_file=True,
+            # cache_file_names=cache_file_names,
+            num_proc=psutil.cpu_count(logical=False),
         )
+        assert (
+            len(self.span_classification_datasets["train"]["labels"][0])
+            == data_args.max_span_num
+        )
+
+        tokenized_datasets = self.span_classification_datasets
 
         # Data collator
         # data_collator = DataCollatorForTokenClassification(tokenizer)
@@ -340,36 +406,20 @@ class EnumeratedTyper(Typer):
             }
 
         # Initialize our Trainer
-        if isinstance(writer, MlflowWriter):
-            callbacks = [MLflowCallback()]
-        else:
-            callbacks = []
         from transformers import default_data_collator
 
         trainer = Trainer(
             model=model,
-            args=training_args,
-            train_dataset=tokenized_datasets["train"]
-            if training_args.do_train
-            else None,
+            args=train_args,
+            train_dataset=tokenized_datasets["train"] if train_args.do_train else None,
             eval_dataset=tokenized_datasets["validation"]
-            if training_args.do_eval
+            if train_args.do_eval
             else None,
             tokenizer=tokenizer,
             data_collator=default_data_collator,
             compute_metrics=compute_metrics,
-            callbacks=callbacks,
         )
         self.trainer = trainer
-
-        # Training
-        if training_args.do_train:
-            trainer.train(
-                model_path=model_args.model_name_or_path
-                if os.path.isdir(model_args.model_name_or_path)
-                else None
-            )
-            trainer.save_model()  # Saves the tokenizer too for easy upload
 
     def predict(
         self, tokens: List[str], starts: List[str], ends: List[str]
@@ -394,27 +444,50 @@ class EnumeratedTyper(Typer):
             ).to(self.model.device),
         }
         outputs = self.model(**kwargs)
-        return TyperOutput(
-            labels=self.label_list[outputs.logits[0].argmax()],
-            logits=outputs.logits[0].cpu().detach().numpy(),
-        )
+        # TODO: change into TyperOutput
+        raise NotImplementedError
+        # return MultiSpanClassifierOutput(
+        #     label=self.label_list[outputs.logits[0].argmax()],
+        #     logits=outputs.logits[0].cpu().detach().numpy(),
+        # )
 
-    # def get_spanned_token(self, tokens: List[str], start: int, end: int):
-    #     return (
-    #         tokens[:start]
-    #         + [span_start_token]
-    #         + tokens[start:end]
-    #         + [span_end_token]
-    #         + tokens[end:]
+    # def batch_predict(
+    #     self, tokens: List[List[str]], starts: List[int], ends: List[int]
+    # ) -> List[TyperOutput]:
+    #     assert len(tokens) == len(starts)
+    #     assert len(starts) == len(ends)
+    #     max_context_len = max(
+    #         len(
+    #             self.tokenizer(
+    #                 tok,
+    #                 is_split_into_words=True,
+    #             )["input_ids"]
+    #         )
+    #         for tok in tqdm(tokens)
     #     )
+    #     max_span_num = max(len(snt) for snt in starts)
+    #     model_input = self.load_model_input(
+    #         tokens, starts, ends, max_span_num=max_span_num
+    #     )
+    #     del model_input["labels"]
+    #     dataset = Dataset.from_dict(model_input)
+    #     outputs = self.trainer.predict(dataset)
+    #     logits = outputs.predictions
+    #     ret_list = []
+    #     assert all(len(s) == len(e) for s, e in zip(starts, ends))
+    #     for logit, span_num in zip(logits, map(len, starts)):
+    #         ret_list.append(
+    #             TyperOutput(
 
-    # def get_spanned_tokens(
-    #     self, tokens: List[List[str]], start: List[int], end: List[int]
-    # ):
-    #     context_tokens = [
-    #         self.get_spanned_token(tok, s, e) for tok, s, e in zip(tokens, start, end)
-    #     ]
-    #     return context_tokens
+    #             )
+    #             TyperOutput(
+    #                 labels=[
+    #                     self.label_list[l] for l in logit[:span_num].argmax(axis=1)
+    #                 ],
+    #                 logits=logit[:span_num],
+    #             )
+    #         )
+    #     return ret_list
 
     def batch_predict(
         self, tokens: List[List[str]], starts: List[List[int]], ends: List[List[int]]
@@ -432,7 +505,7 @@ class EnumeratedTyper(Typer):
         )
         max_span_num = max(len(snt) for snt in starts)
         model_input = self.load_model_input(
-            tokens, starts, ends, max_length=max_context_len, max_span_num=max_span_num
+            tokens, starts, ends, max_span_num=max_span_num
         )
         del model_input["labels"]
         dataset = Dataset.from_dict(model_input)
@@ -453,60 +526,107 @@ class EnumeratedTyper(Typer):
     def load_model_input(
         self,
         tokens: List[List[str]],
-        starts: List[List[int]],
-        ends: List[List[int]],
-        max_length: int,
+        snt_starts: List[List[int]],
+        snt_ends: List[List[int]],
         labels: List[List[int]] = None,
         max_span_num=10000,
     ):
-        pass
-        example = self.padding_spans(
-            {"tokens": tokens, "starts": starts, "ends": ends, "labels": labels},
-            max_span_num=max_span_num,
+        args = (
+            tokens,
+            snt_starts,
+            snt_ends,
+            labels,
+            self.data_args,
+            max_span_num,
         )
-        all_padded_subwords = []
-        all_attention_mask = []
-        all_starts = []
-        all_ends = []
-        for snt, starts, ends in zip(
-            example["tokens"], example["starts"], example["ends"]
-        ):
-            tokens = [self.tokenizer.encode(w, add_special_tokens=False) for w in snt]
-            subwords = [w for li in tokens for w in li]
-            # subword2token = list(
-            #     itertools.chain(*[[i] * len(li) for i, li in enumerate(tokens)])
-            # )
-            token2subword = [0] + list(itertools.accumulate(len(li) for li in tokens))
-            all_starts.append([token2subword[s] for s in starts])
-            all_ends.append([token2subword[e] for e in ends])
-            # token_ids = [sw for word in subwords for sw in word]
-            padded_subwords = (
-                [self.tokenizer.cls_token_id]
-                + subwords[: self.data_args.max_length - 2]
-                + [self.tokenizer.sep_token_id]
+        buffer_file = os.path.join(
+            get_original_cwd(), "data/buffer", md5(str(args).encode()).hexdigest()
+        )
+        if not os.path.exists(buffer_file):
+
+            example = self.padding_spans(
+                {
+                    "tokens": tokens,
+                    "starts": snt_starts,
+                    "ends": snt_ends,
+                    "labels": labels,
+                },
+                max_span_num=max_span_num,
             )
-            all_attention_mask.append(
-                [0] * len(padded_subwords)
-                + [1] * (self.data_args.max_length - len(padded_subwords))
-            )
-            padded_subwords = padded_subwords + [self.tokenizer.pad_token_id] * (
-                self.data_args.max_length - len(padded_subwords)
-            )
-            all_padded_subwords.append(padded_subwords)
-        return {
-            "input_ids": all_padded_subwords,
-            "attention_mask": all_attention_mask,
-            "starts": all_starts,
-            "ends": all_ends,
-            "labels": example["labels"],
-        }
+            all_padded_subwords = []
+            all_attention_mask = []
+            all_starts = []
+            all_ends = []
+            starts = np.array(example["starts"])
+            ends = np.array(example["ends"])
+            snt_lens = [len(snt) for snt in example["tokens"]]
+            snt_split = list(itertools.accumulate(snt_lens))
+            all_words = [w for snt in example["tokens"] for w in snt]
+            tokenized_tokens = self.tokenizer.batch_encode_plus(
+                all_words, add_special_tokens=False
+            )["input_ids"]
+            snt_split = list(zip([0] + snt_split, snt_split))
+            pad_token_id = self.tokenizer.pad_token_id
+            for snt_id in tqdm(list(range(len(example["tokens"])))):
+                snt_starts = starts[snt_id]
+                snt_ends = ends[snt_id]
+                s, e = snt_split[snt_id]
+                tokens = tokenized_tokens[s:e]
+                subwords = [w for li in tokens for w in li]
+                # subword2token = list(
+                #     itertools.chain(*[[i] * len(li) for i, li in enumerate(tokens)])
+                # )
+                # token2subword = np.array([0] + list(
+                #     itertools.accumulate(len(li) for li in tokens)
+                # ))
+                token2subword = [0] + list(
+                    itertools.accumulate(len(li) for li in tokens)
+                )
+                # new_starts = token2subword[snt_starts]
+                # new_ends = token2subword@snt_ends]
+                new_starts = [token2subword[s] for s in snt_starts]
+                new_ends = [token2subword[e] for e in snt_ends]
+                for i, (s, e) in enumerate(zip(new_starts, new_ends)):
+                    if s > self.data_args.max_length or e > self.data_args.max_length:
+                        pass
+                        new_starts[i] = 0
+                        new_ends[i] = 0
+                assert all(s <= self.data_args.max_length for s in new_starts)
+                assert all(e <= self.data_args.max_length for e in new_ends)
+                all_starts.append(new_starts)
+                all_ends.append(new_ends)
+                # token_ids = [sw for word in subwords for sw in word]
+                padded_subwords = (
+                    [self.tokenizer.cls_token_id]
+                    + subwords[: self.data_args.max_length - 2]
+                    + [self.tokenizer.sep_token_id]
+                )
+                all_attention_mask.append(
+                    [1] * len(padded_subwords)
+                    + [0] * (self.data_args.max_length - len(padded_subwords))
+                )
+                padded_subwords = padded_subwords + [pad_token_id] * (
+                    self.data_args.max_length - len(padded_subwords)
+                )
+                all_padded_subwords.append(padded_subwords)
+                ret_dict = {
+                    "input_ids": all_padded_subwords,
+                    "attention_mask": all_attention_mask,
+                    "starts": all_starts,
+                    "ends": all_ends,
+                    "labels": example["labels"],
+                }
+            with open(buffer_file, "wb") as f:
+                pickle.dump(ret_dict, f)
+        with open(buffer_file, "rb") as f:
+            ret_dict = pickle.load(f)
+        return ret_dict
 
     def preprocess_function(self, example: Dict) -> Dict:
         return self.load_model_input(
             example["tokens"],
             example["starts"],
             example["ends"],
-            max_length=self.data_args.max_length,
             labels=example["labels"],
             max_span_num=self.data_args.max_span_num,
         )
@@ -539,3 +659,13 @@ class EnumeratedTyper(Typer):
                 else:
                     example[key] = value
         return example
+
+    def train(self):
+        # Training
+        if self.training_args.do_train:
+            self.trainer.train(
+                model_path=self.model_args.model_name_or_path
+                if os.path.isdir(self.model_args.model_name_or_path)
+                else None
+            )
+            self.trainer.save_model()  # Saves the tokenizer too for easy upload

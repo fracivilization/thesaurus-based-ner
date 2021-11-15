@@ -32,7 +32,7 @@ RUN_OUT=$(
     poetry run python -m cli.train \
         ner_model/chunker=${CHUNKER} \
         ++dataset.name_or_path=${PSEUDO_DATA} \
-        ner_model.typer.msc_args.o_sampling_ratio=${O_SAMPLING_RATIO} \
+        ner_model.typer.model_args.o_sampling_ratio=${O_SAMPLING_RATIO} \
         ner_model.typer.train_args.do_train=True \
         ner_model.typer.train_args.overwrite_output_dir=True \
         ner_model.typer.train_args.per_device_train_batch_size=16 \

@@ -4,7 +4,7 @@ defaults:
 #   # - typer: inscon
 #   # - typer: dict_match
 #   # - typer: enumerated
-  - typer: hamner_like
+  - typer: enumerated
 
 # ner_model_name: TwoStage
 # typer:
