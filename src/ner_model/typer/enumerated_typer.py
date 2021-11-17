@@ -329,7 +329,10 @@ class EnumeratedTyper(Typer):
             use_fast=True,
             additional_special_tokens=[span_start_token, span_end_token],
         )
-        model_args.o_label_id = label_list.index("nc-O")
+        if "nc-O" in label_list:
+            model_args.o_label_id = label_list.index("nc-O")
+        else:
+            model_args.o_label_id = -2
         model = BertForEnumeratedTyper.from_pretrained(
             model_args,
             from_tf=bool(".ckpt" in model_args.model_name_or_path),

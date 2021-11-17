@@ -28,6 +28,27 @@ DBPedia_WD_SubClassOf = os.path.join(DBPedia_dir, "ontology-subclassof.ttl")
 DBPedia_WD_labels = os.path.join(DBPedia_dir, "labels.ttl")
 DBPedia_WD_alias = os.path.join(DBPedia_dir, "alias.ttl")
 
+ST21pvSrc = {
+    "CPT",
+    "FMA",
+    "GO",
+    "HGNC",
+    "HPO",
+    "ICD10",
+    "ICD10CM",
+    "ICD9CM",
+    "MDR",
+    "MSH",
+    "MTH",
+    "NCBI",
+    "NCI",
+    "NDDF",
+    "NDFRT",
+    "OMIM",
+    "RXNORM",
+    "SNOMEDCT_US",
+}
+
 
 def get_descendants_TUIs(tui="T025"):
     tui2stn: Dict[str, str] = dict()
@@ -53,11 +74,32 @@ def load_TUI_terms(tui="T025"):
         ]
     cuis = set(cuis)
     cui2terms = defaultdict(set)
+    terms = set()
     with open(mrconso) as f:
         for line in tqdm(f, total=16132274):
-            if line.split("|")[1] == "ENG":
-                cui2terms[line.split("|")[0]] |= {line.strip().split("|")[14]}
-    terms = {term for cui in tqdm(cuis) for term in cui2terms[cui]}
+            (
+                cui,
+                lang,
+                _,
+                _,
+                _,
+                _,
+                _,
+                _,
+                _,
+                _,
+                _,
+                src,
+                _,
+                _,
+                term,
+                _,
+                _,
+                _,
+                _,
+            ) = line.strip().split("|")
+            if lang == "ENG" and src in ST21pvSrc and cui in cuis:
+                terms.add(term)
     return terms
 
 

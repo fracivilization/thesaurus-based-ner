@@ -9,66 +9,9 @@ from omegaconf import MISSING
 from .terms import DBPedia_categories, UMLS_Categories
 from hydra.utils import get_original_cwd
 from collections import defaultdict
-from inflection import UNCOUNTABLES, PLURALS, SINGULARS
 import re
 from tqdm import tqdm
 from src.utils.string_match import ComplexKeywordTyper
-
-PLURAL_RULES = [(re.compile(rule), replacement) for rule, replacement in PLURALS]
-SINGULAR_RULES = [(re.compile(rule), replacement) for rule, replacement in SINGULARS]
-
-
-def pluralize(word: str) -> str:
-    """
-    Return the plural form of a word.
-
-    Examples::
-
-        >>> pluralize("posts")
-        'posts'
-        >>> pluralize("octopus")
-        'octopi'
-        >>> pluralize("sheep")
-        'sheep'
-        >>> pluralize("CamelOctopus")
-        'CamelOctopi'
-
-    """
-    if not word or word.lower() in UNCOUNTABLES:
-        return word
-    else:
-        for rule, replacement in PLURAL_RULES:
-            if rule.search(word):
-                return rule.sub(replacement, word)
-        return word
-
-
-def singularize(word: str) -> str:
-    """
-    Return the singular form of a word, the reverse of :func:`pluralize`.
-
-    Examples::
-
-        >>> singularize("posts")
-        'post'
-        >>> singularize("octopi")
-        'octopus'
-        >>> singularize("sheep")
-        'sheep'
-        >>> singularize("word")
-        'word'
-        >>> singularize("CamelOctopi")
-        'CamelOctopus'
-
-    """
-    for inflection in UNCOUNTABLES:
-        if re.search(r"(?i)\b(%s)\Z" % inflection, word):
-            return word
-
-    for rule, replacement in SINGULAR_RULES:
-        if re.search(rule, word):
-            return re.sub(rule, replacement, word)
-    return word
 
 
 def load_inflected_terms(dict_dir: str, cat: str):
@@ -137,7 +80,13 @@ def load_term2cat(conf: Term2CatConfig):
     cats = focus_cats | remained_nc
     cat2terms = dict()
     for cat in cats:
-        terms = load_inflected_terms(conf.dict_dir, cat)
+        buffer_file = os.path.join(get_original_cwd(), conf.dict_dir, cat)
+        with open(buffer_file) as f:
+            terms = []
+            for line in f:
+                term = line.strip()
+                if term:
+                    terms.append(term)
         cat2terms[cat] = set(terms)
     remove_terms = set()
     # term2cats = defaultdict(set)

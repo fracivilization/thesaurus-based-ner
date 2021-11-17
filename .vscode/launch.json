@@ -81,15 +81,13 @@
             "module": "cli.train",
             "justMyCode": false,
             "args": [
-                // "++ner_model.ner_model_wrapper.o_label_as_Bo=True"
-                // "++ner_model.chunker.chunker_name=enumerated"
-                "ner_model=PseudoTwoStage",
+                "ner_model/chunker=spacy_np",
                 "++dataset.name_or_path=data/pseudo/aa281afa205aa50b598378bd9b1754f45211ed24",
-                // "ner_model.typer.msc_args.o_sampling_ratio=0.01",
-                // "ner_model.typer.train_args.overwrite_output_dir=True",
-                // "ner_model.typer.train_args.do_train=True",
-                // "ner_model.typer.train_args.per_device_train_batch_size=16",
-                // "ner_model.typer.train_args.per_device_eval_batch_size=32",
+                "ner_model.typer.model_args.o_sampling_ratio=0.01",
+                "ner_model.typer.train_args.do_train=True",
+                "ner_model.typer.train_args.overwrite_output_dir=True",
+                "ner_model.typer.train_args.per_device_train_batch_size=8",
+                "ner_model.typer.train_args.per_device_eval_batch_size=16"
             ],
         },
         {

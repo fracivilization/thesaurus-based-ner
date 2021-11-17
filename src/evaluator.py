@@ -12,6 +12,7 @@ from seqeval.metrics.sequence_labeling import get_entities
 from src.ner_model.chunker.abstract_model import Chunker
 from src.utils.mlflow import MlflowWriter
 from prettytable import PrettyTable
+import statistics
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +137,38 @@ class NERTestor:
             self.evaluate_on_negative_chunk_by_category(
                 self.prediction_for_test_w_nc, chunker
             )
+        # if hasattr(ner_model, "typer"):
+        #     self.rule_typer = None
+        #     self.analyze_likelihood_diff_between_dict_term(self.prediction_for_test)
+
+    def analyze_likelihood_diff_between_dict_term(self, prediction_for_test: Dataset):
+        in_dict_likelihoods = []
+        out_dict_likelihoods = []
+        for snt in prediction_for_test:
+            for l, s, e in get_entities(snt["gold_ner_tags"]):
+                if "self.typerがspan: (s, e)に対して、ラベルlを予測するなら":
+                    # self.modelのスパン (s, e)に対する予測確率を in_dict_likelihood に appendする
+                    pass
+                else:
+                    # self.modelのスパン (s, e)に対する予測確率を out_dict_likelihood に appendする
+                    pass
+        pass
+        ptl = PrettyTable(["class", "mean", "variance"])
+        ptl.add_row(
+            [
+                "in dict",
+                statistics.mean(in_dict_likelihoods),
+                statistics.variance(in_dict_likelihoods),
+            ],
+        )
+        ptl.add_row(
+            [
+                "out dict",
+                statistics.mean(out_dict_likelihoods),
+                statistics.variance(out_dict_likelihoods),
+            ],
+        )
+        logger.info(ptl.get_string())
 
     def analyze_nc_fn(self, prediction_for_test_w_nc: Dataset):
         count_for_fn_miss_classification_on_end = 0
