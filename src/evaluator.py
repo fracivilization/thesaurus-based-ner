@@ -13,6 +13,9 @@ from src.ner_model.chunker.abstract_model import Chunker
 from src.utils.mlflow import MlflowWriter
 from prettytable import PrettyTable
 import statistics
+from dataclasses import MISSING, dataclass
+from src.ner_model.typer.abstract_model import TyperConfig
+from hydra.core.config_store import ConfigStore
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +78,16 @@ def calculate_set_PRF(pred_set: Set, gold_set: Set):
     return precision, recall, f1
 
 
+@dataclass
+class NERTestorConfig:
+    baseline_typer: TyperConfig = MISSING
+
+
+def register_ner_testor_configs() -> None:
+    cs = ConfigStore.instance()
+    cs.store(group="testor", name="base_NERTestor_config", node=NERTestorConfig)
+
+
 class NERTestor:
     "NER Testor test NER Mondel on dataset"
 
@@ -111,6 +124,10 @@ class NERTestor:
         orig_level = trainer_logger.level
         trainer_logger.setLevel(logging.WARNING)
 
+        if hasattr(ner_model, "typer"):
+            self.rule_typer = None
+            self.analyze_likelihood_diff_between_dict_term()
+
         (
             self.prediction_for_test_w_nc,
             self.prediction_for_test,
@@ -137,9 +154,6 @@ class NERTestor:
             self.evaluate_on_negative_chunk_by_category(
                 self.prediction_for_test_w_nc, chunker
             )
-        # if hasattr(ner_model, "typer"):
-        #     self.rule_typer = None
-        #     self.analyze_likelihood_diff_between_dict_term(self.prediction_for_test)
 
     def analyze_likelihood_diff_between_dict_term(self, prediction_for_test: Dataset):
         in_dict_likelihoods = []
