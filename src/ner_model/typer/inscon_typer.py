@@ -276,6 +276,7 @@ class TrainingArguments(OrigTrainingArguments):
 @dataclass
 class InsconTyperConfig(TyperConfig):
     typer_name: str = "Inscon"
+    label_names: str = "non_initialized"  # this variable is dinamically decided
     train_args: TrainingArguments = TrainingArguments(output_dir=".")
     data_args: InsconTyperDataTrainingArguments = InsconTyperDataTrainingArguments()
     model_args: InsconTyperModelArguments = InsconTyperModelArguments(

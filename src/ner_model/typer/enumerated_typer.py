@@ -236,6 +236,7 @@ class EnumeratedTrainingArguments(TrainingArguments):
 @dataclass
 class EnumeratedTyperConfig(TyperConfig):
     typer_name: str = "Enumerated"
+    label_names: str = "non_initialized"  # this variable is dinamically decided
     model_args: EnumeratedModelArguments = EnumeratedModelArguments(
         model_name_or_path="dmis-lab/biobert-base-cased-v1.1"
     )

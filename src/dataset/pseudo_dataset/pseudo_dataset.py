@@ -38,6 +38,7 @@ class PseudoAnnoConfig:
     gold_corpus: str = MISSING
     remove_fp_instance: bool = False
     add_erosion_fn: bool = False
+    remove_misguidance_fn: bool = False
     # duplicate_cats: str = MISSING
     # focus_cats: str = MISSING
 
@@ -67,6 +68,10 @@ def add_erosion_fn(pred_tags, gold_tags):
     pass
 
 
+def remove_misguidance_fn(pred_tags, gold_tags):
+    pass
+
+
 def load_pseudo_dataset(
     raw_corpus: Dataset, ner_model: NERModel, conf: PseudoAnnoConfig
 ) -> Dataset:
@@ -83,7 +88,7 @@ def load_pseudo_dataset(
     if not buffer_dir.exists():
         ret_tokens = []
         ner_tags = []
-        if conf.remove_fp_instance or conf.add_erosion_fn:
+        if conf.remove_fp_instance or conf.add_erosion_fn or conf.remove_misguidance_fn:
             label_names = raw_corpus.features["ner_tags"].feature.names
             for tokens, gold_tags in tqdm(
                 zip(raw_corpus["tokens"], raw_corpus["ner_tags"])
@@ -94,6 +99,8 @@ def load_pseudo_dataset(
                     pred_tags = remove_fp_ents(pred_tags, gold_tags)
                 if conf.add_erosion_fn:
                     pred_tags = add_erosion_fn(pred_tags, gold_tags)
+                if conf.remove_misguidance_fn:
+                    pred_tags = remove_misguidance_fn(pred_tags, gold_tags)
                 if any(tag != "O" for tag in pred_tags):
                     ret_tokens.append(tokens)
                     ner_tags.append(pred_tags)

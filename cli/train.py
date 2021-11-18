@@ -38,6 +38,7 @@ register_BERT_configs()
 register_BOND_configs()
 register_two_stage_configs()
 register_ner_matcher_configs()
+register_ner_testor_configs()
 cs.store(group="dataset", name="base_dataset_config", node=DatasetConfig)
 
 
@@ -64,7 +65,7 @@ def main(cfg: TrainConfig):
         chunk = ner_model.ner_model.chunker
     else:
         chunk = None
-    testor = NERTestor(ner_model, dataset, writer, chunk)
+    testor = NERTestor(ner_model, dataset, writer, cfg.testor, chunk)
     writer.set_terminated()
 
 

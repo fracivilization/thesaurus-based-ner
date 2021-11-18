@@ -21,7 +21,7 @@ np.ones(13)
 class DictMatchTyperConfig(TyperConfig):
     typer_name: str = "DictMatchTyper"
     term2cat: Term2CatConfig = Term2CatConfig()
-    output_o_as_nc: bool = False
+    label_names: str = "non_initialized"  # this variable is dinamically decided
 
 
 class DictMatchTyper(Typer):
@@ -31,6 +31,7 @@ class DictMatchTyper(Typer):
         # keyword extractorを追加する
         # argumentを追加する...後でいいか...
         self.keyword_processor = ComplexKeywordTyper(self.term2cat)
+        self.label_names = eval(self.conf.label_names)
 
     def predict(
         self, tokens: List[str], starts: List[str], ends: List[str]
@@ -39,10 +40,11 @@ class DictMatchTyper(Typer):
         for start, end in zip(starts, ends):
             term = " ".join(tokens[start:end])
             label = self.keyword_processor.type_chunk(term)
-            if label == "O" and self.conf.output_o_as_nc:
-                label = "nc-O"
+            assert label != "O"
             labels.append(label)
-        return TyperOutput(labels=labels, max_probs=np.ones(len(labels)))
+        label_ids = np.array([self.label_names.index(l) for l in labels])
+        np.eye(len(self.conf.label_names))[label_ids]
+        return TyperOutput(labels=labels, max_probs=np.ones(len(labels)), probs=probs)
 
     def train(self):
         pass

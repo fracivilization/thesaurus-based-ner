@@ -59,6 +59,7 @@ def register_typer_configs() -> None:
     from .typer.dict_match_typer import DictMatchTyperConfig
     from .typer.inscon_typer import InsconTyperConfig
     from .typer.enumerated_typer import EnumeratedTyperConfig
+    from .typer.abstract_model import RandomTyperConfig
 
     cs.store(
         group="ner_model/typer",
@@ -76,6 +77,12 @@ def register_typer_configs() -> None:
         group="ner_model/typer",
         name="base_EnumeratedTyper_config",
         node=EnumeratedTyperConfig,
+    )
+
+    cs.store(
+        group="ner_model/typer",
+        name="base_RandomTyper_config",
+        node=RandomTyperConfig,
     )
 
 

@@ -1,8 +1,7 @@
 # PseudoAnno
 NO_NC=True
-OUTPUT_O_AS_NC=False
-NO_NC=${NO_NC} OUTPUT_O_AS_NC=${OUTPUT_O_AS_NC} make all -j$(nproc)
-GOLD_NER_DATA_DIR=$(NO_NC=${NO_NC} OUTPUT_O_AS_NC=${OUTPUT_O_AS_NC} make -n all | grep GOLD_NER_DATA_DIR | awk '{print $3}')
+NO_NC=${NO_NC} make all -j$(nproc)
+GOLD_NER_DATA_DIR=$(NO_NC=${NO_NC} make -n all | grep GOLD_NER_DATA_DIR | awk '{print $3}')
 RUN_OUT=$(
     poetry run python -m cli.train \
         ner_model=PseudoTwoStage \
@@ -14,10 +13,9 @@ echo "RUN_ID_PseudoAnno" ${RUN_ID_PseudoAnno}
 
 # All Negatives
 NO_NC=True
-OUTPUT_O_AS_NC=False
 O_SAMPLING_RATIO=0.0002
-NO_NC=${NO_NC} OUTPUT_O_AS_NC=${OUTPUT_O_AS_NC} make all -j$(nproc)
-PSEUDO_NER_DATA_DIR=$(NO_NC=${NO_NC} OUTPUT_O_AS_NC=${OUTPUT_O_AS_NC} make -n all | grep PSEUDO_NER_DATA_DIR | awk '{print $3}')
+NO_NC=${NO_NC} make all -j$(nproc)
+PSEUDO_NER_DATA_DIR=$(NO_NC=${NO_NC} make -n all | grep PSEUDO_NER_DATA_DIR | awk '{print $3}')
 CHUNKER="enumerated"
 RUN_OUT=$(
     poetry run python -m cli.train \
@@ -36,10 +34,9 @@ echo "RUN_ID_AllNegatives" ${RUN_ID_AllNegatives}
 
 # All Negatives (NP)
 NO_NC=True
-OUTPUT_O_AS_NC=True
 O_SAMPLING_RATIO=0.01
-PSEUDO_DATA=$(NO_NC=${NO_NC} OUTPUT_O_AS_NC=${OUTPUT_O_AS_NC} make -n all | grep PSEUDO_NER_DATA_DIR | awk '{print $3}')
-NO_NC=${NO_NC} OUTPUT_O_AS_NC=${OUTPUT_O_AS_NC} make all -j$(nproc)
+PSEUDO_DATA=$(NO_NC=${NO_NC}  make -n all | grep PSEUDO_NER_DATA_DIR | awk '{print $3}')
+NO_NC=${NO_NC} make all -j$(nproc)
 CHUNKER="spacy_np"
 
 RUN_OUT=$(
@@ -58,9 +55,8 @@ echo "RUN_ID_AllNegatives (NP)" ${RUN_ID_AllNegatives_NP}
 
 # Thesaurus Negatives (UMLS)
 NO_NC=False
-OUTPUT_O_AS_NC=False
-NO_NC=${NO_NC} OUTPUT_O_AS_NC=${OUTPUT_O_AS_NC} make all -j$(nproc)
-PSEUDO_DATA=$(NO_NC=${NO_NC} OUTPUT_O_AS_NC=${OUTPUT_O_AS_NC} make -n all | grep PSEUDO_NER_DATA_DIR | awk '{print $3}')
+NO_NC=${NO_NC} make all -j$(nproc)
+PSEUDO_DATA=$(NO_NC=${NO_NC}  make -n all | grep PSEUDO_NER_DATA_DIR | awk '{print $3}')
 CHUNKER="spacy_np"
 RUN_OUT=$(
     poetry run python -m cli.train \

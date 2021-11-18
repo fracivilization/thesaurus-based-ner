@@ -1,21 +1,26 @@
 from hashlib import md5
 import os
 from collections import defaultdict
+from scipy.sparse import base
 from seqeval.metrics.sequence_labeling import get_entities
 from datasets import DatasetDict, Dataset
-from src.ner_model.abstract_model import NERModel
+from src import ner_model
+from src.ner_model.abstract_model import NERModel, NERModelWrapper
 from pathlib import Path
 from typing import List, Optional, Set
 from copy import deepcopy
 import logging
 from seqeval.metrics.sequence_labeling import get_entities
 from src.ner_model.chunker.abstract_model import Chunker
+from src.ner_model.two_stage import TwoStageModel
 from src.utils.mlflow import MlflowWriter
 from prettytable import PrettyTable
 import statistics
 from dataclasses import MISSING, dataclass
 from src.ner_model.typer.abstract_model import TyperConfig
 from hydra.core.config_store import ConfigStore
+from src.ner_model.typer import typer_builder
+from src.ner_model.typer.abstract_model import Typer
 
 logger = logging.getLogger(__name__)
 
@@ -93,9 +98,10 @@ class NERTestor:
 
     def __init__(
         self,
-        ner_model: NERModel,
+        ner_model: NERModelWrapper,
         ner_dataset: DatasetDict,
         writer: MlflowWriter,
+        config: NERTestorConfig,
         chunker: Chunker = None,
     ) -> None:
         pass
@@ -124,9 +130,11 @@ class NERTestor:
         orig_level = trainer_logger.level
         trainer_logger.setLevel(logging.WARNING)
 
-        if hasattr(ner_model, "typer"):
-            self.rule_typer = None
-            self.analyze_likelihood_diff_between_dict_term()
+        if isinstance(ner_model.ner_model, TwoStageModel):
+            self.baseline_typer = typer_builder(
+                config.baseline_typer, ner_dataset, writer
+            )
+            self.analyze_likelihood_diff_between_dict_term(ner_dataset["test"])
 
         (
             self.prediction_for_test_w_nc,
@@ -155,18 +163,50 @@ class NERTestor:
                 self.prediction_for_test_w_nc, chunker
             )
 
-    def analyze_likelihood_diff_between_dict_term(self, prediction_for_test: Dataset):
+    def analyze_likelihood_diff_between_dict_term(self, gold_dataset: Dataset):
+        assert isinstance(self.model.ner_model, TwoStageModel)
+        baseline_typer: Typer = self.baseline_typer
+        ner_model: TwoStageModel = self.model.ner_model
+        focus_typer: Typer = ner_model.typer
         in_dict_likelihoods = []
         out_dict_likelihoods = []
-        for snt in prediction_for_test:
-            for l, s, e in get_entities(snt["gold_ner_tags"]):
-                if "self.typerがspan: (s, e)に対して、ラベルlを予測するなら":
+        label_names = eval(focus_typer.conf.label_names)
+        tag_names = gold_dataset.features["ner_tags"].feature.names
+        tokens = gold_dataset["tokens"]
+        starts, ends, labels = [], [], []
+        for snt in gold_dataset:
+            snt_starts = []
+            snt_ends = []
+            snt_labels = []
+            for l, s, e in get_entities([tag_names[tag] for tag in snt["ner_tags"]]):
+                snt_starts.append(s)
+                snt_ends.append(e)
+                snt_labels.append(l)
+            starts.append(snt_starts)
+            ends.append(snt_ends)
+            labels.append(snt_labels)
+        focus_probs = [
+            output.probs for output in focus_typer.batch_predict(tokens, starts, ends)
+        ]
+
+        for snt_tokens, snt_starts, snt_ends, snt_labels, snt_probs in zip(
+            tokens, starts, ends, labels, focus_probs
+        ):
+            baseline_predictions = baseline_typer.predict(
+                snt_tokens, snt_starts, snt_ends
+            )
+            for label, start, end, snt_prob, baseline_prediction in zip(
+                snt_labels, snt_starts, snt_ends, snt_probs, baseline_predictions
+            ):
+                likelihood = snt_prob[label_names.index(label)]
+                if baseline_prediction == label:
+                    in_dict_likelihoods.append(likelihood)
                     # self.modelのスパン (s, e)に対する予測確率を in_dict_likelihood に appendする
                     pass
                 else:
+                    out_dict_likelihoods.append(likelihood)
                     # self.modelのスパン (s, e)に対する予測確率を out_dict_likelihood に appendする
                     pass
-        pass
         ptl = PrettyTable(["class", "mean", "variance"])
         ptl.add_row(
             [

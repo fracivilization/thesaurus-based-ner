@@ -7,6 +7,7 @@ import numpy as np
 from omegaconf.omegaconf import MISSING
 from transformers.modeling_outputs import SequenceClassifierOutput
 import torch
+import random
 
 
 @dataclass
@@ -31,12 +32,14 @@ class SpanClassifierDataTrainingArguments:
 @dataclass
 class TyperConfig:
     typer_name: str = MISSING
+    label_names: str = "non_initialized"  # this variable is dinamically decided
 
 
 @dataclass
 class TyperOutput:
     labels: List[str]
     max_probs: np.array  # prediction probability for label
+    probs: np.array  # prediction probability for labels
 
 
 class Typer:
@@ -59,6 +62,33 @@ class Typer:
 
     def train(self):
         raise NotImplementedError
+
+
+@dataclass
+class RandomTyperConfig(TyperConfig):
+    typer_name: str = "Random"
+    label_names: str = "non_initialized"  # this variable is dinamically decided
+
+
+class RandomTyper(Typer):
+    def __init__(self, conf: RandomTyperConfig, ner_datasets: DatasetDict):
+        self.conf = conf
+        self.ner_datasets = ner_datasets
+        self.label_names = ner_datasets["test"].features["ner_tags"].feature.names
+
+    def predict(
+        self, tokens: List[str], starts: List[str], ends: List[str]
+    ) -> TyperOutput:
+        score = np.random.random(
+            (len(self.label_names), len(starts))
+        )  # (num_labels, num_spans)
+        probs = score / score.sum(axis=1)[:, None]  # (num_labels, num_spans)
+        labels = [self.label_names[l] for l in probs.argmax(axis=0)]
+        max_probs = probs.max(axis=0)
+        return TyperOutput(labels, max_probs, probs)
+
+    def train(self):
+        pass
 
 
 from src.ner_model.abstract_model import NERModel
