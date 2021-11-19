@@ -305,7 +305,7 @@ class EnumeratedTyper(Typer):
         # )
 
         label_list = features["labels"].feature.names
-        self.label_list = label_list
+        self.label_names = label_list
         num_labels = len(label_list)
 
         # Load pretrained model and tokenizer
@@ -519,10 +519,12 @@ class EnumeratedTyper(Typer):
         assert all(len(s) == len(e) for s, e in zip(starts, ends))
         for logit, span_num in zip(logits, map(len, starts)):
             logit = logit[:span_num]
+            probs = softmax(logit, axis=1)
             ret_list.append(
                 TyperOutput(
-                    labels=[self.label_list[l] for l in logit.argmax(axis=1)],
-                    max_probs=softmax(logit, axis=1).max(axis=1),
+                    labels=[self.label_names[l] for l in logit.argmax(axis=1)],
+                    max_probs=probs.max(axis=1),
+                    probs=probs,
                 )
             )
         return ret_list

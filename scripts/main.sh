@@ -13,7 +13,7 @@ echo "RUN_ID_PseudoAnno" ${RUN_ID_PseudoAnno}
 
 # All Negatives
 NO_NC=True
-O_SAMPLING_RATIO=0.0002
+O_SAMPLING_RATIO=0.0001
 NO_NC=${NO_NC} make all -j$(nproc)
 PSEUDO_NER_DATA_DIR=$(NO_NC=${NO_NC} make -n all | grep PSEUDO_NER_DATA_DIR | awk '{print $3}')
 CHUNKER="enumerated"
@@ -34,7 +34,7 @@ echo "RUN_ID_AllNegatives" ${RUN_ID_AllNegatives}
 
 # All Negatives (NP)
 NO_NC=True
-O_SAMPLING_RATIO=0.01
+O_SAMPLING_RATIO=0.02
 PSEUDO_DATA=$(NO_NC=${NO_NC}  make -n all | grep PSEUDO_NER_DATA_DIR | awk '{print $3}')
 NO_NC=${NO_NC} make all -j$(nproc)
 CHUNKER="spacy_np"

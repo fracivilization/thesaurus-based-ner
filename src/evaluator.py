@@ -21,6 +21,7 @@ from src.ner_model.typer.abstract_model import TyperConfig
 from hydra.core.config_store import ConfigStore
 from src.ner_model.typer import typer_builder
 from src.ner_model.typer.abstract_model import Typer
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -199,6 +200,8 @@ class NERTestor:
                 snt_labels, snt_starts, snt_ends, snt_probs, baseline_predictions
             ):
                 likelihood = snt_prob[label_names.index(label)]
+                if isinstance(likelihood, np.float32):
+                    likelihood = float(likelihood)
                 if baseline_prediction == label:
                     in_dict_likelihoods.append(likelihood)
                     # self.modelのスパン (s, e)に対する予測確率を in_dict_likelihood に appendする
@@ -208,12 +211,24 @@ class NERTestor:
                     # self.modelのスパン (s, e)に対する予測確率を out_dict_likelihood に appendする
                     pass
         ptl = PrettyTable(["class", "mean", "variance"])
+        in_dict_likelihood_mean = statistics.mean(in_dict_likelihoods)
+        in_dict_likelihood_var = statistics.variance(in_dict_likelihoods)
+        out_dict_likelihood_mean = statistics.mean(out_dict_likelihoods)
+        out_dict_likelihood_var = statistics.variance(out_dict_likelihoods)
+        self.writer.log_metric(
+            "in_dict_likelihood_mean (%)", 100 * in_dict_likelihood_mean
+        )
+        self.writer.log_metric(
+            "in_dict_likelihood_var (%)", 100 * in_dict_likelihood_var
+        )
+        self.writer.log_metric(
+            "out_dict_likelihood_mean (%)", 100 * out_dict_likelihood_mean
+        )
+        self.writer.log_metric(
+            "out_dict_likelihood_var (%)", 100 * out_dict_likelihood_var
+        )
         ptl.add_row(
-            [
-                "in dict",
-                statistics.mean(in_dict_likelihoods),
-                statistics.variance(in_dict_likelihoods),
-            ],
+            ["in dict", in_dict_likelihood_mean, in_dict_likelihood_var],
         )
         ptl.add_row(
             [
@@ -222,6 +237,7 @@ class NERTestor:
                 statistics.variance(out_dict_likelihoods),
             ],
         )
+
         logger.info(ptl.get_string())
 
     def analyze_nc_fn(self, prediction_for_test_w_nc: Dataset):
