@@ -170,7 +170,7 @@ class NERTestor:
         focus_typer: Typer = ner_model.typer
         in_dict_likelihoods = []
         out_dict_likelihoods = []
-        label_names = eval(focus_typer.conf.label_names)
+        label_names = focus_typer.label_names
         tag_names = gold_dataset.features["ner_tags"].feature.names
         tokens = gold_dataset["tokens"]
         starts, ends, labels = [], [], []
@@ -194,7 +194,7 @@ class NERTestor:
         ):
             baseline_predictions = baseline_typer.predict(
                 snt_tokens, snt_starts, snt_ends
-            )
+            ).labels
             for label, start, end, snt_prob, baseline_prediction in zip(
                 snt_labels, snt_starts, snt_ends, snt_probs, baseline_predictions
             ):

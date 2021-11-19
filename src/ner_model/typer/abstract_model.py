@@ -44,6 +44,7 @@ class TyperOutput:
 
 class Typer:
     conf = dict()
+    label_names: List[str] = []
 
     def predict(
         self, tokens: List[str], starts: List[str], ends: List[str]
@@ -74,17 +75,17 @@ class RandomTyper(Typer):
     def __init__(self, conf: RandomTyperConfig, ner_datasets: DatasetDict):
         self.conf = conf
         self.ner_datasets = ner_datasets
-        self.label_names = ner_datasets["test"].features["ner_tags"].feature.names
+        self.label_names = eval(self.conf.label_names)
 
     def predict(
         self, tokens: List[str], starts: List[str], ends: List[str]
     ) -> TyperOutput:
         score = np.random.random(
-            (len(self.label_names), len(starts))
-        )  # (num_labels, num_spans)
-        probs = score / score.sum(axis=1)[:, None]  # (num_labels, num_spans)
-        labels = [self.label_names[l] for l in probs.argmax(axis=0)]
-        max_probs = probs.max(axis=0)
+            (len(starts), len(self.label_names))
+        )  # (num_spans, num_labels)
+        probs = score / score.sum(axis=1)[:, None]  # (num_spans, num_labels)
+        labels = [self.label_names[l] for l in probs.argmax(axis=1)]
+        max_probs = probs.max(axis=1)
         return TyperOutput(labels, max_probs, probs)
 
     def train(self):

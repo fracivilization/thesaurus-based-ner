@@ -31,20 +31,25 @@ class DictMatchTyper(Typer):
         # keyword extractorを追加する
         # argumentを追加する...後でいいか...
         self.keyword_processor = ComplexKeywordTyper(self.term2cat)
-        self.label_names = eval(self.conf.label_names)
+        self.label_names = ["nc-O"] + list(set(self.term2cat.values()))
 
     def predict(
         self, tokens: List[str], starts: List[str], ends: List[str]
     ) -> TyperOutput:
-        labels = []
-        for start, end in zip(starts, ends):
-            term = " ".join(tokens[start:end])
-            label = self.keyword_processor.type_chunk(term)
-            assert label != "O"
-            labels.append(label)
-        label_ids = np.array([self.label_names.index(l) for l in labels])
-        np.eye(len(self.conf.label_names))[label_ids]
-        return TyperOutput(labels=labels, max_probs=np.ones(len(labels)), probs=probs)
+        if not starts:
+            return TyperOutput(labels=[], max_probs=np.array([]), probs=np.array([]))
+        else:
+            labels = []
+            for start, end in zip(starts, ends):
+                term = " ".join(tokens[start:end])
+                label = self.keyword_processor.type_chunk(term)
+                assert label != "O"
+                labels.append(label)
+            label_ids = np.array([self.label_names.index(l) for l in labels])
+            probs = np.eye(len(self.label_names))[label_ids]
+            return TyperOutput(
+                labels=labels, max_probs=np.ones(len(labels)), probs=probs
+            )
 
     def train(self):
         pass
