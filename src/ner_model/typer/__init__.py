@@ -9,17 +9,18 @@ from seqeval.metrics.sequence_labeling import get_entities
 
 
 def typer_builder(config: TyperConfig, ner_datasets: DatasetDict, writer: MlflowWriter):
-    label_names = list(
-        set(
-            [
-                l
-                for l, s, e in get_entities(
-                    ner_datasets["train"].features["ner_tags"].feature.names
-                )
-            ]
+    if ner_datasets:
+        label_names = list(
+            set(
+                [
+                    l
+                    for l, s, e in get_entities(
+                        ner_datasets["train"].features["ner_tags"].feature.names
+                    )
+                ]
+            )
         )
-    )
-    config.label_names = repr(label_names)
+        config.label_names = repr(label_names)
     if config.typer_name == "DictMatchTyper":
         return DictMatchTyper(config)
     elif config.typer_name == "Inscon":
