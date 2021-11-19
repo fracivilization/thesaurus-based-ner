@@ -216,16 +216,16 @@ class NERTestor:
         out_dict_likelihood_mean = statistics.mean(out_dict_likelihoods)
         out_dict_likelihood_var = statistics.variance(out_dict_likelihoods)
         self.writer.log_metric(
-            "in_dict_likelihood_mean (%)", 100 * in_dict_likelihood_mean
+            "in_dict_likelihood_mean", "%.2f" % 100 * in_dict_likelihood_mean
         )
         self.writer.log_metric(
-            "in_dict_likelihood_var (%)", 100 * in_dict_likelihood_var
+            "in_dict_likelihood_var", "%.2f" % 100 * in_dict_likelihood_var
         )
         self.writer.log_metric(
-            "out_dict_likelihood_mean (%)", 100 * out_dict_likelihood_mean
+            "out_dict_likelihood_mean", "%.2f" % 100 * out_dict_likelihood_mean
         )
         self.writer.log_metric(
-            "out_dict_likelihood_var (%)", 100 * out_dict_likelihood_var
+            "out_dict_likelihood_var", "%.2f" % 100 * out_dict_likelihood_var
         )
         ptl.add_row(
             ["in dict", in_dict_likelihood_mean, in_dict_likelihood_var],

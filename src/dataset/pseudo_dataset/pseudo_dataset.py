@@ -61,15 +61,44 @@ def remove_fp_ents(pred_tags: List[str], gold_tags: List[str]):
                     new_tags[i] = "B-%s" % pred_label
                 else:
                     new_tags[i] = "I-%s" % pred_label
+    raise NotImplementedError
+    # TODO: 編集距離も追加する
     return new_tags
 
 
-def add_erosion_fn(pred_tags, gold_tags):
-    pass
+def add_erosion_entity(pred_tags, gold_tags):
+    """Add erosion entity to the prediction tags.
+    Erosion entity is a entity which is in gold tags but not in pred_tags.
+    """
+    raise NotImplementedError
+    new_tags = ["O"] * len(pred_tags)
+    for gold_label, s, e in get_entities(gold_tags):
+        pass
+    # TODO: 編集距離も追加する
+    return new_tags
 
 
 def remove_misguidance_fn(pred_tags, gold_tags):
-    pass
+    raise NotImplementedError
+    new_tags = ["O"] * len(pred_tags)
+    for pred_label, s, e in get_entities(pred_tags):
+        remain_flag = False
+        if pred_label.startswith("nc-"):
+            remain_flag = True
+        else:
+            partially_match_labels = [
+                l for l, s, e in get_entities(gold_tags[s : e + 1])
+            ]
+            if pred_label in partially_match_labels:
+                remain_flag = True
+        if remain_flag:
+            for i in range(s, e + 1):
+                if i == s:
+                    new_tags[i] = "B-%s" % pred_label
+                else:
+                    new_tags[i] = "I-%s" % pred_label
+    # TODO: 編集距離も追加する
+    return new_tags
 
 
 def load_pseudo_dataset(
@@ -98,7 +127,7 @@ def load_pseudo_dataset(
                 if conf.remove_fp_instance:
                     pred_tags = remove_fp_ents(pred_tags, gold_tags)
                 if conf.add_erosion_fn:
-                    pred_tags = add_erosion_fn(pred_tags, gold_tags)
+                    pred_tags = add_erosion_entity(pred_tags, gold_tags)
                 if conf.remove_misguidance_fn:
                     pred_tags = remove_misguidance_fn(pred_tags, gold_tags)
                 if any(tag != "O" for tag in pred_tags):

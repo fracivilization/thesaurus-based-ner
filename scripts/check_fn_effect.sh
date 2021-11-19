@@ -22,7 +22,6 @@ echo "RUN_ID_AllNegatives" ${RUN_ID_AllNegatives}
 ## その上で走らせる & RunIDを記録
 
 # Erosion Rate
-
 EROSION_PSEUDO_DATA=$(NO_NC=${NO_NC} make -n all | grep EROSION_PSEUDO_DATA | awk '{print $3}')
 ## その上で走らせる & RunIDを記録
 RUN_OUT=$(
