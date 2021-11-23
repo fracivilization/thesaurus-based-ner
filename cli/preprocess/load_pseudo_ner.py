@@ -40,7 +40,6 @@ def main(cfg: PseudoAnnoConfig):
             raw_corpus = DatasetDict.load_from_disk(
                 os.path.join(get_original_cwd(), cfg.raw_corpus)
             )["train"]
-            # TODO: remove fp, fn などの介入処理は基本的にどれか一つのみになることをassertする
         elif cfg.raw_corpus.startswith("data/raw"):
             raw_corpus = Dataset.load_from_disk(
                 os.path.join(get_original_cwd(), cfg.raw_corpus)

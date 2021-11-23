@@ -158,7 +158,7 @@ $(EROSION_PSEUDO_DATA):  $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_
 	@echo make from Gold: $(GOLD_DATA)
 	@echo focused categories: $(FOCUS_CATS)
 	@echo duplicated categories: $(DUPLICATE_CATS)
-	@echo PSEUDO_DATA_ON_GOLD: $(PSEUDO_DATA_ON_GOLD)
+	@echo pseudo_data_on_gold: $(PSEUDO_DATA_ON_GOLD)
 	@echo EROSION_PSEUDO_DATA: $(EROSION_PSEUDO_DATA)
 	poetry run python -m cli.preprocess.load_pseudo_ner \
 		+raw_corpus=$(GOLD_DATA) \
@@ -174,7 +174,7 @@ $(MISGUIDANCE_PSEUDO_DATA):  $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSE
 	@echo make from Gold: $(GOLD_DATA)
 	@echo focused categories: $(FOCUS_CATS)
 	@echo duplicated categories: $(DUPLICATE_CATS)
-	@echo PSEUDO_DATA_ON_GOLD: $(PSEUDO_DATA_ON_GOLD)
+	@echo pseudo_data_on_gold: $(PSEUDO_DATA_ON_GOLD)
 	@echo MISGUIDANCE_PSEUDO_DATA: $(MISGUIDANCE_PSEUDO_DATA)
 	poetry run python -m cli.preprocess.load_pseudo_ner \
 		+raw_corpus=$(GOLD_DATA) \

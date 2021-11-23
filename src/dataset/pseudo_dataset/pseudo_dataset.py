@@ -37,7 +37,7 @@ class PseudoAnnoConfig:
     raw_corpus: str = MISSING
     gold_corpus: str = MISSING
     remove_fp_instance: bool = False
-    add_erosion_fn: bool = False
+    add_dict_erosion_fn: bool = False
     remove_misguidance_fn: bool = False
     # duplicate_cats: str = MISSING
     # focus_cats: str = MISSING
@@ -61,20 +61,31 @@ def remove_fp_ents(pred_tags: List[str], gold_tags: List[str]):
                     new_tags[i] = "B-%s" % pred_label
                 else:
                     new_tags[i] = "I-%s" % pred_label
-    raise NotImplementedError
-    # TODO: 編集距離も追加する
     return new_tags
 
 
-def add_erosion_entity(pred_tags, gold_tags):
-    """Add erosion entity to the prediction tags.
-    Erosion entity is a entity which is in gold tags but not in pred_tags.
+def add_dict_erosion_entity(pred_tags, gold_tags):
+    """Add dictionary erosion entity to the prediction tags.
+    Dictionry erosion entity is a entity which is in gold tags but not in pred_tags.
+
+    In this research, we define matching between gold and predicted entities as ends with match.
+    So, we add gold entities which have no partial match entities with predicted entities.
+    e.g.
+        pred_tags: B-T038 I-T038 I-T038 I-T038 I-T038 O
+        gold_tags: O B-T082 I-T082 I-T082 B-T038 O
+        output: B-T038 I-T082 I-T082 I-T082 I-T038 O
     """
-    raise NotImplementedError
-    new_tags = ["O"] * len(pred_tags)
+    new_tags = copy.deepcopy(pred_tags)
     for gold_label, s, e in get_entities(gold_tags):
-        pass
+        predicted_labels = set(pl for pl, ps, pe in get_entities(pred_tags[s : e + 1]))
+        if gold_label not in predicted_labels:
+            for i in range(s, e + 1):
+                if i == s:
+                    new_tags[i] = "B-%s" % gold_label
+                else:
+                    new_tags[i] = "I-%s" % gold_label
     # TODO: 編集距離も追加する
+    raise NotImplementedError
     return new_tags
 
 
@@ -108,51 +119,50 @@ def load_pseudo_dataset(
     desc["raw_corpus"] = json.loads(raw_corpus.info.description)
     desc["ner_model"] = yaml.safe_load(OmegaConf.to_yaml(ner_model.conf))
 
-    buffer_dir = Path(get_original_cwd()).joinpath(
-        "data",
-        "buffer",
-        md5(("Pseudo Dataset from " + str(desc)).encode()).hexdigest(),
-    )
-
-    if not buffer_dir.exists():
-        ret_tokens = []
-        ner_tags = []
-        if conf.remove_fp_instance or conf.add_erosion_fn or conf.remove_misguidance_fn:
-            label_names = raw_corpus.features["ner_tags"].feature.names
-            for tokens, gold_tags in tqdm(
-                zip(raw_corpus["tokens"], raw_corpus["ner_tags"])
+    ret_tokens = []
+    ner_tags = []
+    if (
+        conf.remove_fp_instance
+        or conf.add_dict_erosion_fn
+        or conf.remove_misguidance_fn
+    ):
+        label_names = raw_corpus.features["ner_tags"].feature.names
+        for tokens, gold_tags in tqdm(
+            zip(raw_corpus["tokens"], raw_corpus["ner_tags"])
+        ):
+            pred_tags = ner_model.predict(tokens)
+            gold_tags = [label_names[tagid] for tagid in gold_tags]
+            if (
+                conf.remove_fp_instance
+                or conf.add_dict_erosion_fn
+                or conf.remove_misguidance_fn
             ):
-                pred_tags = ner_model.predict(tokens)
-                gold_tags = [label_names[tagid] for tagid in gold_tags]
                 if conf.remove_fp_instance:
                     pred_tags = remove_fp_ents(pred_tags, gold_tags)
-                if conf.add_erosion_fn:
-                    pred_tags = add_erosion_entity(pred_tags, gold_tags)
-                if conf.remove_misguidance_fn:
+                elif conf.add_dict_erosion_fn:
+                    pred_tags = add_dict_erosion_entity(pred_tags, gold_tags)
+                elif conf.remove_misguidance_fn:
                     pred_tags = remove_misguidance_fn(pred_tags, gold_tags)
-                if any(tag != "O" for tag in pred_tags):
-                    ret_tokens.append(tokens)
-                    ner_tags.append(pred_tags)
-        else:
-            for tokens in tqdm(raw_corpus["tokens"]):
-                pred_tags = ner_model.predict(tokens)
-                if any(tag != "O" for tag in pred_tags):
-                    ret_tokens.append(tokens)
-                    ner_tags.append(pred_tags)
+            if any(tag != "O" for tag in pred_tags):
+                ret_tokens.append(tokens)
+                ner_tags.append(pred_tags)
+    else:
+        for tokens in tqdm(raw_corpus["tokens"]):
+            pred_tags = ner_model.predict(tokens)
+            if any(tag != "O" for tag in pred_tags):
+                ret_tokens.append(tokens)
+                ner_tags.append(pred_tags)
 
-        ner_labels = [
-            l
-            for l, c in Counter([tag for snt in ner_tags for tag in snt]).most_common()
-        ]
-        pseudo_dataset = Dataset.from_dict(
-            {"tokens": ret_tokens, "ner_tags": ner_tags},
-            info=DatasetInfo(
-                description=json.dumps(desc),
-                features=get_ner_dataset_features(ner_labels),
-            ),
-        )
-        pseudo_dataset.save_to_disk(str(buffer_dir))
-    pseudo_dataset = Dataset.load_from_disk(str(buffer_dir))
+    ner_labels = [
+        l for l, c in Counter([tag for snt in ner_tags for tag in snt]).most_common()
+    ]
+    pseudo_dataset = Dataset.from_dict(
+        {"tokens": ret_tokens, "ner_tags": ner_tags},
+        info=DatasetInfo(
+            description=json.dumps(desc),
+            features=get_ner_dataset_features(ner_labels),
+        ),
+    )
     return pseudo_dataset
 
 

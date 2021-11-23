@@ -44,7 +44,7 @@
                 "++ner_model.typer.term2cat.duplicate_cats=GeneLocation_Species_Disease_Work_SportsSeason_Device_Media_SportCompetitionResult_EthnicGroup_Protocol_Award_Demographics_MeanOfTransportation_FileSystem_Medicine_Area_Flag_UnitOfWork_MedicalSpecialty_GrossDomesticProduct_Biomolecule_Identifier_Blazon_PersonFunction_List_TimePeriod_Event_Relationship_Altitude_TopicalConcept_Spreadsheet_Currency_Cipher_Browser_Tank_Food_Depth_Population_Statistic_StarCluster_Language_GrossDomesticProductPerCapita_ChemicalSubstance_ElectionDiagram_Diploma_Place_Algorithm_ChartsPlacements_Unknown_Activity_PublicService_Agent_Name_AnatomicalStructure_Colour",
                 "+output_dir=data/pseudo/a412731863aba3f960167cc6d91d2c115d11da2c",
                 "+gold_corpus=data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3",
-                "++add_erosion_fn=True",
+                "++add_dict_erosion_fn=True",
             ],
         },
         {
