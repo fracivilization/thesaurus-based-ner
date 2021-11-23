@@ -106,7 +106,7 @@ class NERTestor:
         chunker: Chunker = None,
     ) -> None:
         pass
-        self.model = ner_model
+        self.ner_model = ner_model
         self.datasets = ner_dataset
         self.datasets_hash = {
             key: split.__hash__() for key, split in ner_dataset.items()
@@ -131,9 +131,9 @@ class NERTestor:
         orig_level = trainer_logger.level
         trainer_logger.setLevel(logging.WARNING)
 
-        if isinstance(ner_model.ner_model, TwoStageModel):
+        if isinstance(ner_model, TwoStageModel):
             self.baseline_typer = typer_builder(
-                config.baseline_typer, ner_dataset, writer
+                config.baseline_typer, ner_dataset, writer, chunker=None
             )
             self.analyze_likelihood_diff_between_dict_term(ner_dataset["test"])
 
@@ -165,9 +165,9 @@ class NERTestor:
             )
 
     def analyze_likelihood_diff_between_dict_term(self, gold_dataset: Dataset):
-        assert isinstance(self.model.ner_model, TwoStageModel)
+        assert isinstance(self.ner_model, TwoStageModel)
         baseline_typer: Typer = self.baseline_typer
-        ner_model: TwoStageModel = self.model.ner_model
+        ner_model: TwoStageModel = self.ner_model
         focus_typer: Typer = ner_model.typer
         in_dict_likelihoods = []
         out_dict_likelihoods = []
@@ -505,7 +505,7 @@ class NERTestor:
         logger.info("Start predictions for %s." % split)
         tokens = self.datasets[split]["tokens"]
         # _dict_ner_tags = self.dict_match_ner_model.batch_predict(tokens)
-        _pred_ner_tags = self.model.batch_predict(tokens)
+        _pred_ner_tags = self.ner_model.batch_predict(tokens)
         # pred_ner_tagsから fake_cat_で始まるラベルをのぞく
         _gold_ner_tags = [
             [ner_tag_names[tag] for tag in snt["ner_tags"]]

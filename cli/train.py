@@ -59,8 +59,8 @@ def main(cfg: TrainConfig):
     ner_model: NERModel = ner_model_builder(cfg.ner_model, dataset, writer)
     ner_model.train()
 
-    if isinstance(ner_model.ner_model, TwoStageModel):
-        chunk = ner_model.ner_model.chunker
+    if isinstance(ner_model, TwoStageModel):
+        chunk = ner_model.chunker
     else:
         chunk = None
     testor = NERTestor(ner_model, dataset, writer, cfg.testor, chunk)
