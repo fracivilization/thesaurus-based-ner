@@ -4,6 +4,7 @@ import hydra
 from hydra.core.config_store import ConfigStore
 from dataclasses import dataclass
 from src.ner_model.abstract_model import NERModel, NERModelConfig, NERModel
+from src.ner_model.matcher_model import register_ner_matcher_configs
 from src.ner_model.two_stage import TwoStageModel
 from src.dataset.utils import DatasetConfig
 from omegaconf import MISSING, OmegaConf, DictConfig
@@ -36,6 +37,7 @@ cs.store(group="ner_model", name="base_ner_model_config", node=NERModelConfig)
 register_BERT_configs()
 register_BOND_configs()
 register_two_stage_configs()
+register_ner_matcher_configs()
 register_ner_testor_configs()
 cs.store(group="dataset", name="base_dataset_config", node=DatasetConfig)
 

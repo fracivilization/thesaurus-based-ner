@@ -9,6 +9,7 @@ from src.ner_model.two_stage import TwoStageConfig, TwoStageModel
 from datasets import DatasetDict
 from logging import getLogger
 from hydra.utils import get_original_cwd
+from src.ner_model.matcher_model import NERMatcherModel
 import os
 
 from src.utils.mlflow import MlflowWriter
