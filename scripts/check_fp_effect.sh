@@ -46,7 +46,7 @@ check_fp_effect () {
 # echo "All Negatives (NP)"
 # NO_NC=True
 # O_SAMPLING_RATIO=0.02
-# WITH_ENUMERATED_O=False
+# WITH_ENUMERATED_O=True
 # CHUNKER="spacy_np"
 # check_fp_effect
 

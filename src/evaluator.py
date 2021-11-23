@@ -5,7 +5,7 @@ from scipy.sparse import base
 from seqeval.metrics.sequence_labeling import get_entities
 from datasets import DatasetDict, Dataset
 from src import ner_model
-from src.ner_model.abstract_model import NERModel, NERModelWrapper
+from src.ner_model.abstract_model import NERModel, NERModel
 from pathlib import Path
 from typing import List, Optional, Set
 from copy import deepcopy
@@ -99,7 +99,7 @@ class NERTestor:
 
     def __init__(
         self,
-        ner_model: NERModelWrapper,
+        ner_model: NERModel,
         ner_dataset: DatasetDict,
         writer: MlflowWriter,
         config: NERTestorConfig,
@@ -215,18 +215,12 @@ class NERTestor:
         in_dict_likelihood_var = statistics.variance(in_dict_likelihoods)
         out_dict_likelihood_mean = statistics.mean(out_dict_likelihoods)
         out_dict_likelihood_var = statistics.variance(out_dict_likelihoods)
-        self.writer.log_metric(
-            "in_dict_likelihood_mean", 100 * in_dict_likelihood_mean
-        )
-        self.writer.log_metric(
-            "in_dict_likelihood_var", 100 * in_dict_likelihood_var
-        )
+        self.writer.log_metric("in_dict_likelihood_mean", 100 * in_dict_likelihood_mean)
+        self.writer.log_metric("in_dict_likelihood_var", 100 * in_dict_likelihood_var)
         self.writer.log_metric(
             "out_dict_likelihood_mean", 100 * out_dict_likelihood_mean
         )
-        self.writer.log_metric(
-            "out_dict_likelihood_var", 100 * out_dict_likelihood_var
-        )
+        self.writer.log_metric("out_dict_likelihood_var", 100 * out_dict_likelihood_var)
         ptl.add_row(
             ["in dict", in_dict_likelihood_mean, in_dict_likelihood_var],
         )

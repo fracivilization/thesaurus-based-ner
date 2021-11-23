@@ -1,4 +1,8 @@
 from typing import List
+
+from seqeval.metrics.sequence_labeling import get_entities
+
+from src.dataset import gold_dataset
 from .genia import load_term2cat as genia_load_term2cat
 from .twitter import load_twitter_main_dictionary, load_twitter_sibling_dictionary
 from hashlib import md5
@@ -12,32 +16,43 @@ from collections import defaultdict
 import re
 from tqdm import tqdm
 from src.utils.string_match import ComplexKeywordTyper
-
-
-def load_inflected_terms(dict_dir: str, cat: str):
-    # TODO: 辞書作成の手続きに統合してしまう
-    buffer_file = os.path.join(get_original_cwd(), dict_dir, cat + "_inflected")
-    if not os.path.exists(buffer_file):
-        with open(os.path.join(dict_dir, cat)) as f:
-            terms = f.read().split("\n")
-        with open(buffer_file, "w") as f:
-            for term in tqdm(terms):
-                singular = singularize(term)
-                plural = pluralize(term)
-                f.write("%s\n" % singular)
-                f.write("%s\n" % plural)
-    with open(buffer_file) as f:
-        ret_terms = f.read().split("\n")
-    return ret_terms
+from hydra.core.config_store import ConfigStore
+from datasets import DatasetDict
 
 
 @dataclass
 class Term2CatConfig:
+    name: str = MISSING
+
+
+@dataclass
+class DictTerm2CatConfig(Term2CatConfig):
+    name: str = "dict"
     focus_cats: str = MISSING
     duplicate_cats: str = MISSING
     dict_dir: str = os.path.join(os.getcwd(), "data/dict")
     no_nc: bool = False
     remove_anomaly_suffix: bool = False  # remove suffix term (e.g. "migration": nc-T054 for "cell migration": T038)
+
+
+@dataclass
+class OracleTerm2CatConfig(Term2CatConfig):
+    name: str = "oracle"
+    gold_dataset: str = MISSING
+
+
+def register_term2cat_configs() -> None:
+    cs = ConfigStore.instance()
+    cs.store(
+        group="ner_model/typer/term2cat",
+        name="base_DictTerm2Cat_config",
+        node=DictTerm2CatConfig,
+    )
+    cs.store(
+        group="ner_model/typer/term2cat",
+        name="base_OracleTerm2Cat_config",
+        node=OracleTerm2CatConfig,
+    )
 
 
 def get_anomaly_suffixes(term2cat):
@@ -69,7 +84,7 @@ def get_anomaly_suffixes(term2cat):
     return anomaly_suffixes
 
 
-def load_term2cat(conf: Term2CatConfig):
+def load_dict_term2cat(conf: DictTerm2CatConfig):
     focus_cats = set(conf.focus_cats.split("_"))
     if conf.no_nc:
         remained_nc = set()
@@ -110,6 +125,45 @@ def load_term2cat(conf: Term2CatConfig):
         anomaly_suffixes = get_anomaly_suffixes(term2cat)
         for term in anomaly_suffixes:
             del term2cat[term]
+    return term2cat
+
+
+def load_oracle_term2cat(conf: OracleTerm2CatConfig):
+    gold_datasets = DatasetDict.load_from_disk(
+        os.path.join(get_original_cwd(), conf.gold_dataset)
+    )
+    cat2terms = defaultdict(set)
+    for key, split in gold_datasets.items():
+        label_names = split.features["ner_tags"].feature.names
+        for snt in split:
+            for cat, s, e in get_entities(
+                [label_names[tag] for tag in snt["ner_tags"]]
+            ):
+                term = " ".join(snt["tokens"][s : e + 1])
+                cat2terms[cat].add(term)
+    remove_terms = set()
+    for i1, (c1, t1) in enumerate(cat2terms.items()):
+        for i2, (c2, t2) in enumerate(cat2terms.items()):
+            if i2 > i1:
+                duplicated = t1 & t2
+                if duplicated:
+                    remove_terms |= duplicated
+                    # for t in duplicated:
+                    # term2cats[t] |= {c1, c2}
+    term2cat = dict()
+    for cat, terms in cat2terms.items():
+        for non_duplicated_term in terms - remove_terms:
+            term2cat[non_duplicated_term] = cat
+    return term2cat
+
+
+def load_term2cat(conf: Term2CatConfig):
+    if conf.name == "dict":
+        term2cat = load_dict_term2cat(conf)
+    elif conf.name == "oracle":
+        term2cat = load_oracle_term2cat(conf)
+    else:
+        raise NotImplementedError
     return term2cat
 
 

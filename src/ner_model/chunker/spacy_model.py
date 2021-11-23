@@ -108,9 +108,11 @@ class SpacyNPChunker(Chunker):
     def __init__(self, cfg: SpacyNPChunkerConfig) -> None:
         self.nlp = spacy.load(cfg.spacy_model)
         self.nlp.tokenizer = IdentityTokenizer(self.nlp.vocab)
+        self.config = cfg
 
     def predict(self, tokens: List[str]) -> List[Span]:
         doc = self.nlp(tokens)
         return [(chunk.start, chunk.end) for chunk in doc.noun_chunks]
+
     def train(self):
         pass

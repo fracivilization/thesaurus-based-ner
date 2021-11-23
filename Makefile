@@ -5,7 +5,7 @@ FOCUS_CATS := T005 T007 T017 T022 T031 T033 T037 T038 T058 T062 T074 T082 T091 T
 DUPLICATE_CATS := $(DBPEDIA_CATS)
 NO_NC ?= False
 
-PSEUDO_DATA_ARGS := $(FOCUS_CATS) $(DUPLICATE_CATS) $(NO_NC)
+PSEUDO_DATA_ARGS := $(FOCUS_CATS) $(DUPLICATE_CATS) $(NO_NC) 
 
 REMOVE_CATS := $(filter-out $(FOCUS_CATS), $(filter-out $(DUPLICATE_CATS), $(DBPEDIA_CATS) $(UMLS_CATS)))
 APPEARED_CATS := $(FOCUS_CATS) $(REMOVE_CATS)
@@ -31,10 +31,14 @@ FP_REMOVED_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "FP_REMOVE
 EROSION_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "EROSION_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
 MISGUIDANCE_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MISGUIDANCE_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
 
+PSEUDO_DATA_BASE_CMD := poetry run python -m cli.preprocess.load_pseudo_ner \
+		++ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
+		++ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
+		++ner_model.typer.term2cat.no_nc=$(NO_NC) \
+        +gold_corpus=$(GOLD_DATA)
+
 test:
-	echo "test"
-	echo $(SHELL)
-	echo $(NO_NC)
+	$(PSEUDO_DATA_BASE_CMD)
 show_focus_cats:
 	@echo UMLS Categories
 	@echo T116: "Amino Acid, Peptide, or Protein"
@@ -117,13 +121,9 @@ $(PSEUDO_NER_DATA_DIR): $(DICT_FILES) $(PSEUDO_DATA_DIR) $(GOLD_DATA) $(RAW_CORP
 	@echo focused categories: $(FOCUS_CATS)
 	@echo duplicated categories: $(DUPLICATE_CATS)
 	@echo PSEUDO_NER_DATA_DIR: $(PSEUDO_NER_DATA_DIR)
-	poetry run python -m cli.preprocess.load_pseudo_ner \
+	$(PSEUDO_DATA_BASE_CMD) \
 		+raw_corpus=$(RAW_CORPUS_OUT) \
-		++ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
-		++ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
-		++ner_model.typer.term2cat.no_nc=$(NO_NC) \
-		+output_dir=$(PSEUDO_NER_DATA_DIR) \
-        +gold_corpus=$(GOLD_DATA) 
+		+output_dir=$(PSEUDO_NER_DATA_DIR)
         
 $(FP_REMOVED_PSEUDO_DATA): $(DICT_FILES) $(GOLD_DATA) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR)
 	@echo make pseudo data whose FP is removed according to Gold dataset
@@ -131,13 +131,9 @@ $(FP_REMOVED_PSEUDO_DATA): $(DICT_FILES) $(GOLD_DATA) $(PSEUDO_DATA_DIR) $(PSEUD
 	@echo focused categories: $(FOCUS_CATS)
 	@echo duplicated categories: $(DUPLICATE_CATS)
 	@echo FP_REMOVED_PSEUDO_DATA: $(FP_REMOVED_PSEUDO_DATA)
-	poetry run python -m cli.preprocess.load_pseudo_ner \
+	$(PSEUDO_DATA_BASE_CMD) \
 		+raw_corpus=$(GOLD_DATA) \
-		++ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
-		++ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
-		++ner_model.typer.term2cat.no_nc=$(NO_NC) \
 		+output_dir=$(FP_REMOVED_PSEUDO_DATA) \
-        +gold_corpus=$(GOLD_DATA) \
 		++remove_fp_instance=True
 
 $(PSEUDO_DATA_ON_GOLD): $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR)
@@ -146,12 +142,9 @@ $(PSEUDO_DATA_ON_GOLD): $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_N
 	@echo focused categories: $(FOCUS_CATS)
 	@echo duplicated categories: $(DUPLICATE_CATS)
 	@echo PSEUDO_DATA_ON_GOLD: $(PSEUDO_DATA_ON_GOLD)
-	poetry run python -m cli.preprocess.load_pseudo_ner \
+	$(PSEUDO_DATA_BASE_CMD) \
 		+raw_corpus=$(GOLD_DATA) \
-		++ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
-		++ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
 		+output_dir=$(PSEUDO_DATA_ON_GOLD) \
-        +gold_corpus=$(GOLD_DATA) 
 
 $(EROSION_PSEUDO_DATA):  $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR)
 	@echo make pseudo data for erosion experiment
@@ -160,12 +153,9 @@ $(EROSION_PSEUDO_DATA):  $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_
 	@echo duplicated categories: $(DUPLICATE_CATS)
 	@echo pseudo_data_on_gold: $(PSEUDO_DATA_ON_GOLD)
 	@echo EROSION_PSEUDO_DATA: $(EROSION_PSEUDO_DATA)
-	poetry run python -m cli.preprocess.load_pseudo_ner \
+	$(PSEUDO_DATA_BASE_CMD) \
 		+raw_corpus=$(GOLD_DATA) \
-		++ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
-		++ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
-		+output_dir=$(PSEUDO_DATA_ON_GOLD) \
-        +gold_corpus=$(GOLD_DATA) \
+		+output_dir=$(EROSION_PSEUDO_DATA) \
 		++add_erosion_fn=True
 
 
@@ -176,12 +166,9 @@ $(MISGUIDANCE_PSEUDO_DATA):  $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSE
 	@echo duplicated categories: $(DUPLICATE_CATS)
 	@echo pseudo_data_on_gold: $(PSEUDO_DATA_ON_GOLD)
 	@echo MISGUIDANCE_PSEUDO_DATA: $(MISGUIDANCE_PSEUDO_DATA)
-	poetry run python -m cli.preprocess.load_pseudo_ner \
+	$(PSEUDO_DATA_BASE_CMD) \
 		+raw_corpus=$(GOLD_DATA) \
-		++ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
-		++ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
 		+output_dir=$(MISGUIDANCE_PSEUDO_DATA) \
-        +gold_corpus=$(GOLD_DATA) 
 		++remove_misguidance_fn=True
 # $(PSEUDO_SPAN_CLASSIF_DATA_DIR): $(PSEUDO_NER_DATA_DIR) $(PSEUDO_DATA_DIR)
 # 	@echo make pseudo ner data translated into span classification from $(PSEUDO_NER_DATA_DIR).

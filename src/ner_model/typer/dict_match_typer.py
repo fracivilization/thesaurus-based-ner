@@ -7,7 +7,7 @@ from .abstract_model import (
     TyperOutput,
 )
 from datasets import DatasetDict
-from src.ner_model.matcher_model import ComplexKeywordTyper
+from src.utils.string_match import ComplexKeywordTyper
 from tqdm import tqdm
 from dataclasses import dataclass
 from omegaconf import MISSING
@@ -31,7 +31,7 @@ class DictMatchTyper(Typer):
         # keyword extractorを追加する
         # argumentを追加する...後でいいか...
         self.keyword_processor = ComplexKeywordTyper(self.term2cat)
-        self.label_names = ["nc-O"] + list(set(self.term2cat.values()))
+        self.label_names = ["O"] + list(set(self.term2cat.values()))
 
     def predict(
         self, tokens: List[str], starts: List[str], ends: List[str]
@@ -43,7 +43,6 @@ class DictMatchTyper(Typer):
             for start, end in zip(starts, ends):
                 term = " ".join(tokens[start:end])
                 label = self.keyword_processor.type_chunk(term)
-                assert label != "O"
                 labels.append(label)
             label_ids = np.array([self.label_names.index(l) for l in labels])
             probs = np.eye(len(self.label_names))[label_ids]

@@ -5,6 +5,7 @@ import datasets
 from datasets import features
 from datasets.arrow_dataset import Dataset
 from datasets.dataset_dict import DatasetDict
+from src.ner_model.chunker.abstract_model import Chunker
 from src.utils.utils import remove_BIE
 import dataclasses
 from seqeval.metrics.sequence_labeling import get_entities
@@ -97,6 +98,7 @@ def get_o_under_sampling_ratio(
 def ner_datasets_to_span_classification_datasets(
     ner_datasets: datasets.DatasetDict,
     data_args: SpanClassificationDatasetArgs,
+    enumerator: Chunker,
 ) -> datasets.DatasetDict:
     pre_span_classification_datasets = dict()
 
@@ -137,21 +139,11 @@ def ner_datasets_to_span_classification_datasets(
                 labels.append(label)
                 registered_chunks.add((s, e))
             if data_args.with_enumerated_o_label and key in {"train", "validation"}:
-                for i in range(len(snt["tokens"])):
-                    for j in range(i + 1, len(snt["tokens"]) + 1):
-                        if j - i < span_length and (i, j) not in registered_chunks:
-                            starts.append(i)
-                            ends.append(j)
-                            labels.append("nc-O")
-            # sampled_starts = []
-            # sampled_ends = []
-            # sampled_labels = []
-            # for s, e, l in zip(starts, ends, labels):
-            #     if l == "nc-O" and data_args.o_sampling_ratio <= random.random():
-            #         continue
-            #     sampled_starts.append(s)
-            #     sampled_ends.append(e)
-            #     sampled_labels.append(l)
+                for s, e in enumerator.predict(snt["tokens"]):
+                    if (s, e) not in registered_chunks:
+                        starts.append(s)
+                        ends.append(e)
+                        labels.append("nc-O")
             if labels:
                 pre_span_classification_dataset["tokens"].append(snt["tokens"])
                 pre_span_classification_dataset["starts"].append(starts)
@@ -419,17 +411,20 @@ def log_label_ratio(msc_datasets: DatasetDict):
 
 
 def translate_into_msc_datasets(
-    ner_datasets: DatasetDict, msc_args: SpanClassificationDatasetArgs
+    ner_datasets: DatasetDict,
+    msc_args: SpanClassificationDatasetArgs,
+    enumerator: Chunker,
 ):
     input_hash = {k: v._fingerprint for k, v in ner_datasets.items()}
     input_hash["msc_args"] = str(msc_args)
+    input_hash["enumerator"] = str(enumerator.config)
     output_dir = Path(get_original_cwd()).joinpath(
         "data", "buffer", md5(str(input_hash).encode()).hexdigest()
     )
     logger.info("output_dir of msc_datasets: " + str(output_dir))
     if not output_dir.exists():
         msc_datasets = ner_datasets_to_span_classification_datasets(
-            ner_datasets, msc_args
+            ner_datasets, msc_args, enumerator
         )
         msc_datasets.save_to_disk(output_dir)
     else:

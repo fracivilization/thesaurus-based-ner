@@ -1,12 +1,11 @@
 from src.evaluator import NERTestor
 from typing import NewType
-from src.ner_model.abstract_model import NERModel, NERModelConfig, NERModelWrapper
+from src.ner_model.abstract_model import NERModel, NERModelConfig, NERModel
 from src.dataset.utils import DatasetConfig
 from datasets import DatasetDict, load_dataset
 from src.ner_model.bert import BERTNERModel
 from src.ner_model.bond import BONDNERModel
 from src.ner_model.two_stage import TwoStageConfig, TwoStageModel
-from src.ner_model.matcher_model import NERMatcherModel
 from datasets import DatasetDict
 from logging import getLogger
 from hydra.utils import get_original_cwd
@@ -46,7 +45,7 @@ def ner_model_builder(
         ner_model = TwoStageModel(config, datasets, writer)
     elif config.ner_model_name == "NERMatcher":
         ner_model = NERMatcherModel(config)
-    return NERModelWrapper(ner_model, config)
+    return ner_model
 
 
 def two_stage_model_builder(config: TwoStageConfig, datasets: DatasetDict = None):

@@ -3,6 +3,7 @@ import pickle
 from typing import List, Optional
 import numpy as np
 from transformers.trainer_utils import set_seed
+from src.ner_model.chunker.abstract_model import Chunker
 from src.ner_model.typer.data_translator import (
     SpanClassificationDatasetArgs,
     translate_into_msc_datasets,
@@ -253,6 +254,7 @@ class EnumeratedTyper(Typer):
         self,
         config: EnumeratedTyperConfig,
         ner_datasets: DatasetDict,
+        enumerator: Chunker,
     ) -> None:
         """[summary]
 
@@ -288,7 +290,7 @@ class EnumeratedTyper(Typer):
 
         # TODO: translate ner_dataset into span_classification_dataset
         span_classification_datasets = translate_into_msc_datasets(
-            ner_datasets, config.msc_args
+            ner_datasets, config.msc_args, enumerator
         )
         datasets = span_classification_datasets
         if train_args.do_train:

@@ -1,4 +1,5 @@
 from datasets import DatasetDict
+from src.ner_model.chunker.abstract_model import Chunker
 
 from src.utils.mlflow import MlflowWriter
 from .abstract_model import SpanClassifierNERWrapper, TyperConfig, RandomTyper
@@ -8,7 +9,12 @@ from .enumerated_typer import EnumeratedTyper
 from seqeval.metrics.sequence_labeling import get_entities
 
 
-def typer_builder(config: TyperConfig, ner_datasets: DatasetDict, writer: MlflowWriter):
+def typer_builder(
+    config: TyperConfig,
+    ner_datasets: DatasetDict,
+    writer: MlflowWriter,
+    chunker: Chunker,
+):
     if ner_datasets:
         label_names = list(
             set(
@@ -26,6 +32,6 @@ def typer_builder(config: TyperConfig, ner_datasets: DatasetDict, writer: Mlflow
     elif config.typer_name == "Inscon":
         return InsconTyper(config, ner_datasets)
     elif config.typer_name == "Enumerated":
-        return EnumeratedTyper(config, ner_datasets)
+        return EnumeratedTyper(config, ner_datasets, chunker)
     elif config.typer_name == "Random":
         return RandomTyper(config, ner_datasets)

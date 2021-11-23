@@ -170,7 +170,7 @@ class ComplexKeywordTyper:
             cats, starts = zip(*common_suffixes)
             return cats[starts.index(min(starts))]
         else:
-            return "nc-O"
+            return "O"
 
     def detect_and_labels(self, snt: str):
         labeled_chunks = []

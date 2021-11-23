@@ -60,7 +60,9 @@ def register_typer_configs() -> None:
     from .typer.inscon_typer import InsconTyperConfig
     from .typer.enumerated_typer import EnumeratedTyperConfig
     from .typer.abstract_model import RandomTyperConfig
+    from src.dataset.term2cat.term2cat import register_term2cat_configs
 
+    register_term2cat_configs()
     cs.store(
         group="ner_model/typer",
         name="base_DictMatchTyper_config",
@@ -101,7 +103,7 @@ class TwoStageModel(NERModel):
         self.conf = config
         self.writer = writer
         self.chunker = chunker_builder(config.chunker)
-        self.typer = typer_builder(config.typer, datasets, writer)
+        self.typer = typer_builder(config.typer, datasets, writer, self.chunker)
         self.datasets = datasets
 
     def predict(self, tokens: List[str]) -> List[str]:
@@ -120,6 +122,7 @@ class TwoStageModel(NERModel):
                         ner_tags[i] = "B-%s" % l
                     else:
                         ner_tags[i] = "I-%s" % l
+
         assert len(tokens) == len(ner_tags)
         return ner_tags
 

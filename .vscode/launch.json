@@ -23,13 +23,12 @@
             "module": "cli.preprocess.load_pseudo_ner",
             "justMyCode": false,
             "args": [
-                "+raw_corpus=data/raw/adc83b19e793491b1c6ea0fd8b46cd9f32e592fc",
                 "++ner_model.typer.term2cat.focus_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
                 "++ner_model.typer.term2cat.duplicate_cats=GeneLocation_Species_Disease_Work_SportsSeason_Device_Media_SportCompetitionResult_EthnicGroup_Protocol_Award_Demographics_MeanOfTransportation_FileSystem_Medicine_Area_Flag_UnitOfWork_MedicalSpecialty_GrossDomesticProduct_Biomolecule_Identifier_Blazon_PersonFunction_List_TimePeriod_Event_Relationship_Altitude_TopicalConcept_Spreadsheet_Currency_Cipher_Browser_Tank_Food_Depth_Population_Statistic_StarCluster_Language_GrossDomesticProductPerCapita_ChemicalSubstance_ElectionDiagram_Diploma_Place_Algorithm_ChartsPlacements_Unknown_Activity_PublicService_Agent_Name_AnatomicalStructure_Colour",
-                "++ner_model.typer.term2cat.no_nc=True",
-                "++ner_model.typer.msc_args.o_sampling_ratio=1.0",
-                "+output_dir=data/pseudo/8e1dtest",
+                "++ner_model.typer.term2cat.no_nc=False",
                 "+gold_corpus=data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3",
+                "+raw_corpus=data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3",
+                "+output_dir=data/pseudo/a412731863aba3f960167cc6d91d2c115d11da2c",
             ],
         },
         {
@@ -127,16 +126,29 @@
             "module": "cli.train",
             "justMyCode": false,
             "args": [
-                // "++ner_model.ner_model_wrapper.o_label_as_Bo=True"
-                "ner_model/chunker=enumerated",
-                "++dataset.name_or_path=data/pseudo/ae0066e412378c8cb49ac6f632bedc7f63ad82dd",
+                // "ner_model/chunker=enumerated",
+                "ner_model/chunker=spacy_np",
+                "++dataset.name_or_path=data/pseudo/77618cfc118fb77078245a9e566e68485209fa97",
                 "ner_model.typer.msc_args.with_enumerated_o_label=True",
-                // "ner_model.typer.data_args.max_span_num=128",
                 "ner_model.typer.train_args.per_device_eval_batch_size=32",
                 "ner_model.typer.train_args.per_device_train_batch_size=24",
                 "ner_model.typer.train_args.do_train=True",
                 "ner_model.typer.train_args.overwrite_output_dir=True",
                 "ner_model.typer.model_args.o_sampling_ratio=0.0004",
+            ],
+        },
+        {
+            "name": "Train (Pseudo TwoStage)",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.train",
+            "justMyCode": false,
+            "args": [
+                "ner_model=PseudoTwoStage",
+                "ner_model/typer/term2cat=oracle",
+                "+ner_model.typer.term2cat.gold_dataset=data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3"
+                // "++dataset.name_or_path=data/pseudo/ae0066e412378c8cb49ac6f632bedc7f63ad82dd",
+                // "ner_model.typer.data_args.max_span_num=128",
             ],
         },
         {
