@@ -156,7 +156,8 @@ $(EROSION_PSEUDO_DATA):  $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_
 	$(PSEUDO_DATA_BASE_CMD) \
 		+raw_corpus=$(GOLD_DATA) \
 		+output_dir=$(EROSION_PSEUDO_DATA) \
-		++add_erosion_fn=True
+		ner_model/typer/term2cat=oracle \
+		+ner_model.typer.term2cat.gold_dataset=$(GOLD_DATA)
 
 
 $(MISGUIDANCE_PSEUDO_DATA):  $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR)
@@ -169,7 +170,7 @@ $(MISGUIDANCE_PSEUDO_DATA):  $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSE
 	$(PSEUDO_DATA_BASE_CMD) \
 		+raw_corpus=$(GOLD_DATA) \
 		+output_dir=$(MISGUIDANCE_PSEUDO_DATA) \
-		++remove_misguidance_fn=True
+		++mark_misguided_fn=True
 # $(PSEUDO_SPAN_CLASSIF_DATA_DIR): $(PSEUDO_NER_DATA_DIR) $(PSEUDO_DATA_DIR)
 # 	@echo make pseudo ner data translated into span classification from $(PSEUDO_NER_DATA_DIR).
 # 	@echo focused categories: $(FOCUS_CATS)

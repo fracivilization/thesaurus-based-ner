@@ -15,12 +15,7 @@ get_cmd () {
     echo ${CMD}
 }
 
-check_erosion_effect () {
-    # Makefileにエラーを見つけたので
-    # ORIG_DATA=$(NO_NC=${NO_NC} make -n all | grep PSEUDO_DATA_ON_GOLD | awk '{print $3}')
-    # EROSION_DATA=$(NO_NC=${NO_NC} make -n all | grep EROSION_PSEUDO_DATA | awk '{print $3}')
-    # rm -r ${ORIG_DATA}
-    # rm -r ${EROSION_DATA}
+check_misguidance_effect () {
     RUN_DATASET=$(NO_NC=${NO_NC} make -n all | grep PSEUDO_DATA_ON_GOLD | awk '{print $3}')
     CMD=`get_cmd`
     echo ${CMD}
@@ -28,15 +23,16 @@ check_erosion_effect () {
     RUN_ID_BASE=$(cat ${TMPFILE} | grep "mlflow_run_id" | awk '{print $2}')
     echo "RUN_ID_BASE" ${RUN_ID_BASE}
 
-    RUN_DATASET=$(NO_NC=${NO_NC} make -n all | grep EROSION_PSEUDO_DATA | awk '{print $3}')
+    RUN_DATASET=$(NO_NC=${NO_NC} make -n all | grep MISGUIDANCE_PSEUDO_DATA | awk '{print $3}')
     CMD=`get_cmd`
     echo ${CMD}
     eval ${CMD} 2>&1 | tee ${TMPFILE}
-    RUN_ID_WO_DICT_EROSION=$(cat ${TMPFILE} | grep "mlflow_run_id" | awk '{print $2}')
-    echo "RUN_ID_WO_DICT_EROSION" ${RUN_ID_WO_DICT_EROSION}
+    RUN_ID_MISGUIDANCE =$(cat ${TMPFILE} | grep "mlflow_run_id" | awk '{print $2}')
+    echo "RUN_ID_MISGUIDANCE" ${RUN_ID_MISGUIDANCE}
 
-    poetry run python -m cli.compare_metrics --base-run-id ${RUN_ID_BASE} --focus-run-id ${RUN_ID_WO_DICT_EROSION}
+    poetry run python -m cli.compare_metrics --base-run-id ${RUN_ID_BASE} --focus-run-id ${RUN_ID_MISGUIDANCE}
 }
+
 
 
 echo "All Negatives"
@@ -44,19 +40,19 @@ NO_NC=True
 O_SAMPLING_RATIO=0.0001
 WITH_ENUMERATED_O=True
 CHUNKER="enumerated"
-check_erosion_effect
+check_misguidance_effect
 
 echo "All Negatives (NP)"
 NO_NC=True
 O_SAMPLING_RATIO=0.02
 WITH_ENUMERATED_O=True
 CHUNKER="spacy_np"
-check_erosion_effect
+check_misguidance_effect
 
 echo "Thesaurus Negatives (UMLS)"
 NO_NC=False
 WITH_ENUMERATED_O=False
 O_SAMPLING_RATIO=0.0 # This variable isn't needed but, I added for get_cmd function
 CHUNKER="spacy_np"
-check_erosion_effect
+check_misguidance_effect
 # Thesaurus Negatives (UMLS + DBPedia)

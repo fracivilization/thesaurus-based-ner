@@ -95,6 +95,25 @@ def get_o_under_sampling_ratio(
         return o_label_under_sampling_ratio
 
 
+def remove_misguided_fns(starts, ends, labels):
+    new_starts, new_ends, new_labels = [], [], []
+    misguided_tokens = set()
+    for s, e, l in zip(starts, ends, labels):
+        if l == "MISGUIDANCE":
+            for i in range(s, e):
+                misguided_tokens.add(i)
+    for s, e, l in zip(starts, ends, labels):
+        if l != "MISGUIDANCE":
+            if l.startswith("nc"):
+                span = set(range(s, e))
+                if span & misguided_tokens:
+                    continue
+            new_starts.append(s)
+            new_ends.append(e)
+            new_labels.append(l)
+    return new_starts, new_ends, new_labels
+
+
 def ner_datasets_to_span_classification_datasets(
     ner_datasets: datasets.DatasetDict,
     data_args: SpanClassificationDatasetArgs,
@@ -144,6 +163,7 @@ def ner_datasets_to_span_classification_datasets(
                         starts.append(s)
                         ends.append(e)
                         labels.append("nc-O")
+            starts, ends, labels = remove_misguided_fns(starts, ends, labels)
             if labels:
                 pre_span_classification_dataset["tokens"].append(snt["tokens"])
                 pre_span_classification_dataset["starts"].append(starts)

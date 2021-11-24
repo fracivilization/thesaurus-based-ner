@@ -37,8 +37,7 @@ class PseudoAnnoConfig:
     raw_corpus: str = MISSING
     gold_corpus: str = MISSING
     remove_fp_instance: bool = False
-    add_dict_erosion_fn: bool = False
-    remove_misguidance_fn: bool = False
+    mark_misguided_fn: bool = False
     # duplicate_cats: str = MISSING
     # focus_cats: str = MISSING
 
@@ -61,6 +60,23 @@ def remove_fp_ents(pred_tags: List[str], gold_tags: List[str]):
                     new_tags[i] = "B-%s" % pred_label
                 else:
                     new_tags[i] = "I-%s" % pred_label
+    return new_tags
+
+
+def mark_misguided_fn(pred_tags: List[str], gold_tags: List[str]):
+    new_tags = copy.deepcopy(pred_tags)
+    for gold_label, gs, ge in get_entities(gold_tags):
+        pred_labels = {
+            pl
+            for pl, ps, pe in get_entities(pred_tags[gs : ge + 1])
+            if not pl.startswith("nc")
+        }
+        if not gold_label in pred_labels:
+            for i in range(gs, ge + 1):
+                if i == gs:
+                    new_tags[i] = "B-MISGUIDANCE"
+                else:
+                    new_tags[i] = "I-MISGUIDANCE"
     return new_tags
 
 
@@ -89,29 +105,6 @@ def add_dict_erosion_entity(pred_tags, gold_tags):
     return new_tags
 
 
-def remove_misguidance_fn(pred_tags, gold_tags):
-    raise NotImplementedError
-    new_tags = ["O"] * len(pred_tags)
-    for pred_label, s, e in get_entities(pred_tags):
-        remain_flag = False
-        if pred_label.startswith("nc-"):
-            remain_flag = True
-        else:
-            partially_match_labels = [
-                l for l, s, e in get_entities(gold_tags[s : e + 1])
-            ]
-            if pred_label in partially_match_labels:
-                remain_flag = True
-        if remain_flag:
-            for i in range(s, e + 1):
-                if i == s:
-                    new_tags[i] = "B-%s" % pred_label
-                else:
-                    new_tags[i] = "I-%s" % pred_label
-    # TODO: 編集距離も追加する
-    return new_tags
-
-
 def load_pseudo_dataset(
     raw_corpus: Dataset, ner_model: NERModel, conf: PseudoAnnoConfig
 ) -> Dataset:
@@ -121,28 +114,19 @@ def load_pseudo_dataset(
 
     ret_tokens = []
     ner_tags = []
-    if (
-        conf.remove_fp_instance
-        or conf.add_dict_erosion_fn
-        or conf.remove_misguidance_fn
-    ):
+    if conf.remove_fp_instance or conf.mark_misguided_fn:
         label_names = raw_corpus.features["ner_tags"].feature.names
         for tokens, gold_tags in tqdm(
             zip(raw_corpus["tokens"], raw_corpus["ner_tags"])
         ):
             pred_tags = ner_model.predict(tokens)
             gold_tags = [label_names[tagid] for tagid in gold_tags]
-            if (
-                conf.remove_fp_instance
-                or conf.add_dict_erosion_fn
-                or conf.remove_misguidance_fn
-            ):
+            if conf.remove_fp_instance or conf.mark_misguided_fn:
                 if conf.remove_fp_instance:
                     pred_tags = remove_fp_ents(pred_tags, gold_tags)
-                elif conf.add_dict_erosion_fn:
-                    pred_tags = add_dict_erosion_entity(pred_tags, gold_tags)
-                elif conf.remove_misguidance_fn:
-                    pred_tags = remove_misguidance_fn(pred_tags, gold_tags)
+                elif conf.mark_misguided_fn:
+                    pred_tags = mark_misguided_fn(pred_tags, gold_tags)
+
             if any(tag != "O" for tag in pred_tags):
                 ret_tokens.append(tokens)
                 ner_tags.append(pred_tags)

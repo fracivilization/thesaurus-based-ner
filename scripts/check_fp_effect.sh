@@ -16,7 +16,6 @@ get_cmd () {
 }
 
 check_fp_effect () {
-    NO_NC=${NO_NC} make all -j$(nproc)
     RUN_DATASET=$(NO_NC=${NO_NC} make -n all | grep PSEUDO_DATA_ON_GOLD | awk '{print $3}')
     CMD=`get_cmd`
     echo ${CMD}
