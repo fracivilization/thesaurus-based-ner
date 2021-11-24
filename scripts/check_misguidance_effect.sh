@@ -27,7 +27,7 @@ check_misguidance_effect () {
     CMD=`get_cmd`
     echo ${CMD}
     eval ${CMD} 2>&1 | tee ${TMPFILE}
-    RUN_ID_MISGUIDANCE =$(cat ${TMPFILE} | grep "mlflow_run_id" | awk '{print $2}')
+    RUN_ID_MISGUIDANCE=$(cat ${TMPFILE} | grep "mlflow_run_id" | awk '{print $2}')
     echo "RUN_ID_MISGUIDANCE" ${RUN_ID_MISGUIDANCE}
 
     poetry run python -m cli.compare_metrics --base-run-id ${RUN_ID_BASE} --focus-run-id ${RUN_ID_MISGUIDANCE}
