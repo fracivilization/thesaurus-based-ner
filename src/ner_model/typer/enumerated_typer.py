@@ -5,7 +5,7 @@ import numpy as np
 from transformers.trainer_utils import set_seed
 from src.ner_model.chunker.abstract_model import Chunker
 from src.ner_model.typer.data_translator import (
-    SpanClassificationDatasetArgs,
+    MSCConfig,
     translate_into_msc_datasets,
 )
 
@@ -245,7 +245,7 @@ class EnumeratedTyperConfig(TyperConfig):
     train_args: HydraAddaptedTrainingArguments = HydraAddaptedTrainingArguments(
         output_dir="."
     )
-    msc_args: SpanClassificationDatasetArgs = SpanClassificationDatasetArgs()
+    msc_args: MSCConfig = MSCConfig()
     pass
 
 

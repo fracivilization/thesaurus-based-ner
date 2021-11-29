@@ -24,31 +24,31 @@ class TwoStageConfig(NERModelConfig):
     typer: TyperConfig = MISSING
 
 
-def register_chunker_configs() -> None:
+def register_chunker_configs(group="ner_model/chunker") -> None:
     cs = ConfigStore.instance()
     from .chunker.flair_model import FlairNPChunkerConfig
     from .chunker.spacy_model import BeneparNPChunkerConfig, SpacyNPChunkerConfig
     from .chunker.abstract_model import EnumeratedChunkerConfig
 
     cs.store(
-        group="ner_model/chunker",
+        group=group,
         name="FlairNPChunker",
         node=FlairNPChunkerConfig,
     )
 
     cs.store(
-        group="ner_model/chunker",
+        group=group,
         name="BeneparNPChunker",
         node=BeneparNPChunkerConfig,
     )
 
     cs.store(
-        group="ner_model/chunker",
+        group=group,
         name="SpacyNPChunker",
         node=SpacyNPChunkerConfig,
     )
     cs.store(
-        group="ner_model/chunker",
+        group=group,
         name="EnumeratedChunker",
         node=EnumeratedChunkerConfig,
     )

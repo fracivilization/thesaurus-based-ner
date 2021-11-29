@@ -12,7 +12,7 @@ from .abstract_model import (
     TyperOutput,
 )
 from .data_translator import (
-    SpanClassificationDatasetArgs,
+    MSCConfig,
     ner_datasets_to_span_classification_datasets,
     translate_into_msc_datasets,
 )
@@ -282,7 +282,7 @@ class InsconTyperConfig(TyperConfig):
     model_args: InsconTyperModelArguments = InsconTyperModelArguments(
         model_name_or_path="dmis-lab/biobert-base-cased-v1.1"
     )
-    msc_args: SpanClassificationDatasetArgs = SpanClassificationDatasetArgs()
+    msc_args: MSCConfig = MSCConfig()
 
 
 from datasets import Dataset, DatasetDict, DatasetInfo, Sequence, Value

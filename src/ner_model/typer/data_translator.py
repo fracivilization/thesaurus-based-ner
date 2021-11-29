@@ -15,14 +15,19 @@ from src.utils.params import span_length
 from hydra.utils import get_original_cwd
 from hashlib import md5
 import prettytable
+from src.ner_model.chunker import ChunkerConfig
+from omegaconf import MISSING
 
 
 logger = getLogger(__name__)
 
 
 @dataclasses.dataclass
-class SpanClassificationDatasetArgs:
-    with_enumerated_o_label: bool = False
+class MSCConfig:
+    ner_dataset: str = MISSING
+    output_dir: str = MISSING
+    with_o: bool = False
+    chunker: ChunkerConfig = ChunkerConfig()
     # o_sampling_ratio: float = 0.3
     # hard_o_sampling: bool = False
     # o_outside_entity: bool = False
@@ -32,67 +37,6 @@ class SpanClassificationDatasetArgs:
 from tqdm import tqdm
 from collections import Counter
 import random
-
-
-def get_o_under_sampling_ratio(
-    ner_dataset: datasets.Dataset,
-    span_classification_dataset_args: SpanClassificationDatasetArgs,
-):
-    span_length = span_classification_dataset_args.span_length
-    ner_tag_labels = ner_dataset.features["ner_tags"].feature.names
-    labels = []
-    assert len(ner_dataset) > 0
-    for snt in tqdm(ner_dataset):
-        ner_tags = [ner_tag_labels[tag] for tag in snt["ner_tags"]]
-        span2label = {(s, e + 1): label for label, s, e in get_entities(ner_tags)}
-        snt_length = len(snt["tokens"])
-        span_generator = (
-            (i, j)
-            for i in range(snt_length)
-            for j in range(i + 1, snt_length)
-            if j - i <= span_length
-        )
-        in_ent_words = {wid for s, e in span2label.keys() for wid in range(s, e)}
-        for s, e in span_generator:
-            if (s, e) in span2label:
-                labels.append(span2label[(s, e)])
-            else:
-                if span_classification_dataset_args.hard_o_sampling:
-                    if set(range(s, e)) & in_ent_words:
-                        if span_classification_dataset_args.o_outside_entity:
-                            if not set(range(s, e)) <= in_ent_words:
-                                labels.append("hard_O")
-                        else:
-                            labels.append("hard_O")
-                    else:
-                        labels.append("easy_O")
-                else:
-                    labels.append("O")
-        # labels += [
-        #     span2label[(s, e)] if (s, e) in span2label else "O"
-        #     for s, e in span_generator
-        # ]
-    if span_classification_dataset_args.hard_o_sampling:
-        dataset_count = Counter(labels)
-        non_o_label_count = sum(
-            v for k, v in dataset_count.items() if k not in {"easy_O", "hard_O"}
-        )
-        easy_o_label_under_sampling_ratio = (
-            (1 - span_classification_dataset_args.weight_of_hard_o_for_easy_o)
-            * non_o_label_count
-            / dataset_count["easy_O"]
-        )
-        hard_o_label_under_sampling_ratio = (
-            span_classification_dataset_args.weight_of_hard_o_for_easy_o
-            * non_o_label_count
-            / dataset_count["hard_O"]
-        )
-        return easy_o_label_under_sampling_ratio, hard_o_label_under_sampling_ratio
-    else:
-        dataset_count = Counter(labels)
-        non_o_label_count = sum(v for k, v in dataset_count.items() if k != "O")
-        o_label_under_sampling_ratio = non_o_label_count / dataset_count["O"]
-        return o_label_under_sampling_ratio
 
 
 def remove_misguided_fns(starts, ends, labels):
@@ -116,7 +60,7 @@ def remove_misguided_fns(starts, ends, labels):
 
 def ner_datasets_to_span_classification_datasets(
     ner_datasets: datasets.DatasetDict,
-    data_args: SpanClassificationDatasetArgs,
+    data_args: MSCConfig,
     enumerator: Chunker,
 ) -> datasets.DatasetDict:
     pre_span_classification_datasets = dict()
@@ -130,7 +74,7 @@ def ner_datasets_to_span_classification_datasets(
             ]
         )
     )
-    if data_args.with_enumerated_o_label:
+    if data_args.with_o:
         if "nc-O" not in label_names:
             label_names = ["nc-O"] + label_names
     info = datasets.DatasetInfo(
@@ -157,7 +101,7 @@ def ner_datasets_to_span_classification_datasets(
                 ends.append(e + 1)
                 labels.append(label)
                 registered_chunks.add((s, e))
-            if data_args.with_enumerated_o_label and key in {"train", "validation"}:
+            if data_args.with_o and key in {"train", "validation"}:
                 for s, e in enumerator.predict(snt["tokens"]):
                     if (s, e) not in registered_chunks:
                         starts.append(s)
@@ -300,7 +244,7 @@ def load_o_label_spans(unlabelled_corpus: Dataset, span_num: int) -> List:
             (s, e)
             for s in range(len(snt))
             for e in range(s + 1, len(snt) + 1)
-            if e - s <= SpanClassificationDatasetArgs.span_length
+            if e - s <= MSCConfig.span_length
         ]
         for s, e in random.sample(spans, min(span_num_per_snt, len(spans))):
             o_label_spans.append(snt[s:e])
@@ -311,7 +255,7 @@ import spacy
 
 
 from itertools import islice
-from dataclasses import dataclass
+from dataclasses import MISSING, dataclass
 
 
 @dataclass
@@ -432,7 +376,7 @@ def log_label_ratio(msc_datasets: DatasetDict):
 
 def translate_into_msc_datasets(
     ner_datasets: DatasetDict,
-    msc_args: SpanClassificationDatasetArgs,
+    msc_args: MSCConfig,
     enumerator: Chunker,
 ):
     input_hash = {k: v._fingerprint for k, v in ner_datasets.items()}

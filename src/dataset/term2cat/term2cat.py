@@ -31,7 +31,7 @@ class DictTerm2CatConfig(Term2CatConfig):
     focus_cats: str = MISSING
     duplicate_cats: str = MISSING
     dict_dir: str = os.path.join(os.getcwd(), "data/dict")
-    no_nc: bool = False
+    with_nc: bool = False
     remove_anomaly_suffix: bool = False  # remove suffix term (e.g. "migration": nc-T054 for "cell migration": T038)
 
 
@@ -86,7 +86,7 @@ def get_anomaly_suffixes(term2cat):
 
 def load_dict_term2cat(conf: DictTerm2CatConfig):
     focus_cats = set(conf.focus_cats.split("_"))
-    if conf.no_nc:
+    if not conf.with_nc:
         remained_nc = set()
     else:
         duplicate_cats = set(conf.duplicate_cats.split("_")) | focus_cats

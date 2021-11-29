@@ -1,0 +1,3 @@
+defaults:
+  - base_msc
+  - ner_model/chunker/spacy_np@chunker

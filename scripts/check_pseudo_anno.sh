@@ -1,6 +1,6 @@
 TMPFILE=$(mktemp)
-NO_NC=True
-GOLD_NER_DATA_DIR=$(NO_NC=${NO_NC} make -n all | grep GOLD_NER_DATA_DIR | awk '{print $3}')
+WITH_NC=False
+GOLD_NER_DATA_DIR=$(WITH_NC=${WITH_NC} make -n all | grep GOLD_NER_DATA_DIR | awk '{print $3}')
 # Exact Matching
 poetry run python -m cli.train \
     ner_model=matcher \

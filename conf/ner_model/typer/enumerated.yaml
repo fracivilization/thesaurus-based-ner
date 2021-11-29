@@ -2,7 +2,7 @@ defaults:
   - base_EnumeratedTyper_config
 
 # msc_args:
-  # with_enumerated_o_label: True
+  # with_o: True
 train_args:
   do_train: True
   overwrite_output_dir: True
