@@ -4,6 +4,8 @@ UMLS_CATS = T002 T004 T194 T075 T200 T081 T080 T079 T171 T102 T099 T100 T101 T05
 FOCUS_CATS := T005 T007 T017 T022 T031 T033 T037 T038 T058 T062 T074 T082 T091 T092 T097 T098 T103 T168 T170 T201 T204
 DUPLICATE_CATS := $(DBPEDIA_CATS)
 WITH_NC ?= True
+WITH_O ?= True
+CHUNKER ?= spacy_np
 
 PSEUDO_DATA_ARGS := $(FOCUS_CATS) $(DUPLICATE_CATS) $(WITH_NC) 
 
@@ -22,12 +24,13 @@ SOURCE_TXT_DIR := $(PUBMED)
 RAW_CORPUS_OUT := $(RAW_CORPUS_DIR)/$(firstword $(shell echo $(RAW_CORPUS_NUM) | sha1sum))
 PSEUDO_DATA_DIR := $(DATA_DIR)/pseudo
 PSEUDO_NER_DATA_DIR := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo $(PSEUDO_DATA_ARGS) $(RAW_CORPUS_NUM) | sha1sum))
+PSEUDO_MSC_NER_DATA_DIR := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MSC DATASET" $(PSEUDO_NER_DATA_DIR) $(WITH_O) $(CHUNKER) | sha1sum)) 
 
 GOLD_DIR := $(DATA_DIR)/gold
 GOLD_DATA := $(GOLD_DIR)/$(firstword $(shell echo "MedMentions" $(FOCUS_CATS) | sha1sum))
 
 PSEUDO_DATA_ON_GOLD := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "PSEUDO_DATA_ON_GOLD" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum)) 
-PSEUDO_MSC_DATA_ON_GOLD := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MSC DATASET" ${PSEUDO_DATA_ON_GOLD} | sha1sum)) 
+PSEUDO_MSC_DATA_ON_GOLD := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MSC DATASET ON GOLD" $(PSEUDO_DATA_ON_GOLD) $(WITH_O) $(CHUNKER) | sha1sum)) 
 FP_REMOVED_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "FP_REMOVED_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
 EROSION_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "EROSION_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
 MISGUIDANCE_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MISGUIDANCE_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
@@ -37,10 +40,12 @@ PSEUDO_DATA_BASE_CMD := poetry run python -m cli.preprocess.load_pseudo_ner \
 		++ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
 		++ner_model.typer.term2cat.with_nc=$(WITH_NC) \
         +gold_corpus=$(GOLD_DATA)
-MSC_DATA_BASE_CMD := poetry run python -m cli.preprocess.load_msc_dataset
+MSC_DATA_BASE_CMD := poetry run python -m cli.preprocess.load_msc_dataset chunker=$(CHUNKER) ++with_o=$(WITH_O)
 
 test:
-	$(PSEUDO_MSC_DATA_ON_GOLD)
+	@echo $(PSEUDO_MSC_DATA_ON_GOLD)
+	@echo $(MSC_DATA_BASE_CMD)
+	@echo $(CHUNKER)
 show_focus_cats:
 	@echo UMLS Categories
 	@echo T116: "Amino Acid, Peptide, or Protein"
@@ -97,8 +102,7 @@ $(GOLD_DATA): $(GOLD_DIR)/MedMentions
 	poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_DIR)/MedMentions/st21pv/data
 
 
-all: $(PSEUDO_NER_DATA_DIR) $(GOLD_DATA) $(PSEUDO_DATA_ON_GOLD) $(FP_REMOVED_PSEUDO_DATA) $(EROSION_PSEUDO_DATA) $(MISGUIDANCE_PSEUDO_DATA)
-	@echo $(APPEARED_CATS)
+all: $(PSEUDO_NER_DATA_DIR) $(PSEUDO_MSC_NER_DATA_DIR) $(GOLD_DATA) $(PSEUDO_DATA_ON_GOLD) $(PSEUDO_MSC_DATA_ON_GOLD) $(FP_REMOVED_PSEUDO_DATA)
 
 $(DICT_FILES): $(DICT_DIR) $(UMLS_DIR) $(DBPEDIA_DIR)
 	@echo make dict files $@
@@ -126,6 +130,12 @@ $(PSEUDO_NER_DATA_DIR): $(DICT_FILES) $(PSEUDO_DATA_DIR) $(GOLD_DATA) $(RAW_CORP
 	$(PSEUDO_DATA_BASE_CMD) \
 		+raw_corpus=$(RAW_CORPUS_OUT) \
 		+output_dir=$(PSEUDO_NER_DATA_DIR)
+$(PSEUDO_MSC_NER_DATA_DIR): $(PSEUDO_NER_DATA_DIR)
+	@echo PSEUDO_MSC_NER_DATA_DIR: $(PSEUDO_MSC_NER_DATA_DIR)
+	$(MSC_DATA_BASE_CMD) \
+		+ner_dataset=$(PSEUDO_DATA_ON_GOLD) \
+		+output_dir=$(PSEUDO_MSC_NER_DATA_DIR)
+
         
 $(FP_REMOVED_PSEUDO_DATA): $(DICT_FILES) $(GOLD_DATA) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR)
 	@echo make pseudo data whose FP is removed according to Gold dataset
@@ -146,41 +156,40 @@ $(PSEUDO_DATA_ON_GOLD): $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_N
 	@echo PSEUDO_DATA_ON_GOLD: $(PSEUDO_DATA_ON_GOLD)
 	$(PSEUDO_DATA_BASE_CMD) \
 		+raw_corpus=$(GOLD_DATA) \
-		+output_dir=$(PSEUDO_DATA_ON_GOLD) \
-
+		+output_dir=$(PSEUDO_DATA_ON_GOLD)
 $(PSEUDO_MSC_DATA_ON_GOLD): $(PSEUDO_DATA_ON_GOLD)
-	@echo PSEUDO_MSC_DATA_ON_GOLD: $(PSEUDO_DATA_ON_GOLD)
+	@echo PSEUDO_MSC_DATA_ON_GOLD: $(PSEUDO_MSC_DATA_ON_GOLD)
 	$(MSC_DATA_BASE_CMD) \
 		+ner_dataset=$(PSEUDO_DATA_ON_GOLD) \
 		+output_dir=$(PSEUDO_MSC_DATA_ON_GOLD)
 
 
 
-$(EROSION_PSEUDO_DATA):  $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR)
-	@echo make pseudo data for erosion experiment
-	@echo make from Gold: $(GOLD_DATA)
-	@echo focused categories: $(FOCUS_CATS)
-	@echo duplicated categories: $(DUPLICATE_CATS)
-	@echo pseudo_data_on_gold: $(PSEUDO_DATA_ON_GOLD)
-	@echo EROSION_PSEUDO_DATA: $(EROSION_PSEUDO_DATA)
-	$(PSEUDO_DATA_BASE_CMD) \
-		+raw_corpus=$(GOLD_DATA) \
-		+output_dir=$(EROSION_PSEUDO_DATA) \
-		ner_model/typer/term2cat=oracle \
-		+ner_model.typer.term2cat.gold_dataset=$(GOLD_DATA)
+# $(EROSION_PSEUDO_DATA):  $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR) $(PSEUDO_DATA_ON_GOLD)
+# 	@echo make pseudo data for erosion experiment
+# 	@echo make from Gold: $(GOLD_DATA)
+# 	@echo focused categories: $(FOCUS_CATS)
+# 	@echo duplicated categories: $(DUPLICATE_CATS)
+# 	@echo pseudo_data_on_gold: $(PSEUDO_DATA_ON_GOLD)
+# 	@echo EROSION_PSEUDO_DATA: $(EROSION_PSEUDO_DATA)
+# 	$(PSEUDO_DATA_BASE_CMD) \
+# 		+raw_corpus=$(GOLD_DATA) \
+# 		+output_dir=$(EROSION_PSEUDO_DATA) \
+# 		ner_model/typer/term2cat=oracle \
+# 		+ner_model.typer.term2cat.gold_dataset=$(GOLD_DATA)
 
 
-$(MISGUIDANCE_PSEUDO_DATA):  $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR)
-	@echo make pseudo data for erosion experiment
-	@echo make from Gold: $(GOLD_DATA)
-	@echo focused categories: $(FOCUS_CATS)
-	@echo duplicated categories: $(DUPLICATE_CATS)
-	@echo pseudo_data_on_gold: $(PSEUDO_DATA_ON_GOLD)
-	@echo MISGUIDANCE_PSEUDO_DATA: $(MISGUIDANCE_PSEUDO_DATA)
-	$(PSEUDO_DATA_BASE_CMD) \
-		+raw_corpus=$(GOLD_DATA) \
-		+output_dir=$(MISGUIDANCE_PSEUDO_DATA) \
-		++mark_misguided_fn=True
+# $(MISGUIDANCE_PSEUDO_DATA):  $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR) $(PSEUDO_DATA_ON_GOLD)
+# 	@echo make pseudo data for erosion experiment
+# 	@echo make from Gold: $(GOLD_DATA)
+# 	@echo focused categories: $(FOCUS_CATS)
+# 	@echo duplicated categories: $(DUPLICATE_CATS)
+# 	@echo pseudo_data_on_gold: $(PSEUDO_DATA_ON_GOLD)
+# 	@echo MISGUIDANCE_PSEUDO_DATA: $(MISGUIDANCE_PSEUDO_DATA)
+# 	$(PSEUDO_DATA_BASE_CMD) \
+# 		+raw_corpus=$(GOLD_DATA) \
+# 		+output_dir=$(MISGUIDANCE_PSEUDO_DATA) \
+# 		++mark_misguided_fn=True
 
 # $(PSEUDO_SPAN_CLASSIF_DATA_DIR): $(PSEUDO_NER_DATA_DIR) $(PSEUDO_DATA_DIR)
 # 	@echo make pseudo ner data translated into span classification from $(PSEUDO_NER_DATA_DIR).

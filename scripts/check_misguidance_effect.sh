@@ -15,15 +15,21 @@ get_cmd () {
     echo ${CMD}
 }
 
+get_make_cmd () {
+    CMD="WITH_NC=${WITH_NC} WITH_O=${WITH_O} CHUNKER=${CHUNKER} make"
+    echo ${CMD}
+}
+
 check_misguidance_effect () {
-    RUN_DATASET=$(WITH_NC=${WITH_NC} make -n all | grep PSEUDO_DATA_ON_GOLD | awk '{print $3}')
+    MAKE=`get_make_cmd`
+    RUN_DATASET=$(${MAKE} -n all | grep PSEUDO_DATA_ON_GOLD | awk '{print $3}')
     CMD=`get_cmd`
     echo ${CMD}
     eval ${CMD} 2>&1 | tee ${TMPFILE}
     RUN_ID_BASE=$(cat ${TMPFILE} | grep "mlflow_run_id" | awk '{print $2}')
     echo "RUN_ID_BASE" ${RUN_ID_BASE}
 
-    RUN_DATASET=$(WITH_NC=${WITH_NC} make -n all | grep MISGUIDANCE_PSEUDO_DATA | awk '{print $3}')
+    RUN_DATASET=$(${MAKE} -n all | grep MISGUIDANCE_PSEUDO_DATA | awk '{print $3}')
     CMD=`get_cmd`
     echo ${CMD}
     eval ${CMD} 2>&1 | tee ${TMPFILE}

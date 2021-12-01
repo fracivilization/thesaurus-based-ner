@@ -69,7 +69,8 @@
             "module": "cli.preprocess.load_msc_dataset",
             "justMyCode": false,
             "args": [
-                "+ner_dataset=data/pseudo/a412731863aba3f960167cc6d91d2c115d11da2c",
+                "chunker=enumerated",
+                "+ner_dataset=data/pseudo/77618cfc118fb77078245a9e566e68485209fa97",
                 "+output_dir=data/pseudo/55e5d1b28d77cb8999c0dc0bf287e123cab6ab65",
             ],
         },
@@ -123,10 +124,10 @@
             "args": [
                 // "ner_model/chunker=spacy_np",
                 // "ner_model/typer=random",
-                "++dataset.name_or_path=data/pseudo/366383a6bcf8a6c6a60ff33c498794b4e93d90af",
+                "ner_model.typer.msc_datasets=data/pseudo/45bb5fab313ed96778cb13456ee5ff26fe26063e",
+                "++dataset.name_or_path=data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3",
                 "++ner_model.typer.model_args.o_sampling_ratio=0.02",
-                "++ner_model.typer.train_args.do_train=False",
-                "ner_model.typer.msc_args.with_o_label=True",
+                "++ner_model.typer.train_args.do_train=True",
                 "++ner_model.typer.train_args.overwrite_output_dir=True",
                 "++ner_model.typer.train_args.per_device_train_batch_size=8",
                 "++ner_model.typer.train_args.per_device_eval_batch_size=16"
@@ -188,6 +189,21 @@
                 "5c13c05ba0c745e8bf1671ef8ec2fa95",
                 "--focus-run-id",
                 "c2afdb78eca3414bba3cbdba53d9d551",
+            ],
+        },
+        {
+            "name": "Compare MSC",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.compare_msc_dataset",
+            "justMyCode": false,
+            "args": [
+                "--base-msc-datasets",
+                "data/pseudo/edb86cc822f1a355f3fe056d347523da9ff2e42d",
+                "--focus-msc-datasets",
+                "data/pseudo/45bb5fab313ed96778cb13456ee5ff26fe26063e",
+                "--output-dir",
+                "outputs/error_analysis/check_msc_dataset"
             ],
         },
         {

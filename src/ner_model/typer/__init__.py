@@ -32,6 +32,6 @@ def typer_builder(
     elif config.typer_name == "Inscon":
         return InsconTyper(config, ner_datasets)
     elif config.typer_name == "Enumerated":
-        return EnumeratedTyper(config, ner_datasets, chunker)
+        return EnumeratedTyper(config, chunker)
     elif config.typer_name == "Random":
         return RandomTyper(config, ner_datasets)

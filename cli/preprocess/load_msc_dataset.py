@@ -28,19 +28,22 @@ from src.ner_model.two_stage import register_chunker_configs, chunker_builder
 
 cs = ConfigStore.instance()
 cs.store(name="base_msc", node=MSCConfig)
-register_chunker_configs()
+register_chunker_configs("chunker")
+
+from hydra.utils import get_original_cwd, to_absolute_path
 
 
 @hydra.main(config_path="../../conf", config_name="load_msc")
 def main(cfg: MSCConfig) -> None:
-    if not os.path.exists(cfg.output_dir):
+    output_dir = to_absolute_path(cfg.output_dir)
+    if not os.path.exists(output_dir):
         chunker = chunker_builder(cfg.chunker)
-        ner_dataset = DatasetDict.load_from_disk(cfg.ner_dataset)
+        ner_dataset = DatasetDict.load_from_disk(to_absolute_path(cfg.ner_dataset))
         msc_dataset = ner_datasets_to_span_classification_datasets(
             ner_dataset, cfg, chunker
         )
-        msc_dataset.save_to_disk(cfg.output_dir)
-    msc_dataset = DatasetDict.load_from_disk(cfg.output_dir)
+        msc_dataset.save_to_disk(output_dir)
+    msc_dataset = DatasetDict.load_from_disk(output_dir)
 
 
 if __name__ == "__main__":

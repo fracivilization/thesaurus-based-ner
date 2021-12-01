@@ -7,6 +7,7 @@ from src.ner_model.chunker.abstract_model import Chunker
 from src.ner_model.typer.data_translator import (
     MSCConfig,
     translate_into_msc_datasets,
+    log_label_ratio,
 )
 
 from src.utils.hydra import (
@@ -19,6 +20,7 @@ from .abstract_model import (
     TyperOutput,
 )
 from dataclasses import field, dataclass
+from omegaconf import MISSING
 from transformers import TrainingArguments, training_args
 from datasets import DatasetDict, Dataset
 from loguru import logger
@@ -236,6 +238,7 @@ class EnumeratedTrainingArguments(TrainingArguments):
 
 @dataclass
 class EnumeratedTyperConfig(TyperConfig):
+    msc_datasets: str = MISSING
     typer_name: str = "Enumerated"
     label_names: str = "non_initialized"  # this variable is dinamically decided
     model_args: EnumeratedModelArguments = EnumeratedModelArguments(
@@ -245,15 +248,13 @@ class EnumeratedTyperConfig(TyperConfig):
     train_args: HydraAddaptedTrainingArguments = HydraAddaptedTrainingArguments(
         output_dir="."
     )
-    msc_args: MSCConfig = MSCConfig()
-    pass
+    # msc_args: MSCConfig = MSCConfig()
 
 
 class EnumeratedTyper(Typer):
     def __init__(
         self,
         config: EnumeratedTyperConfig,
-        ner_datasets: DatasetDict,
         enumerator: Chunker,
     ) -> None:
         """[summary]
@@ -288,17 +289,16 @@ class EnumeratedTyper(Typer):
         # Set seed before initializing model.
         set_seed(train_args.seed)
 
-        # TODO: translate ner_dataset into span_classification_dataset
-        span_classification_datasets = translate_into_msc_datasets(
-            ner_datasets, config.msc_args, enumerator
+        span_classification_datasets = DatasetDict.load_from_disk(
+            os.path.join(get_original_cwd(), config.msc_datasets)
         )
-        datasets = span_classification_datasets
+        log_label_ratio(span_classification_datasets)
         if train_args.do_train:
-            column_names = datasets["train"].column_names
-            features = datasets["train"].features
+            column_names = span_classification_datasets["train"].column_names
+            features = span_classification_datasets["train"].features
         else:
-            column_names = datasets["validation"].column_names
-            features = datasets["validation"].features
+            column_names = span_classification_datasets["validation"].column_names
+            features = span_classification_datasets["validation"].features
         # text_column_name = "tokens" if "tokens" in column_names else column_names[0]
         # label_column_name = (
         #     f"{data_args.task_name}_tags"
