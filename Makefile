@@ -25,6 +25,9 @@ RAW_CORPUS_OUT := $(RAW_CORPUS_DIR)/$(firstword $(shell echo $(RAW_CORPUS_NUM) |
 PSEUDO_DATA_DIR := $(DATA_DIR)/pseudo
 PSEUDO_NER_DATA_DIR := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo $(PSEUDO_DATA_ARGS) $(RAW_CORPUS_NUM) | sha1sum))
 PSEUDO_MSC_NER_DATA_DIR := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MSC DATASET" $(PSEUDO_NER_DATA_DIR) $(WITH_O) $(CHUNKER) | sha1sum)) 
+TERM2CAT_DIR := $(DATA_DIR)/term2cat
+
+TERM2CAT := $(TERM2CAT_DIR)/$(firstword $(shell echo  "TERM2CAT" "FOCUS_CATS: $(FOCUS_CATS)" "DUPLICATE_CATS: $(DUPLICATE_CATS)" "WITH_NC: $(WITH_NC)" | sha1sum)).pkl
 
 GOLD_DIR := $(DATA_DIR)/gold
 GOLD_DATA := $(GOLD_DIR)/$(firstword $(shell echo "MedMentions" $(FOCUS_CATS) | sha1sum))
@@ -36,9 +39,7 @@ EROSION_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "EROSION_PSEU
 MISGUIDANCE_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MISGUIDANCE_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
 
 PSEUDO_DATA_BASE_CMD := poetry run python -m cli.preprocess.load_pseudo_ner \
-		++ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
-		++ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
-		++ner_model.typer.term2cat.with_nc=$(WITH_NC) \
+		++ner_model.typer.term2cat=$(TERM2CAT) \
         +gold_corpus=$(GOLD_DATA)
 MSC_DATA_BASE_CMD := poetry run python -m cli.preprocess.load_msc_dataset chunker=$(CHUNKER) ++with_o=$(WITH_O)
 
@@ -46,7 +47,10 @@ test:
 	@echo $(PSEUDO_MSC_DATA_ON_GOLD)
 	@echo $(MSC_DATA_BASE_CMD)
 	@echo $(CHUNKER)
-show_focus_cats:
+	@echo term2cat: $(TERM2CAT)
+	@echo ++ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) 
+	@echo ++ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) 
+	@ ++ner_model.typer.term2cat.with_nc=$(WITH_NC)
 	@echo UMLS Categories
 	@echo T116: "Amino Acid, Peptide, or Protein"
 	@echo T126: Enzyme
@@ -81,6 +85,16 @@ $(DBPEDIA_DIR): $(DATA_DIR)
 	# bunzip2 *.bz2
 	# mv *.ttl $(DBPEDIA_DIR)
 	# mv *.nt $(DBPEDIA_DIR)
+
+$(TERM2CAT_DIR): $(DATA_DIR)
+	mkdir -p $(TERM2CAT_DIR)
+$(TERM2CAT): $(TERM2CAT_DIR)
+	exit 125 # 足りてない変数を追加する
+	poetry run python -m cli.preprocess.load_term2cat \
+		output=$(TERM2CAT) \
+		focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
+		duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
+		with_nc=$(WITH_NC)
 
 $(PSEUDO_DATA_DIR): $(DATA_DIR)
 	echo $(PSEUDO_DATA_DIR)

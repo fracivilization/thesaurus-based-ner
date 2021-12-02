@@ -23,6 +23,7 @@ from datasets import DatasetDict
 @dataclass
 class Term2CatConfig:
     name: str = MISSING
+    output: str = MISSING
 
 
 @dataclass
@@ -33,23 +34,25 @@ class DictTerm2CatConfig(Term2CatConfig):
     dict_dir: str = os.path.join(os.getcwd(), "data/dict")
     with_nc: bool = False
     remove_anomaly_suffix: bool = False  # remove suffix term (e.g. "migration": nc-T054 for "cell migration": T038)
+    output: str = MISSING
 
 
 @dataclass
 class OracleTerm2CatConfig(Term2CatConfig):
     name: str = "oracle"
     gold_dataset: str = MISSING
+    output: str = MISSING
 
 
-def register_term2cat_configs() -> None:
+def register_term2cat_configs(group="ner_model/typer/term2cat") -> None:
     cs = ConfigStore.instance()
     cs.store(
-        group="ner_model/typer/term2cat",
+        group=group,
         name="base_DictTerm2Cat_config",
         node=DictTerm2CatConfig,
     )
     cs.store(
-        group="ner_model/typer/term2cat",
+        group=group,
         name="base_OracleTerm2Cat_config",
         node=OracleTerm2CatConfig,
     )

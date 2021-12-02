@@ -13,6 +13,9 @@ from dataclasses import dataclass
 from omegaconf import MISSING
 from src.dataset.term2cat.term2cat import Term2CatConfig, load_term2cat
 import numpy as np
+import pickle
+from hydra.utils import get_original_cwd
+import os
 
 np.ones(13)
 
@@ -20,13 +23,16 @@ np.ones(13)
 @dataclass
 class DictMatchTyperConfig(TyperConfig):
     typer_name: str = "DictMatchTyper"
-    term2cat: Term2CatConfig = Term2CatConfig()
+    # term2cat: Term2CatConfig = Term2CatConfig()
+    term2cat: str = MISSING  # path for picled term2cat
     label_names: str = "non_initialized"  # this variable is dinamically decided
 
 
 class DictMatchTyper(Typer):
     def __init__(self, conf: DictMatchTyperConfig) -> None:
-        self.term2cat = load_term2cat(conf.term2cat)
+        with open(os.path.join(get_original_cwd(), conf.term2cat), "rb") as f:
+            self.term2cat = pickle.load(f)
+
         self.conf = conf
         # keyword extractorを追加する
         # argumentを追加する...後でいいか...
