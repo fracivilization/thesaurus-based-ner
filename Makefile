@@ -1,17 +1,22 @@
 # pseudo dataset related args
 DBPEDIA_CATS = GeneLocation Species Disease Work SportsSeason Device Media SportCompetitionResult EthnicGroup Protocol Award Demographics MeanOfTransportation FileSystem Medicine Area Flag UnitOfWork MedicalSpecialty GrossDomesticProduct Biomolecule Identifier Blazon PersonFunction List TimePeriod Event Relationship Altitude TopicalConcept Spreadsheet Currency Cipher Browser Tank Food Depth Population Statistic StarCluster Language GrossDomesticProductPerCapita ChemicalSubstance ElectionDiagram Diploma Place Algorithm ChartsPlacements Unknown Activity PublicService Agent Name AnatomicalStructure Colour
 UMLS_CATS = T002 T004 T194 T075 T200 T081 T080 T079 T171 T102 T099 T100 T101 T054 T055 T056 T064 T065 T066 T068 T005 T007 T017 T022 T031 T033 T037 T038 T058 T062 T074 T082 T091 T092 T097 T098 T103 T168 T170 T201 T204
-FOCUS_CATS := T005 T007 T017 T022 T031 T033 T037 T038 T058 T062 T074 T082 T091 T092 T097 T098 T103 T168 T170 T201 T204
-DUPLICATE_CATS := $(DBPEDIA_CATS)
-WITH_NC ?= True
+FOCUS_CATS ?= T005 T007 T017 T022 T031 T033 T037 T038 T058 T062 T074 T082 T091 T092 T097 T098 T103 T168 T170 T201 T204
+NEGATIVE_CATS ?= T054 T055 T056 T064 T065 T066 T068 T075 T079 T080 T081 T099 T100 T101 T102 T171 T194 T200 $(DBPEDIA_CATS)
+# WITH_NC ?= True
 WITH_O ?= True
 CHUNKER ?= spacy_np
+POSITIVE_RATIO_THR_OF_NEGATIVE_CAT ?= 1.0
 
-PSEUDO_DATA_ARGS := $(FOCUS_CATS) $(DUPLICATE_CATS) $(WITH_NC) 
 
-REMOVE_CATS := $(filter-out $(FOCUS_CATS), $(filter-out $(DUPLICATE_CATS), $(DBPEDIA_CATS) $(UMLS_CATS)))
-APPEARED_CATS := $(FOCUS_CATS) $(REMOVE_CATS)
 DATA_DIR := data
+TERM2CAT_DIR := $(DATA_DIR)/term2cat
+
+TERM2CAT := $(TERM2CAT_DIR)/$(firstword $(shell echo  "TERM2CAT" "FOCUS_CATS: $(FOCUS_CATS)" "NEGATIVE_CATS: $(NEGATIVE_CATS)" "POSITIVE_RATIO_THR_OF_NEGATIVE_CAT: ${POSITIVE_RATIO_THR_OF_NEGATIVE_CAT}" | sha1sum)).pkl
+
+PSEUDO_DATA_ARGS := ${TERM2CAT}
+
+APPEARED_CATS := $(FOCUS_CATS) $(NEGATIVE_CATS)
 DICT_DIR := $(DATA_DIR)/dict
 DICT_FILES := $(addprefix $(DICT_DIR)/,$(APPEARED_CATS))
 UMLS_DIR := $(DATA_DIR)/2021AA-full
@@ -25,9 +30,6 @@ RAW_CORPUS_OUT := $(RAW_CORPUS_DIR)/$(firstword $(shell echo $(RAW_CORPUS_NUM) |
 PSEUDO_DATA_DIR := $(DATA_DIR)/pseudo
 PSEUDO_NER_DATA_DIR := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo $(PSEUDO_DATA_ARGS) $(RAW_CORPUS_NUM) | sha1sum))
 PSEUDO_MSC_NER_DATA_DIR := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MSC DATASET" $(PSEUDO_NER_DATA_DIR) $(WITH_O) $(CHUNKER) | sha1sum)) 
-TERM2CAT_DIR := $(DATA_DIR)/term2cat
-
-TERM2CAT := $(TERM2CAT_DIR)/$(firstword $(shell echo  "TERM2CAT" "FOCUS_CATS: $(FOCUS_CATS)" "DUPLICATE_CATS: $(DUPLICATE_CATS)" "WITH_NC: $(WITH_NC)" | sha1sum)).pkl
 
 GOLD_DIR := $(DATA_DIR)/gold
 GOLD_DATA := $(GOLD_DIR)/$(firstword $(shell echo "MedMentions" $(FOCUS_CATS) | sha1sum))
@@ -48,16 +50,11 @@ test:
 	@echo $(MSC_DATA_BASE_CMD)
 	@echo $(CHUNKER)
 	@echo term2cat: $(TERM2CAT)
-	@echo ++ner_model.typer.term2cat.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) 
-	@echo ++ner_model.typer.term2cat.duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) 
-	@ ++ner_model.typer.term2cat.with_nc=$(WITH_NC)
-	@echo UMLS Categories
-	@echo T116: "Amino Acid, Peptide, or Protein"
-	@echo T126: Enzyme
+	@echo focus_cats=$(subst $() ,_,$(FOCUS_CATS)) 
+	@echo negative_cats=$(subst $() ,_,$(NEGATIVE_CATS)) 
+term2cat: $(TERM2CAT)
+	@echo TERM2CAT: $(TERM2CAT)
 
-	@echo DBPedia Categories
-	@echo Agent
-	@echo ChemicalSubstance
 
 $(DATA_DIR):
 	mkdir $(DATA_DIR)
@@ -89,12 +86,12 @@ $(DBPEDIA_DIR): $(DATA_DIR)
 $(TERM2CAT_DIR): $(DATA_DIR)
 	mkdir -p $(TERM2CAT_DIR)
 $(TERM2CAT): $(TERM2CAT_DIR)
-	exit 125 # 足りてない変数を追加する
+	@echo TERM2CAT: $(TERM2CAT)
 	poetry run python -m cli.preprocess.load_term2cat \
 		output=$(TERM2CAT) \
 		focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
-		duplicate_cats=$(subst $() ,_,$(DUPLICATE_CATS)) \
-		with_nc=$(WITH_NC)
+		negative_cats=$(subst $() ,_,$(NEGATIVE_CATS)) \
+		++positive_ratio_thr_of_negative_cat=${POSITIVE_RATIO_THR_OF_NEGATIVE_CAT}
 
 $(PSEUDO_DATA_DIR): $(DATA_DIR)
 	echo $(PSEUDO_DATA_DIR)
@@ -136,10 +133,10 @@ $(RAW_CORPUS_OUT): $(SOURCE_TXT_DIR)
 	@echo raw corpus out dir: $(RAW_CORPUS_OUT)
 	poetry run python -m cli.preprocess.load_raw_corpus --raw-sentence-num $(RAW_SENTENCE_NUM) --source-txt-dir $(SOURCE_TXT_DIR) --output-dir $(RAW_CORPUS_OUT)
 
-$(PSEUDO_NER_DATA_DIR): $(DICT_FILES) $(PSEUDO_DATA_DIR) $(GOLD_DATA) $(RAW_CORPUS_OUT)
+$(PSEUDO_NER_DATA_DIR): $(DICT_FILES) $(PSEUDO_DATA_DIR) $(GOLD_DATA) $(RAW_CORPUS_OUT) $(TERM2CAT)
 	@echo make pseudo ner data from $(DICT_FILES)
 	@echo focused categories: $(FOCUS_CATS)
-	@echo duplicated categories: $(DUPLICATE_CATS)
+	@echo negative categories: $(NEGATIVE_CATS)
 	@echo PSEUDO_NER_DATA_DIR: $(PSEUDO_NER_DATA_DIR)
 	$(PSEUDO_DATA_BASE_CMD) \
 		+raw_corpus=$(RAW_CORPUS_OUT) \
@@ -151,22 +148,22 @@ $(PSEUDO_MSC_NER_DATA_DIR): $(PSEUDO_NER_DATA_DIR)
 		+output_dir=$(PSEUDO_MSC_NER_DATA_DIR)
 
         
-$(FP_REMOVED_PSEUDO_DATA): $(DICT_FILES) $(GOLD_DATA) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR)
+$(FP_REMOVED_PSEUDO_DATA): $(DICT_FILES) $(GOLD_DATA) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR) $(TERM2CAT)
 	@echo make pseudo data whose FP is removed according to Gold dataset
 	@echo make from Gold: $(GOLD_DATA)
 	@echo focused categories: $(FOCUS_CATS)
-	@echo duplicated categories: $(DUPLICATE_CATS)
+	@echo negative categories: $(NEGATIVE_CATS)
 	@echo FP_REMOVED_PSEUDO_DATA: $(FP_REMOVED_PSEUDO_DATA)
 	$(PSEUDO_DATA_BASE_CMD) \
 		+raw_corpus=$(GOLD_DATA) \
 		+output_dir=$(FP_REMOVED_PSEUDO_DATA) \
 		++remove_fp_instance=True
 
-$(PSEUDO_DATA_ON_GOLD): $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR)
+$(PSEUDO_DATA_ON_GOLD): $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR) $(TERM2CAT)
 	@echo make pseudo data on Gold dataset for comparison
 	@echo make from Gold: $(GOLD_DATA)
 	@echo focused categories: $(FOCUS_CATS)
-	@echo duplicated categories: $(DUPLICATE_CATS)
+	@echo negative categories: $(NEGATIVE_CATS)
 	@echo PSEUDO_DATA_ON_GOLD: $(PSEUDO_DATA_ON_GOLD)
 	$(PSEUDO_DATA_BASE_CMD) \
 		+raw_corpus=$(GOLD_DATA) \
@@ -175,39 +172,3 @@ $(PSEUDO_MSC_DATA_ON_GOLD): $(PSEUDO_DATA_ON_GOLD)
 	@echo PSEUDO_MSC_DATA_ON_GOLD: $(PSEUDO_MSC_DATA_ON_GOLD)
 	$(MSC_DATA_BASE_CMD) \
 		+ner_dataset=$(PSEUDO_DATA_ON_GOLD) \
-		+output_dir=$(PSEUDO_MSC_DATA_ON_GOLD)
-
-
-
-# $(EROSION_PSEUDO_DATA):  $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR) $(PSEUDO_DATA_ON_GOLD)
-# 	@echo make pseudo data for erosion experiment
-# 	@echo make from Gold: $(GOLD_DATA)
-# 	@echo focused categories: $(FOCUS_CATS)
-# 	@echo duplicated categories: $(DUPLICATE_CATS)
-# 	@echo pseudo_data_on_gold: $(PSEUDO_DATA_ON_GOLD)
-# 	@echo EROSION_PSEUDO_DATA: $(EROSION_PSEUDO_DATA)
-# 	$(PSEUDO_DATA_BASE_CMD) \
-# 		+raw_corpus=$(GOLD_DATA) \
-# 		+output_dir=$(EROSION_PSEUDO_DATA) \
-# 		ner_model/typer/term2cat=oracle \
-# 		+ner_model.typer.term2cat.gold_dataset=$(GOLD_DATA)
-
-
-# $(MISGUIDANCE_PSEUDO_DATA):  $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR) $(PSEUDO_DATA_ON_GOLD)
-# 	@echo make pseudo data for erosion experiment
-# 	@echo make from Gold: $(GOLD_DATA)
-# 	@echo focused categories: $(FOCUS_CATS)
-# 	@echo duplicated categories: $(DUPLICATE_CATS)
-# 	@echo pseudo_data_on_gold: $(PSEUDO_DATA_ON_GOLD)
-# 	@echo MISGUIDANCE_PSEUDO_DATA: $(MISGUIDANCE_PSEUDO_DATA)
-# 	$(PSEUDO_DATA_BASE_CMD) \
-# 		+raw_corpus=$(GOLD_DATA) \
-# 		+output_dir=$(MISGUIDANCE_PSEUDO_DATA) \
-# 		++mark_misguided_fn=True
-
-# $(PSEUDO_SPAN_CLASSIF_DATA_DIR): $(PSEUDO_NER_DATA_DIR) $(PSEUDO_DATA_DIR)
-# 	@echo make pseudo ner data translated into span classification from $(PSEUDO_NER_DATA_DIR).
-# 	@echo focused categories: $(FOCUS_CATS)
-# 	@echo duplicated categories: $(DUPLICATE_CATS)	
-# 	@echo output dir: $(PSEUDO_SPAN_CLASSIF_DATA_DIR)
-# 	poetry run python -m cli.preprocess.load_span_classif --ner-data $(PSEUDO_NER_DATA_DIR)

@@ -35,21 +35,21 @@ check_erosion_effect () {
 
 
 echo "All Negatives"
-WITH_NC=False
+NEGATIVE_CATS=""
 O_SAMPLING_RATIO=0.0001
 WITH_O=True
 CHUNKER="enumerated"
 check_erosion_effect
 
 echo "All Negatives (NP)"
-WITH_NC=False
+NEGATIVE_CATS=""
 O_SAMPLING_RATIO=0.02
 WITH_O=True
 CHUNKER="spacy_np"
 check_erosion_effect
 
 echo "Thesaurus Negatives (UMLS)"
-WITH_NC=True
+NEGATIVE_CATS="T002 T004 T054 T055 T056 T064 T065 T066 T068 T075 T079 T080 T081 T099 T100 T101 T102 T171 T194 T200"
 WITH_O=False
 O_SAMPLING_RATIO=0.0 # This variable isn't needed but, I added for get_cmd function
 CHUNKER="spacy_np"

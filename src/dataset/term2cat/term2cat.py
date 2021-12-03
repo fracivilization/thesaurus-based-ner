@@ -30,11 +30,13 @@ class Term2CatConfig:
 class DictTerm2CatConfig(Term2CatConfig):
     name: str = "dict"
     focus_cats: str = MISSING
-    duplicate_cats: str = MISSING
+    # duplicate_cats: str = MISSING
+    negative_cats: str = MISSING
     dict_dir: str = os.path.join(os.getcwd(), "data/dict")
-    with_nc: bool = False
+    # with_nc: bool = False
     remove_anomaly_suffix: bool = False  # remove suffix term (e.g. "migration": nc-T054 for "cell migration": T038)
     output: str = MISSING
+    positive_ratio_thr_of_negative_cat: float = 1.0
 
 
 @dataclass
@@ -87,15 +89,34 @@ def get_anomaly_suffixes(term2cat):
     return anomaly_suffixes
 
 
+def log_duplication_between_positive_and_negative_cats(
+    cat2terms, positive_cats, negative_cats
+):
+    positive_terms = set()
+    negative_cat2duplicated_terms = defaultdict(set)
+    for cat in cat2terms:
+        if cat in positive_cats:
+            positive_terms |= cat2terms[cat]
+    for cat in cat2terms:
+        if cat in negative_cats:
+            negative_cat2duplicated_terms[cat] |= cat2terms[cat] & positive_terms
+
+    from prettytable import PrettyTable
+
+    tbl = PrettyTable(["cat", "count", "positive num", "positive ratio"])
+    negative_cat2positive_ratio = dict()
+    for cat, terms in negative_cat2duplicated_terms.items():
+        if len(cat2terms[cat]) > 0:
+            positive_ratio = len(terms) / len(cat2terms[cat])
+            tbl.add_row([cat, len(cat2terms[cat]), len(terms), positive_ratio])
+    print(tbl.get_string())
+    return negative_cat2positive_ratio
+
+
 def load_dict_term2cat(conf: DictTerm2CatConfig):
     focus_cats = set(conf.focus_cats.split("_"))
-    if not conf.with_nc:
-        remained_nc = set()
-    else:
-        duplicate_cats = set(conf.duplicate_cats.split("_")) | focus_cats
-        remained_nc = DBPedia_categories | UMLS_Categories
-        remained_nc = remained_nc - duplicate_cats  # nc: negative cat
-    cats = focus_cats | remained_nc
+    negative_cats = set(conf.negative_cats.split("_"))
+    cats = focus_cats | negative_cats
     cat2terms = dict()
     for cat in cats:
         buffer_file = os.path.join(get_original_cwd(), conf.dict_dir, cat)
@@ -106,6 +127,13 @@ def load_dict_term2cat(conf: DictTerm2CatConfig):
                 if term:
                     terms.append(term)
         cat2terms[cat] = set(terms)
+    negative_cat2positive_ratio = log_duplication_between_positive_and_negative_cats(
+        cat2terms, positive_cats=focus_cats, negative_cats=negative_cats
+    )
+    for cat, positive_ratio in negative_cat2positive_ratio.items():
+        if conf.positive_ratio_thr_of_negative_cat < positive_ratio:
+            del cat2terms[cat]
+
     remove_terms = set()
     # term2cats = defaultdict(set)
     for i1, (c1, t1) in enumerate(cat2terms.items()):
@@ -116,10 +144,11 @@ def load_dict_term2cat(conf: DictTerm2CatConfig):
                     remove_terms |= duplicated
                     # for t in duplicated:
                     # term2cats[t] |= {c1, c2}
+    # TODO: 負例カテゴリの正例カテゴリとの重複度合いを確認する
     term2cat = dict()
     for cat, terms in cat2terms.items():
         for non_duplicated_term in terms - remove_terms:
-            if cat in remained_nc:
+            if cat in negative_cats:
                 term2cat[non_duplicated_term] = "nc-%s" % cat
             else:
                 term2cat[non_duplicated_term] = cat
