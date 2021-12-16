@@ -26,6 +26,7 @@ from hydra.core.config_store import ConfigStore
 from dataclasses import dataclass
 from src.dataset.term2cat.term2cat import Term2CatConfig, load_term2cat
 from src.utils.string_match import ComplexKeywordTyper
+from omegaconf import MISSING
 
 logger = getLogger(__name__)
 
@@ -214,7 +215,7 @@ def joint_adjacent_term(matches):
 @dataclass
 class NERMatcherConfig(NERModelConfig):
     ner_model_name: str = "NERMatcher"
-    term2cat: Term2CatConfig = Term2CatConfig()
+    term2cat: str = MISSING
 
 
 def register_ner_matcher_configs() -> None:
@@ -227,7 +228,9 @@ def register_ner_matcher_configs() -> None:
 class NERMatcherModel(NERModel):
     def __init__(self, conf: NERMatcherConfig):
         super().__init__()
-        self.term2cat = load_term2cat(conf.term2cat)
+        with open(os.path.join(get_original_cwd(), conf.term2cat), "rb") as f:
+            self.term2cat = pickle.load(f)
+        # self.term2cat = load_term2cat(conf.term2cat)
         self.matcher = NERMatcher(term2cat=self.term2cat)
         self.label_names = ["O"] + [
             tag % label

@@ -7,6 +7,7 @@ NEGATIVE_CATS ?= T054 T055 T056 T064 T065 T066 T068 T075 T079 T080 T081 T099 T10
 WITH_O ?= True
 CHUNKER ?= spacy_np
 POSITIVE_RATIO_THR_OF_NEGATIVE_CAT ?= 1.0
+O_SAMPLING_RATIO ?= 1.0
 
 
 DATA_DIR := data
@@ -31,27 +32,33 @@ PSEUDO_DATA_DIR := $(DATA_DIR)/pseudo
 PSEUDO_NER_DATA_DIR := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo $(PSEUDO_DATA_ARGS) $(RAW_CORPUS_NUM) | sha1sum))
 PSEUDO_MSC_NER_DATA_DIR := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MSC DATASET" $(PSEUDO_NER_DATA_DIR) $(WITH_O) $(CHUNKER) | sha1sum)) 
 
+PSEUDO_DATA_BASE_CMD := poetry run python -m cli.preprocess.load_pseudo_ner \
+		++ner_model.typer.term2cat=$(TERM2CAT) \
+        +gold_corpus=$(GOLD_DATA)
+MSC_ARGS := "WITH_O: $(WITH_O) CHUNKER: $(CHUNKER)"
+MSC_DATA_BASE_CMD := poetry run python -m cli.preprocess.load_msc_dataset chunker=$(CHUNKER) ++with_o=$(WITH_O)
+
 GOLD_DIR := $(DATA_DIR)/gold
 GOLD_DATA := $(GOLD_DIR)/$(firstword $(shell echo "MedMentions" $(FOCUS_CATS) | sha1sum))
+GOLD_MSC_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSC DATA" $(PSEUDO_DATA_ON_GOLD) $(MSC_ARGS) | sha1sum)) 
 
 PSEUDO_DATA_ON_GOLD := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "PSEUDO_DATA_ON_GOLD" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum)) 
-PSEUDO_MSC_DATA_ON_GOLD := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MSC DATASET ON GOLD" $(PSEUDO_DATA_ON_GOLD) $(WITH_O) $(CHUNKER) | sha1sum)) 
+PSEUDO_MSC_DATA_ON_GOLD := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MSC DATASET ON GOLD" $(PSEUDO_DATA_ON_GOLD) $(MSC_ARGS) | sha1sum)) 
 FP_REMOVED_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "FP_REMOVED_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
 EROSION_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "EROSION_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
 MISGUIDANCE_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MISGUIDANCE_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
 
-PSEUDO_DATA_BASE_CMD := poetry run python -m cli.preprocess.load_pseudo_ner \
-		++ner_model.typer.term2cat=$(TERM2CAT) \
-        +gold_corpus=$(GOLD_DATA)
-MSC_DATA_BASE_CMD := poetry run python -m cli.preprocess.load_msc_dataset chunker=$(CHUNKER) ++with_o=$(WITH_O)
 
-test:
-	@echo $(PSEUDO_MSC_DATA_ON_GOLD)
-	@echo $(MSC_DATA_BASE_CMD)
-	@echo $(CHUNKER)
-	@echo term2cat: $(TERM2CAT)
-	@echo focus_cats=$(subst $() ,_,$(FOCUS_CATS)) 
-	@echo negative_cats=$(subst $() ,_,$(NEGATIVE_CATS)) 
+TRAIN_BASE_CMD := poetry run python -m cli.train \
+		++dataset.name_or_path=$(GOLD_DATA) \
+		ner_model/chunker=$(CHUNKER) \
+		ner_model.typer.model_args.o_sampling_ratio=$(O_SAMPLING_RATIO) \
+		ner_model.typer.train_args.per_device_train_batch_size=8 \
+		ner_model.typer.train_args.per_device_eval_batch_size=32 \
+		ner_model.typer.train_args.do_train=True \
+		ner_model.typer.train_args.overwrite_output_dir=True \
+		testor.baseline_typer.term2cat=$(TERM2CAT)
+test: $(PSEUDO_MSC_DATA_ON_GOLD)
 term2cat: $(TERM2CAT)
 	@echo TERM2CAT: $(TERM2CAT)
 
@@ -85,7 +92,7 @@ $(DBPEDIA_DIR): $(DATA_DIR)
 
 $(TERM2CAT_DIR): $(DATA_DIR)
 	mkdir -p $(TERM2CAT_DIR)
-$(TERM2CAT): $(TERM2CAT_DIR)
+$(TERM2CAT): $(TERM2CAT_DIR) $(DICT_FILES)
 	@echo TERM2CAT: $(TERM2CAT)
 	poetry run python -m cli.preprocess.load_term2cat \
 		output=$(TERM2CAT) \
@@ -111,11 +118,16 @@ $(GOLD_DATA): $(GOLD_DIR)/MedMentions
 	@echo GOLD_NER_DATA_DIR: $(GOLD_DATA)
 	@poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_DIR)/MedMentions/st21pv/data
 	poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_DIR)/MedMentions/st21pv/data
+$(GOLD_MSC_DATA): $(GOLD_DATA)
+	@echo PSEUDO_MSC_DATA_ON_GOLD: $(GOLD_MSC_DATA)
+	$(MSC_DATA_BASE_CMD) \
+		+ner_dataset=$(PSEUDO_DATA_ON_GOLD) \
+		+output_dir=$(PSEUDO_MSC_DATA_ON_GOLD)
 
 
-all: $(PSEUDO_NER_DATA_DIR) $(PSEUDO_MSC_NER_DATA_DIR) $(GOLD_DATA) $(PSEUDO_DATA_ON_GOLD) $(PSEUDO_MSC_DATA_ON_GOLD) $(FP_REMOVED_PSEUDO_DATA)
+all: ${DICT_FILES} $(PSEUDO_NER_DATA_DIR) $(PSEUDO_MSC_NER_DATA_DIR) $(GOLD_DATA) $(PSEUDO_DATA_ON_GOLD) $(PSEUDO_MSC_DATA_ON_GOLD) $(FP_REMOVED_PSEUDO_DATA)
 
-$(DICT_FILES): $(DICT_DIR) $(UMLS_DIR) $(DBPEDIA_DIR)
+$(DICT_FILES):- $(DICT_DIR) $(UMLS_DIR) $(DBPEDIA_DIR)
 	@echo make dict files $@
 	poetry run python -m cli.preprocess.load_terms --category $(notdir $@) --output $@
 
@@ -172,3 +184,11 @@ $(PSEUDO_MSC_DATA_ON_GOLD): $(PSEUDO_DATA_ON_GOLD)
 	@echo PSEUDO_MSC_DATA_ON_GOLD: $(PSEUDO_MSC_DATA_ON_GOLD)
 	$(MSC_DATA_BASE_CMD) \
 		+ner_dataset=$(PSEUDO_DATA_ON_GOLD) \
+		+output_dir=$(PSEUDO_MSC_DATA_ON_GOLD)
+
+train: $(PSEUDO_MSC_DATA_ON_GOLD)
+	$(TRAIN_BASE_CMD) \
+		ner_model.typer.msc_datasets=$(PSEUDO_MSC_DATA_ON_GOLD)
+train_on_gold:
+	$(TRAIN_BASE_CMD) \
+		ner_model.typer.msc_datasets=$(GOLD_MSC_DATA)

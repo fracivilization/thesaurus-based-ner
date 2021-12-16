@@ -5,6 +5,7 @@ from src.dataset.term2cat.term2cat import (
     Term2CatConfig,
     register_term2cat_configs,
     load_term2cat,
+    log_term2cat,
 )
 import pickle
 
@@ -18,6 +19,10 @@ def main(config: Term2CatConfig):
         term2cat = load_term2cat(config)
         with open(output_path, "wb") as f:
             pickle.dump(term2cat, f)
+
+    with open(output_path, "rb") as f:
+        term2cat = pickle.load(f)
+    log_term2cat(term2cat)
 
 
 if __name__ == "__main__":

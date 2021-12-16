@@ -1,3 +1,2 @@
 defaults:
   - base_NERMatcher_model_config
-  - typer/term2cat/dict@term2cat

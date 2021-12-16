@@ -7,6 +7,8 @@ class MSCDatasetComparer:
     def __init__(
         self, base_dataset: Dataset, focus_dataset: Dataset, output_dir: str
     ) -> None:
+        if not os.path.exists(output_dir):
+            os.mkdir(output_dir)
         i = 1
         base_dataset[i], focus_dataset[i]
         # over predicted spans を 集計する
@@ -14,7 +16,18 @@ class MSCDatasetComparer:
         focus_label_names = focus_dataset.features["labels"].feature.names
         over_predicted_spans = []
         under_predicted_spans = []
-        for base_snt, focus_snt in zip(base_dataset, focus_dataset):
+        base_snts = set([" ".join(snt["tokens"]) for snt in base_dataset])
+        focus_snts = set([" ".join(snt["tokens"]) for snt in focus_dataset])
+        duplicate_snts = base_snts & focus_snts
+        duplicate_base_datasets = [
+            snt for snt in base_dataset if " ".join(snt["tokens"]) in duplicate_snts
+        ]
+        duplicate_focus_datasets = [
+            snt for snt in focus_dataset if " ".join(snt["tokens"]) in duplicate_snts
+        ]
+        for base_snt, focus_snt in zip(
+            duplicate_base_datasets, duplicate_focus_datasets
+        ):
             assert base_snt["tokens"] == focus_snt["tokens"]
             tokens = base_snt["tokens"]
             snt = " ".join(tokens)

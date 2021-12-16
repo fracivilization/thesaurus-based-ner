@@ -1,7 +1,5 @@
-from typing import List
-
+from typing import Dict, List
 from seqeval.metrics.sequence_labeling import get_entities
-
 from src.dataset import gold_dataset
 from .genia import load_term2cat as genia_load_term2cat
 from .twitter import load_twitter_main_dictionary, load_twitter_sibling_dictionary
@@ -18,6 +16,8 @@ from tqdm import tqdm
 from src.utils.string_match import ComplexKeywordTyper
 from hydra.core.config_store import ConfigStore
 from datasets import DatasetDict
+from collections import Counter
+from prettytable import PrettyTable
 
 
 @dataclass
@@ -101,21 +101,23 @@ def log_duplication_between_positive_and_negative_cats(
         if cat in negative_cats:
             negative_cat2duplicated_terms[cat] |= cat2terms[cat] & positive_terms
 
-    from prettytable import PrettyTable
-
     tbl = PrettyTable(["cat", "count", "positive num", "positive ratio"])
     negative_cat2positive_ratio = dict()
     for cat, terms in negative_cat2duplicated_terms.items():
         if len(cat2terms[cat]) > 0:
             positive_ratio = len(terms) / len(cat2terms[cat])
             tbl.add_row([cat, len(cat2terms[cat]), len(terms), positive_ratio])
+            negative_cat2positive_ratio[cat] = positive_ratio
     print(tbl.get_string())
     return negative_cat2positive_ratio
 
 
 def load_dict_term2cat(conf: DictTerm2CatConfig):
     focus_cats = set(conf.focus_cats.split("_"))
-    negative_cats = set(conf.negative_cats.split("_"))
+    if conf.negative_cats:
+        negative_cats = set(conf.negative_cats.split("_"))
+    else:
+        negative_cats = set()
     cats = focus_cats | negative_cats
     cat2terms = dict()
     for cat in cats:
@@ -144,7 +146,6 @@ def load_dict_term2cat(conf: DictTerm2CatConfig):
                     remove_terms |= duplicated
                     # for t in duplicated:
                     # term2cats[t] |= {c1, c2}
-    # TODO: 負例カテゴリの正例カテゴリとの重複度合いを確認する
     term2cat = dict()
     for cat, terms in cat2terms.items():
         for non_duplicated_term in terms - remove_terms:
@@ -271,3 +272,13 @@ class Term2Cat:
         with open(buffer_file, "r") as f:
             term2cat = json.load(f)
         self.term2cat = term2cat
+
+
+def log_term2cat(term2cat: Dict):
+    print("log term2cat count")
+    tbl = PrettyTable(["cat", "count"])
+    counter = Counter(term2cat.values())
+    for cat, count in sorted(list(counter.items()), key=lambda x: x[0]):
+        tbl.add_row([cat, count])
+    print(tbl.get_string())
+    print("category num: ", len(counter))
