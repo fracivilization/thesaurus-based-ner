@@ -258,7 +258,9 @@ def remove_span_duplication(docs: List[str]):
     pass
 
 
-def load_gold_datasets(focus_cats: str, input_dir: str) -> DatasetDict:
+def load_gold_datasets(
+    focus_cats: str, input_dir: str, train_snt_num: int
+) -> DatasetDict:
     # load remained cats
     focus_cats = focus_cats.split("_")
 
@@ -287,6 +289,7 @@ def load_gold_datasets(focus_cats: str, input_dir: str) -> DatasetDict:
     with open(test_pmids) as f:
         test_pmids = [int(line.strip()) for line in f]
     train_conll = [snt for pmid in train_pmids for snt in pmid2conll[pmid]]
+    train_conll = train_conll[:train_snt_num]
     dev_conll = [snt for pmid in dev_pmids for snt in pmid2conll[pmid]]
     test_conll = [snt for pmid in test_pmids for snt in pmid2conll[pmid]]
     c = Counter(

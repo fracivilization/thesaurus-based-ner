@@ -8,20 +8,25 @@ WITH_O ?= True
 CHUNKER ?= spacy_np
 POSITIVE_RATIO_THR_OF_NEGATIVE_CAT ?= 1.0
 O_SAMPLING_RATIO ?= 1.0
+MSC_O_SAMPLING_RATIO ?= 1.0
+TRAIN_SNT_NUM ?= 9223372036854775807
 
+MSC_ARGS := "WITH_O: $(WITH_O) CHUNKER: $(CHUNKER) MSC_O_SAMPLING_RATIO: $(MSC_O_SAMPLING_RATIO)"
 
 DATA_DIR := data
 TERM2CAT_DIR := $(DATA_DIR)/term2cat
 
 TERM2CAT := $(TERM2CAT_DIR)/$(firstword $(shell echo  "TERM2CAT" "FOCUS_CATS: $(FOCUS_CATS)" "NEGATIVE_CATS: $(NEGATIVE_CATS)" "POSITIVE_RATIO_THR_OF_NEGATIVE_CAT: ${POSITIVE_RATIO_THR_OF_NEGATIVE_CAT}" | sha1sum)).pkl
 
-PSEUDO_DATA_ARGS := ${TERM2CAT}
+PSEUDO_DATA_ARGS := $(TERM2CAT)
+RUN_ARGS := $(O_SAMPLING_RATIO) $(CHUNKER)
 
 APPEARED_CATS := $(FOCUS_CATS) $(NEGATIVE_CATS)
 DICT_DIR := $(DATA_DIR)/dict
 DICT_FILES := $(addprefix $(DICT_DIR)/,$(APPEARED_CATS))
 UMLS_DIR := $(DATA_DIR)/2021AA-full
 DBPEDIA_DIR := $(DATA_DIR)/DBPedia
+PubChem_DIR := $(DATA_DIR)/PubChem
 RAW_SENTENCE_NUM := 50000
 # APPEARED_CATS を使って 出力先のフォルダを決める
 RAW_CORPUS_DIR := $(DATA_DIR)/raw
@@ -32,15 +37,15 @@ PSEUDO_DATA_DIR := $(DATA_DIR)/pseudo
 PSEUDO_NER_DATA_DIR := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo $(PSEUDO_DATA_ARGS) $(RAW_CORPUS_NUM) | sha1sum))
 PSEUDO_MSC_NER_DATA_DIR := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MSC DATASET" $(PSEUDO_NER_DATA_DIR) $(WITH_O) $(CHUNKER) | sha1sum)) 
 
+GOLD_DIR := $(DATA_DIR)/gold
+GOLD_DATA := $(GOLD_DIR)/$(firstword $(shell echo "MedMentions" $(FOCUS_CATS) $(TRAIN_SNT_NUM) | sha1sum))
+GOLD_MSC_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSC DATA" $(GOLD_DATA) $(MSC_ARGS) | sha1sum)) 
+
 PSEUDO_DATA_BASE_CMD := poetry run python -m cli.preprocess.load_pseudo_ner \
 		++ner_model.typer.term2cat=$(TERM2CAT) \
         +gold_corpus=$(GOLD_DATA)
-MSC_ARGS := "WITH_O: $(WITH_O) CHUNKER: $(CHUNKER)"
-MSC_DATA_BASE_CMD := poetry run python -m cli.preprocess.load_msc_dataset chunker=$(CHUNKER) ++with_o=$(WITH_O)
+MSC_DATA_BASE_CMD := poetry run python -m cli.preprocess.load_msc_dataset chunker=$(CHUNKER) ++with_o=$(WITH_O) ++o_sampling_ratio=$(MSC_O_SAMPLING_RATIO)
 
-GOLD_DIR := $(DATA_DIR)/gold
-GOLD_DATA := $(GOLD_DIR)/$(firstword $(shell echo "MedMentions" $(FOCUS_CATS) | sha1sum))
-GOLD_MSC_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSC DATA" $(PSEUDO_DATA_ON_GOLD) $(MSC_ARGS) | sha1sum)) 
 
 PSEUDO_DATA_ON_GOLD := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "PSEUDO_DATA_ON_GOLD" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum)) 
 PSEUDO_MSC_DATA_ON_GOLD := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MSC DATASET ON GOLD" $(PSEUDO_DATA_ON_GOLD) $(MSC_ARGS) | sha1sum)) 
@@ -48,6 +53,7 @@ FP_REMOVED_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "FP_REMOVE
 EROSION_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "EROSION_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
 MISGUIDANCE_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MISGUIDANCE_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
 
+TRAIN_ON_GOLD_OUT := outputs/$(firstword $(shell echo "TRAIN_ON_GOLD_LOCK" $(GOLD_MSC_DATA) $(RUN_ARGS) | sha1sum))
 
 TRAIN_BASE_CMD := poetry run python -m cli.train \
 		++dataset.name_or_path=$(GOLD_DATA) \
@@ -89,6 +95,15 @@ $(DBPEDIA_DIR): $(DATA_DIR)
 	# bunzip2 *.bz2
 	# mv *.ttl $(DBPEDIA_DIR)
 	# mv *.nt $(DBPEDIA_DIR)
+$(PubChem_DIR): $(DATA_DIR)
+	mkdir -p $(PubChem_DIR)
+	wget https://ftp.ncbi.nlm.nih.gov/pubchem/Substance/CURRENT-Full/XML/
+	FILES=`cat index.html  | grep xml.gz | grep -v md5| sed -e 's/<[^>]*>//g' | awk '{print $$1}'`
+	for f in `cat index.html  | grep xml.gz | grep -v md5| sed -e 's/<[^>]*>//g' | awk '{print $1}'`; do 
+		wget "https://ftp.ncbi.nlm.nih.gov/pubchem/Substance/CURRENT-Full/XML/${f}"
+	done
+	gunzip *.gz
+	mv *.xml $(PubChem_DIR)/
 
 $(TERM2CAT_DIR): $(DATA_DIR)
 	mkdir -p $(TERM2CAT_DIR)
@@ -116,18 +131,18 @@ $(GOLD_DIR)/MedMentions: $(GOLD_DIR)
 $(GOLD_DATA): $(GOLD_DIR)/MedMentions
 	@echo "Gold Data"
 	@echo GOLD_NER_DATA_DIR: $(GOLD_DATA)
-	@poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_DIR)/MedMentions/st21pv/data
+	@poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_DIR)/MedMentions/st21pv/data --train-snt-num $(TRAIN_SNT_NUM)
 	poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_DIR)/MedMentions/st21pv/data
 $(GOLD_MSC_DATA): $(GOLD_DATA)
-	@echo PSEUDO_MSC_DATA_ON_GOLD: $(GOLD_MSC_DATA)
+	@echo GOLD_MSC_DATA_ON_GOLD: $(GOLD_MSC_DATA)
 	$(MSC_DATA_BASE_CMD) \
-		+ner_dataset=$(PSEUDO_DATA_ON_GOLD) \
-		+output_dir=$(PSEUDO_MSC_DATA_ON_GOLD)
+		+ner_dataset=$(GOLD_DATA) \
+		+output_dir=$(GOLD_MSC_DATA)
 
 
-all: ${DICT_FILES} $(PSEUDO_NER_DATA_DIR) $(PSEUDO_MSC_NER_DATA_DIR) $(GOLD_DATA) $(PSEUDO_DATA_ON_GOLD) $(PSEUDO_MSC_DATA_ON_GOLD) $(FP_REMOVED_PSEUDO_DATA)
+all: ${DICT_FILES} $(PSEUDO_NER_DATA_DIR) $(PSEUDO_MSC_NER_DATA_DIR) $(GOLD_DATA) $(GOLD_MSC_DATA) $(PSEUDO_DATA_ON_GOLD) $(PSEUDO_MSC_DATA_ON_GOLD) $(FP_REMOVED_PSEUDO_DATA)
 
-$(DICT_FILES):- $(DICT_DIR) $(UMLS_DIR) $(DBPEDIA_DIR)
+$(DICT_FILES): $(DICT_DIR) $(UMLS_DIR) $(DBPEDIA_DIR)
 	@echo make dict files $@
 	poetry run python -m cli.preprocess.load_terms --category $(notdir $@) --output $@
 
@@ -189,6 +204,16 @@ $(PSEUDO_MSC_DATA_ON_GOLD): $(PSEUDO_DATA_ON_GOLD)
 train: $(PSEUDO_MSC_DATA_ON_GOLD)
 	$(TRAIN_BASE_CMD) \
 		ner_model.typer.msc_datasets=$(PSEUDO_MSC_DATA_ON_GOLD)
-train_on_gold:
+
+$(TRAIN_ON_GOLD_OUT): $(GOLD_MSC_DATA) $(TERM2CAT)
 	$(TRAIN_BASE_CMD) \
-		ner_model.typer.msc_datasets=$(GOLD_MSC_DATA)
+		ner_model.typer.msc_datasets=$(GOLD_MSC_DATA) 2>&1 | tee $(TRAIN_ON_GOLD_OUT)
+train_on_gold: $(TRAIN_ON_GOLD_OUT) 
+	@echo TRAIN_ON_GOLD_OUT: $(TRAIN_ON_GOLD_OUT)
+
+train_pseudo_anno: $(GOLD_DATA) $(TERM2CAT)
+	poetry run python -m cli.train \
+		ner_model=PseudoTwoStage \
+		++dataset.name_or_path=$(GOLD_DATA) \
+		+ner_model.typer.term2cat=$(TERM2CAT) \
+		+testor.baseline_typer.term2cat=$(TERM2CAT)

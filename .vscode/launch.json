@@ -70,8 +70,9 @@
             "justMyCode": false,
             "args": [
                 "chunker=enumerated",
-                "+ner_dataset=data/pseudo/77618cfc118fb77078245a9e566e68485209fa97",
-                "+output_dir=data/pseudo/55e5d1b28d77cb8999c0dc0bf287e123cab6ab65",
+                "++with_o=True",
+                "+ner_dataset=data/gold/05c253af97e873799ba03fb645d8ee9fa5bf741c",
+                "+output_dir=data/gold/107df64cc02c35b1e4b9a85abc8e03da1727d961",
             ],
         },
         {
@@ -111,9 +112,9 @@
             "justMyCode": false,
             "args": [
                 "--category",
-                "T116",
+                "PubChem",
                 "--output",
-                "data/dict/T116",
+                "data/dict/PubChem",
             ],
         },
         {
@@ -138,13 +139,16 @@
             "args": [
                 // "ner_model/chunker=spacy_np",
                 // "ner_model/typer=random",
-                "ner_model.typer.msc_datasets=data/pseudo/45bb5fab313ed96778cb13456ee5ff26fe26063e",
                 "++dataset.name_or_path=data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3",
-                "++ner_model.typer.model_args.o_sampling_ratio=0.02",
-                "++ner_model.typer.train_args.do_train=True",
-                "++ner_model.typer.train_args.overwrite_output_dir=True",
-                "++ner_model.typer.train_args.per_device_train_batch_size=8",
-                "++ner_model.typer.train_args.per_device_eval_batch_size=16"
+                "ner_model/chunker=spacy_np",
+                "ner_model.typer.model_args.o_sampling_ratio=0.02",
+                "ner_model.typer.model_args.nc_sampling_ratio=0.1",
+                "ner_model.typer.train_args.per_device_train_batch_size=8",
+                "ner_model.typer.train_args.per_device_eval_batch_size=32",
+                "ner_model.typer.train_args.do_train=True",
+                "ner_model.typer.train_args.overwrite_output_dir=True",
+                "testor.baseline_typer.term2cat=data/term2cat/8a23fbd2bc56b5182ab677063f52af0497d1d5c6.pkl",
+                "ner_model.typer.msc_datasets=data/pseudo/c58dfd3063052797502c6e09cdfaba8d06f79926"
             ],
         },
         {

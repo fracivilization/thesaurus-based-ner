@@ -84,14 +84,18 @@ class EnumeratedModelArguments:
     )
     o_label_id: int = 0  # Update when model loading, so 0 is temporal number
     o_sampling_ratio: float = 0.3  # O sampling in train
+    nc_sampling_ratio: float = 1.0  # O sampling in train
 
 
 class BertForEnumeratedTyper(BertForTokenClassification):
     @classmethod
-    def from_pretrained(cls, model_args: EnumeratedModelArguments, *args, **kwargs):
+    def from_pretrained(
+        cls, model_args: EnumeratedModelArguments, nc_ids: List[int], *args, **kwargs
+    ):
         cls.model_args = model_args
         self = super().from_pretrained(model_args.model_name_or_path, *args, **kwargs)
         self.model_args = model_args
+        self.nc_ids = nc_ids
         return self
 
     def __init__(self, config):
@@ -128,6 +132,25 @@ class BertForEnumeratedTyper(BertForTokenClassification):
         sorted_ends = torch.take_along_dim(ends, sort_arg, dim=1)
         return sorted_starts, sorted_ends, sorted_sampled_labels
 
+    def under_sample_nc(self, starts, ends, labels):
+        """
+        Get valid entities from start, end and label, cut tensor by no-ent label.
+        """
+        # O ラベルをサンプリングする
+        nc_ids = torch.cuda.LongTensor(self.nc_ids, device=labels.device)
+        nc_label_mask = torch.isin(labels, nc_ids)
+        sample_mask = (
+            torch.rand(labels.shape, device=labels.device)
+            >= self.model_args.nc_sampling_ratio
+        )  # 1-sample ratio の割合で True となる mask
+        sampled_labels = torch.where(nc_label_mask * sample_mask, -1, labels)
+        # サンプリングに合わせて、-1に当たる部分をソートして外側に出す
+        sort_arg = torch.argsort(sampled_labels, descending=True, dim=1)
+        sorted_sampled_labels = torch.take_along_dim(sampled_labels, sort_arg, dim=1)
+        sorted_starts = torch.take_along_dim(starts, sort_arg, dim=1)
+        sorted_ends = torch.take_along_dim(ends, sort_arg, dim=1)
+        return sorted_starts, sorted_ends, sorted_sampled_labels
+
     def forward(
         self, input_ids=None, attention_mask=None, labels=None, starts=None, ends=None
     ):
@@ -138,6 +161,7 @@ class BertForEnumeratedTyper(BertForTokenClassification):
         """
         if self.training:
             starts, ends, labels = self.under_sample_o(starts, ends, labels)
+            starts, ends, labels = self.under_sample_nc(starts, ends, labels)
             # starts, ends, labels = self.get_valid_entities(starts, ends, labels)
         minibatch_size, max_seq_lens = input_ids.shape
         outputs = self.bert(
@@ -309,6 +333,9 @@ class EnumeratedTyper(Typer):
         label_list = features["labels"].feature.names
         self.label_names = label_list
         num_labels = len(label_list)
+        nc_ids = [
+            i for i, label in enumerate(self.label_names) if label.startswith("nc-")
+        ]
 
         # Load pretrained model and tokenizer
         #
@@ -338,6 +365,7 @@ class EnumeratedTyper(Typer):
             model_args.o_label_id = -2
         model = BertForEnumeratedTyper.from_pretrained(
             model_args,
+            nc_ids=nc_ids,
             from_tf=bool(".ckpt" in model_args.model_name_or_path),
             config=config,
             cache_dir=model_args.cache_dir,

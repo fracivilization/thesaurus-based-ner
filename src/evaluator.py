@@ -330,21 +330,40 @@ class NERTestor:
             + count_for_fp_miss_classification_on_end
             + count_for_fp_miss_classification_on_non_end
         )
-        ptl.add_row(["on all O", count_for_fp_on_o, count_for_fp_on_o / fp_num * 100])
-        ptl.add_row(
-            [
-                "miss classification on end",
-                count_for_fp_miss_classification_on_end,
-                count_for_fp_miss_classification_on_end / fp_num * 100,
-            ],
-        )
-        ptl.add_row(
-            [
-                "miss classification on non-end",
-                count_for_fp_miss_classification_on_non_end,
-                count_for_fp_miss_classification_on_non_end / fp_num * 100,
-            ],
-        )
+        if fp_num == 0:
+            ptl.add_row(["on all O", count_for_fp_on_o, 0])
+            ptl.add_row(
+                [
+                    "miss classification on end",
+                    count_for_fp_miss_classification_on_end,
+                    0,
+                ],
+            )
+            ptl.add_row(
+                [
+                    "miss classification on non-end",
+                    count_for_fp_miss_classification_on_non_end,
+                    0,
+                ],
+            )
+        else:
+            ptl.add_row(
+                ["on all O", count_for_fp_on_o, count_for_fp_on_o / fp_num * 100]
+            )
+            ptl.add_row(
+                [
+                    "miss classification on end",
+                    count_for_fp_miss_classification_on_end,
+                    count_for_fp_miss_classification_on_end / fp_num * 100,
+                ],
+            )
+            ptl.add_row(
+                [
+                    "miss classification on non-end",
+                    count_for_fp_miss_classification_on_non_end,
+                    count_for_fp_miss_classification_on_non_end / fp_num * 100,
+                ],
+            )
         logger.info(ptl.get_string())
 
     def get_np_negative_chunks(self, prediction_w_nc: Dataset, chunker: Chunker):

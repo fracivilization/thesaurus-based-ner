@@ -28,7 +28,7 @@ class MSCConfig:
     output_dir: str = MISSING
     with_o: bool = False
     chunker: ChunkerConfig = ChunkerConfig()
-    # o_sampling_ratio: float = 0.3
+    o_sampling_ratio: float = 1.0
     # hard_o_sampling: bool = False
     # o_outside_entity: bool = False
     # weight_of_hard_o_for_easy_o: float = 0.5  #
@@ -103,7 +103,10 @@ def ner_datasets_to_span_classification_datasets(
                 registered_chunks.add((s, e))
             if data_args.with_o and key in {"train", "validation"}:
                 for s, e in enumerator.predict(snt["tokens"]):
-                    if (s, e) not in registered_chunks:
+                    if (
+                        (s, e) not in registered_chunks
+                        and data_args.o_sampling_ratio > random.random()
+                    ):
                         starts.append(s)
                         ends.append(e)
                         labels.append("nc-O")

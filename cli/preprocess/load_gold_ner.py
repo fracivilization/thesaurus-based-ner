@@ -2,6 +2,7 @@ import click
 from src.dataset.gold_dataset import load_gold_datasets
 import os
 from datasets import DatasetDict
+import sys
 
 
 @click.command()
@@ -10,9 +11,10 @@ from datasets import DatasetDict
     "--output", type=str, default="data/gold/7bd600d361001d5acc3b1e3f2974b2536027ea20"
 )
 @click.option("--input-dir", type=str, default="data/gold/Medmentions/full/data")
-def cmd(focus_cats: str, output: str, input_dir: str):
+@click.option("--train-snt-num", type=int, default=sys.maxsize)
+def cmd(focus_cats: str, output: str, input_dir: str, train_snt_num: int):
     if not os.path.exists(output):
-        gold_datasets = load_gold_datasets(focus_cats, input_dir)
+        gold_datasets = load_gold_datasets(focus_cats, input_dir, train_snt_num)
         gold_datasets.save_to_disk(output)
 
 
