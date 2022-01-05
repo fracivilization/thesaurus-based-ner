@@ -116,7 +116,7 @@ class TwoStageModel(NERModel):
         assert len(starts) == len(ends)
         assert len(ends) == len(types)
         for s, e, l in zip(starts, ends, types):
-            if l != "O":
+            if l != "nc-O":
                 for i in range(s, e):
                     if i == s:
                         ner_tags[i] = "B-%s" % l
@@ -147,7 +147,9 @@ class TwoStageModel(NERModel):
                 reverse=True,
             )
             for s, e, label, max_prob in labeled_chunks:
-                if label != "O" and all(tag == "O" for tag in snt_ner_tags[s:e]):
+                if not label.startswith("nc-") and all(
+                    tag == "O" for tag in snt_ner_tags[s:e]
+                ):
                     for i in range(s, e):
                         if i == s:
                             snt_ner_tags[i] = "B-%s" % label

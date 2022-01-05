@@ -131,6 +131,20 @@
             ],
         },
         {
+            "name": "Load MSC Dataset",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.preprocess.load_msc_dataset",
+            "justMyCode": false,
+            "args": [
+                "chunker=enumerated",
+                "++with_o=True",
+                "++o_sampling_ratio=1.0",
+                "+ner_dataset=data/pseudo/6e2d6c7910170c4fb5e84a2e13e04f6367303731",
+                "+output_dir=data/pseudo/f69f14306e76a12012ce1928021021a72d418c1d",
+            ],
+        },
+        {
             "name": "Train",
             "type": "python",
             "request": "launch",
@@ -158,15 +172,15 @@
             "module": "cli.train",
             "justMyCode": false,
             "args": [
-                // "ner_model/chunker=enumerated",
-                "ner_model/chunker=spacy_np",
-                "++dataset.name_or_path=data/pseudo/77618cfc118fb77078245a9e566e68485209fa97",
-                "ner_model.typer.msc_args.with_o=True",
+                "++dataset.name_or_path=data/gold/7dbc67bfbe96b89c197084f0a75a325d2ca506d3",
+                "ner_model/chunker=enumerated",
+                "ner_model.typer.model_args.o_sampling_ratio=0.001",
+                "ner_model.typer.train_args.per_device_train_batch_size=8",
                 "ner_model.typer.train_args.per_device_eval_batch_size=32",
-                "ner_model.typer.train_args.per_device_train_batch_size=24",
                 "ner_model.typer.train_args.do_train=True",
                 "ner_model.typer.train_args.overwrite_output_dir=True",
-                "ner_model.typer.model_args.o_sampling_ratio=0.0004",
+                "testor.baseline_typer.term2cat=data/term2cat/e04122e7582b6bf5c6c447b6069f8be77b17620f.pkl",
+                "ner_model.typer.msc_datasets=data/pseudo/f69f14306e76a12012ce1928021021a72d418c1d",
             ],
         },
         {
@@ -183,6 +197,24 @@
                 // "++dataset.name_or_path=data/pseudo/ae0066e412378c8cb49ac6f632bedc7f63ad82dd",
                 // "ner_model.typer.data_args.max_span_num=128",
                 "testor.baseline_typer.term2cat=data/term2cat/4729313ea22ec32285f462ca9ed6ec6351df1b1a.pkl"
+            ],
+        },
+        {
+            "name": "Train (Supervised)",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.train",
+            "justMyCode": false,
+            "args": [
+                "++dataset.name_or_path=data/gold/7dbc67bfbe96b89c197084f0a75a325d2ca506d3",
+                "ner_model/chunker=enumerated",
+                "ner_model.typer.model_args.o_sampling_ratio=1.0",
+                "ner_model.typer.train_args.per_device_train_batch_size=8",
+                "ner_model.typer.train_args.per_device_eval_batch_size=32",
+                "ner_model.typer.train_args.do_train=True",
+                "ner_model.typer.train_args.overwrite_output_dir=True",
+                "testor.baseline_typer.term2cat=data/term2cat/e04122e7582b6bf5c6c447b6069f8be77b17620f.pkl",
+                "ner_model.typer.msc_datasets=data/gold/aa3563d65115635144812a5cc6beabe17b44e37d",
             ],
         },
         {
@@ -242,6 +274,17 @@
                 // "ENV_VARIABLE": "value",
             },
             "justMyCode": false
+        },
+        {
+            "name": "Get UMLS Negative Cats",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.get_umls_negative_cats",
+            "justMyCode": false,
+            "args": [
+                "--focus-cats",
+                "T005"
+            ],
         },
     ]
 }

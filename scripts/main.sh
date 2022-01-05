@@ -29,7 +29,7 @@ get_enumerated_model_cmd () {
     echo ${CMD}
 }
 get_make_cmd () {
-    CMD="O_SAMPLING_RATIO=${O_SAMPLING_RATIO} POSITIVE_RATIO_THR_OF_NEGATIVE_CAT=${POSITIVE_RATIO_THR_OF_NEGATIVE_CAT} NEGATIVE_CATS=\"${NEGATIVE_CATS}\" WITH_O=${WITH_O} CHUNKER=${CHUNKER} make"
+    CMD="TRAIN_SNT_NUM=${TRAIN_SNT_NUM} O_SAMPLING_RATIO=${O_SAMPLING_RATIO} POSITIVE_RATIO_THR_OF_NEGATIVE_CAT=${POSITIVE_RATIO_THR_OF_NEGATIVE_CAT} NEGATIVE_CATS=\"${NEGATIVE_CATS}\" WITH_O=${WITH_O} CHUNKER=${CHUNKER} make"
     echo ${CMD}
 }
 
@@ -44,6 +44,7 @@ get_make_cmd () {
 #     O_SAMPLING_RATIO=${o_sampling_ratios[i]}
 # done
 
+TRAIN_SNT_NUM=9223372036854775807
 echo "GOLD"
 # Get Dataset
 # All Negatives
@@ -64,13 +65,10 @@ NEGATIVE_CATS=""
 WITH_O=True
 CHUNKER="enumerated"
 POSITIVE_RATIO_THR_OF_NEGATIVE_CAT=1.0
-O_SAMPLING_RATIO=0.0001
+# O_SAMPLING_RATIO=0.0001
+O_SAMPLING_RATIO=0.03
 MAKE=`get_make_cmd`
-RUN_DATASET=$(eval ${MAKE} -n all | grep PSEUDO_NER_DATA_DIR | awk '{print $3}')
-CMD=`get_enumerated_model_cmd`
-eval ${MAKE} train 2>&1 | tee ${TMPFILE}
-RUN_ID_AllNegatives=$(cat ${TMPFILE} | grep "mlflow_run_id" | awk '{print $2}')
-echo "RUN_ID_AllNegatives" ${RUN_ID_AllNegatives}
+eval ${MAKE} train -j$(nproc)
 
 echo "All Negatives (NP)"
 NEGATIVE_CATS=""
@@ -113,9 +111,10 @@ NEGATIVE_CATS="T054 T055 T056 T064 T065 T066 T068 T075 T079 T080 T081 T099 T100 
 WITH_O=True
 CHUNKER="enumerated"
 POSITIVE_RATIO_THR_OF_NEGATIVE_CAT=1.0
-O_SAMPLING_RATIO=0.0001
+O_SAMPLING_RATIO=0.03
+O_SAMPLING_RATIO=0.005
 MAKE=`get_make_cmd`
-eval ${MAKE} train 2>&1 | tee ${TMPFILE}
+eval ${MAKE} train -j$(nproc) 
 RUN_ID_Thesaurus_Negatives_UMLS=$(cat ${TMPFILE} | grep "mlflow_run_id" | awk '{print $2}')
 echo "RUN_ID_Thesaurus_Negatives (UMLS)" ${RUN_ID_Thesaurus_Negatives_UMLS}
 
@@ -126,9 +125,9 @@ NEGATIVE_CATS="T054 T055 T056 T064 T065 T066 T068 T075 T079 T080 T081 T099 T100 
 WITH_O=False
 CHUNKER="spacy_np"
 POSITIVE_RATIO_THR_OF_NEGATIVE_CAT=0.1
-O_SAMPLING_RATIO=0.02
+O_SAMPLING_RATIO=0.01
 MAKE=`get_make_cmd`
 eval ${MAKE} all -j$(nproc)
-eval ${MAKE} train -j$(nproc) 2>&1 | tee ${TMPFILE}
+eval ${MAKE} train -j$(nproc) 
 RUN_ID_Thesaurus_Negatives_UMLS=$(cat ${TMPFILE} | grep "mlflow_run_id" | awk '{print $2}')
 echo "RUN_ID_Thesaurus_Negatives (UMLS)" ${RUN_ID_Thesaurus_Negatives_UMLS}

@@ -54,6 +54,7 @@ EROSION_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "EROSION_PSEU
 MISGUIDANCE_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MISGUIDANCE_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
 
 TRAIN_ON_GOLD_OUT := outputs/$(firstword $(shell echo "TRAIN_ON_GOLD_LOCK" $(GOLD_MSC_DATA) $(RUN_ARGS) | sha1sum))
+TRAIN_OUT := outputs/$(firstword $(shell echo "TRAIN_LOCK" $(PSEUDO_MSC_DATA_ON_GOLD) $(RUN_ARGS) | sha1sum))
 
 TRAIN_BASE_CMD := poetry run python -m cli.train \
 		++dataset.name_or_path=$(GOLD_DATA) \
@@ -64,7 +65,9 @@ TRAIN_BASE_CMD := poetry run python -m cli.train \
 		ner_model.typer.train_args.do_train=True \
 		ner_model.typer.train_args.overwrite_output_dir=True \
 		testor.baseline_typer.term2cat=$(TERM2CAT)
-test: $(PSEUDO_MSC_DATA_ON_GOLD)
+test: 
+	@echo MSC_O_SAMPLING_RATIO: $(MSC_O_SAMPLING_RATIO)
+	@echo MSC_ARGS: $(MSC_ARGS)
 term2cat: $(TERM2CAT)
 	@echo TERM2CAT: $(TERM2CAT)
 
@@ -132,7 +135,7 @@ $(GOLD_DATA): $(GOLD_DIR)/MedMentions
 	@echo "Gold Data"
 	@echo GOLD_NER_DATA_DIR: $(GOLD_DATA)
 	@poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_DIR)/MedMentions/st21pv/data --train-snt-num $(TRAIN_SNT_NUM)
-	poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_DIR)/MedMentions/st21pv/data
+	poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_DIR)/MedMentions/st21pv/data --train-snt-num $(TRAIN_SNT_NUM)
 $(GOLD_MSC_DATA): $(GOLD_DATA)
 	@echo GOLD_MSC_DATA_ON_GOLD: $(GOLD_MSC_DATA)
 	$(MSC_DATA_BASE_CMD) \
@@ -201,9 +204,11 @@ $(PSEUDO_MSC_DATA_ON_GOLD): $(PSEUDO_DATA_ON_GOLD)
 		+ner_dataset=$(PSEUDO_DATA_ON_GOLD) \
 		+output_dir=$(PSEUDO_MSC_DATA_ON_GOLD)
 
-train: $(PSEUDO_MSC_DATA_ON_GOLD)
+$(TRAIN_OUT): $(PSEUDO_MSC_DATA_ON_GOLD) $(TERM2CAT)
 	$(TRAIN_BASE_CMD) \
-		ner_model.typer.msc_datasets=$(PSEUDO_MSC_DATA_ON_GOLD)
+		ner_model.typer.msc_datasets=$(PSEUDO_MSC_DATA_ON_GOLD) 2>&1 | tee $(TRAIN_OUT)
+train: $(TRAIN_OUT)
+	@echo TRAIN_OUT: $(TRAIN_OUT)
 
 $(TRAIN_ON_GOLD_OUT): $(GOLD_MSC_DATA) $(TERM2CAT)
 	$(TRAIN_BASE_CMD) \

@@ -4,7 +4,7 @@ dir=`dirname $0`
 source ${dir}/params.sh
 for cat in ${ST21pv[@]}; do
     echo $cat
-    NEGATIVE_CATS=`poetry run python -m cli.get_umls_negative_cat ${cat}`
+    NEGATIVE_CATS=`poetry run python -m cli.get_umls_negative_cat --focus-cats ${cat}`
     make_opts=`get_make_opts ${NEGATIVE_CATS}`
     OLD_IFS=$IFS
     IFS=$'\n'

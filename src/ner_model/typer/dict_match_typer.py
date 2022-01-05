@@ -37,7 +37,7 @@ class DictMatchTyper(Typer):
         # keyword extractorを追加する
         # argumentを追加する...後でいいか...
         self.keyword_processor = ComplexKeywordTyper(self.term2cat)
-        self.label_names = ["O"] + list(set(self.term2cat.values()))
+        self.label_names = ["nc-O"] + list(set(self.term2cat.values()))
 
     def predict(
         self, tokens: List[str], starts: List[str], ends: List[str]
