@@ -58,6 +58,45 @@ def remove_misguided_fns(starts, ends, labels):
     return new_starts, new_ends, new_labels
 
 
+def undersample_thesaurus_negatives(pre_span_classification_dataset):
+    label_counter = Counter(
+        [label for snt in pre_span_classification_dataset["labels"] for label in snt]
+    )
+    pass
+    positive_labels = [
+        label for label in label_counter.keys() if not label.startswith("nc-")
+    ]
+    max_positive_count = max(label_counter[label] for label in positive_labels)
+    thesaurus_negative_class_sampling_ratio = {
+        label: max_positive_count / count
+        for label, count in label_counter.items()
+        if label != "nc-O" and label.startswith("nc-")
+    }
+    new_pre_span_classification_dataset = defaultdict(list)
+    pscd = pre_span_classification_dataset
+    for tokens, starts, ends, labels in zip(
+        pscd["tokens"], pscd["starts"], pscd["ends"], pscd["labels"]
+    ):
+        new_starts = []
+        new_ends = []
+        new_labels = []
+        for s, e, l in zip(starts, ends, labels):
+            if (
+                l != "nc-O"
+                and l.startswith("nc-")
+                and random.random() > thesaurus_negative_class_sampling_ratio[l]
+            ):
+                continue
+            new_starts.append(s)
+            new_ends.append(e)
+            new_labels.append(l)
+        new_pre_span_classification_dataset["tokens"].append(tokens)
+        new_pre_span_classification_dataset["starts"].append(new_starts)
+        new_pre_span_classification_dataset["ends"].append(new_ends)
+        new_pre_span_classification_dataset["labels"].append(new_labels)
+    return new_pre_span_classification_dataset
+
+
 def ner_datasets_to_span_classification_datasets(
     ner_datasets: datasets.DatasetDict,
     data_args: MSCConfig,
@@ -116,6 +155,10 @@ def ner_datasets_to_span_classification_datasets(
                 pre_span_classification_dataset["starts"].append(starts)
                 pre_span_classification_dataset["ends"].append(ends)
                 pre_span_classification_dataset["labels"].append(labels)
+        # if key == "train":
+        #     pre_span_classification_dataset = undersample_thesaurus_negatives(
+        #         pre_span_classification_dataset
+        #     )
         pre_span_classification_datasets[key] = datasets.Dataset.from_dict(
             pre_span_classification_dataset, info=info
         )

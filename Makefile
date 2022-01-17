@@ -36,6 +36,7 @@ RAW_CORPUS_OUT := $(RAW_CORPUS_DIR)/$(firstword $(shell echo $(RAW_CORPUS_NUM) |
 PSEUDO_DATA_DIR := $(DATA_DIR)/pseudo
 PSEUDO_NER_DATA_DIR := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo $(PSEUDO_DATA_ARGS) $(RAW_CORPUS_NUM) | sha1sum))
 PSEUDO_MSC_NER_DATA_DIR := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MSC DATASET" $(PSEUDO_NER_DATA_DIR) $(WITH_O) $(CHUNKER) | sha1sum)) 
+PSEUDO_OUT := outputs/$(firstword $(shell echo "PSEUDO_OUT" $(PSEUDO_DATA_ARGS) | sha1sum))
 
 GOLD_DIR := $(DATA_DIR)/gold
 GOLD_DATA := $(GOLD_DIR)/$(firstword $(shell echo "MedMentions" $(FOCUS_CATS) $(TRAIN_SNT_NUM) | sha1sum))
@@ -216,9 +217,11 @@ $(TRAIN_ON_GOLD_OUT): $(GOLD_MSC_DATA) $(TERM2CAT)
 train_on_gold: $(TRAIN_ON_GOLD_OUT) 
 	@echo TRAIN_ON_GOLD_OUT: $(TRAIN_ON_GOLD_OUT)
 
-train_pseudo_anno: $(GOLD_DATA) $(TERM2CAT)
+$(PSEUDO_OUT): $(GOLD_DATA) $(TERM2CAT)
 	poetry run python -m cli.train \
 		ner_model=PseudoTwoStage \
 		++dataset.name_or_path=$(GOLD_DATA) \
 		+ner_model.typer.term2cat=$(TERM2CAT) \
-		+testor.baseline_typer.term2cat=$(TERM2CAT)
+		+testor.baseline_typer.term2cat=$(TERM2CAT) 2>&1 | tee ${PSEUDO_OUT}
+train_pseudo_anno: $(PSEUDO_OUT)
+	@echo $(PSEUDO_OUT)

@@ -131,11 +131,11 @@ class NERTestor:
         orig_level = trainer_logger.level
         trainer_logger.setLevel(logging.WARNING)
 
-        if isinstance(ner_model, TwoStageModel):
-            self.baseline_typer = typer_builder(
-                config.baseline_typer, ner_dataset, writer, chunker=None
-            )
-            self.analyze_likelihood_diff_between_dict_term(ner_dataset["test"])
+        # if isinstance(ner_model, TwoStageModel):
+        #     self.baseline_typer = typer_builder(
+        #         config.baseline_typer, ner_dataset, writer, chunker=None
+        #     )
+        #     self.analyze_likelihood_diff_between_dict_term(ner_dataset["test"])
 
         (
             self.prediction_for_test_w_nc,

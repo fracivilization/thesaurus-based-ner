@@ -15,7 +15,9 @@ class ComplexKeywordTyper:
             "buffer",
             md5(
                 (
-                    "ComplexKeywordProcessor from " + str(sorted(term2cat.keys()))
+                    "ComplexKeywordProcessor from "
+                    + str(sorted(term2cat.keys()))
+                    + str(sorted(set(term2cat.values())))
                 ).encode()
             ).hexdigest(),
         )
@@ -59,7 +61,7 @@ class ComplexKeywordTyper:
             )
             case_sensitive_cats = [
                 self.cat_labels.index(term2cat[term.decode()[::-1]])
-                for term in case_sensitive_terms
+                for term in tqdm(case_sensitive_terms)
             ]
 
             # for term, cat in tqdm(case_sensitive_terms.items()):

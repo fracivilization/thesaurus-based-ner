@@ -9,7 +9,7 @@ from typing import List
 @click.option("--focus-cats")
 def main(focus_cats: str):
     negative_cats: List[str] = get_umls_negative_cats(focus_cats.split("_"))
-    print("Negative Cats: %s" % "_".join(negative_cats))
+    print(" ".join(negative_cats))
     pass
 
 

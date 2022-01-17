@@ -23,12 +23,10 @@
             "module": "cli.preprocess.load_pseudo_ner",
             "justMyCode": false,
             "args": [
-                "++ner_model.typer.term2cat.focus_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
-                "++ner_model.typer.term2cat.duplicate_cats=GeneLocation_Species_Disease_Work_SportsSeason_Device_Media_SportCompetitionResult_EthnicGroup_Protocol_Award_Demographics_MeanOfTransportation_FileSystem_Medicine_Area_Flag_UnitOfWork_MedicalSpecialty_GrossDomesticProduct_Biomolecule_Identifier_Blazon_PersonFunction_List_TimePeriod_Event_Relationship_Altitude_TopicalConcept_Spreadsheet_Currency_Cipher_Browser_Tank_Food_Depth_Population_Statistic_StarCluster_Language_GrossDomesticProductPerCapita_ChemicalSubstance_ElectionDiagram_Diploma_Place_Algorithm_ChartsPlacements_Unknown_Activity_PublicService_Agent_Name_AnatomicalStructure_Colour",
-                "++ner_model.typer.term2cat.with_nc=True",
-                "+gold_corpus=data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3",
-                "+raw_corpus=data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3",
-                "+output_dir=data/pseudo/a412731863aba3f960167cc6d91d2c115d11da2c",
+                "++ner_model.typer.term2cat=data/term2cat/13d1b5e531ed59f3b6b7bdd156b6ffec55e14b58.pkl",
+                "+gold_corpus=data/gold/4ca2de199c95f868bf1a0c23e529541b1a72be19",
+                "+raw_corpus=data/gold/4ca2de199c95f868bf1a0c23e529541b1a72be19",
+                "+output_dir=data/pseudo/63fee4b27d008d5c1c2228bc378f8f887499fff2"
             ],
         },
         {
@@ -140,8 +138,8 @@
                 "chunker=enumerated",
                 "++with_o=True",
                 "++o_sampling_ratio=1.0",
-                "+ner_dataset=data/pseudo/6e2d6c7910170c4fb5e84a2e13e04f6367303731",
-                "+output_dir=data/pseudo/f69f14306e76a12012ce1928021021a72d418c1d",
+                "+ner_dataset=data/pseudo/1da7d077e150bee022c05f65ebb29311720fe3b9",
+                "+output_dir=data/pseudo/e4e9d1eb363259fcffda8ebcf959f7df785b7de0",
             ],
         },
         {
@@ -191,12 +189,9 @@
             "justMyCode": false,
             "args": [
                 "ner_model=PseudoTwoStage",
-                // "ner_model/typer/term2cat=oracle",
-                "ner_model.typer.term2cat=data/term2cat/4729313ea22ec32285f462ca9ed6ec6351df1b1a.pkl",
-                // "+ner_model.typer.term2cat.gold_dataset=data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3"
-                // "++dataset.name_or_path=data/pseudo/ae0066e412378c8cb49ac6f632bedc7f63ad82dd",
-                // "ner_model.typer.data_args.max_span_num=128",
-                "testor.baseline_typer.term2cat=data/term2cat/4729313ea22ec32285f462ca9ed6ec6351df1b1a.pkl"
+                "++dataset.name_or_path=data/gold/836053d1bd47c7cf824672a17714a61a354af8e9",
+                "+ner_model.typer.term2cat=data/term2cat/4a346fc7708eff30dc3a5a0bd47df4b3cb61823a.pkl",
+                "+testor.baseline_typer.term2cat=data/term2cat/4a346fc7708eff30dc3a5a0bd47df4b3cb61823a.pkl",
             ],
         },
         {

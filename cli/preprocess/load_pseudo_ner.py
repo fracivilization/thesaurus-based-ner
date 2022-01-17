@@ -52,6 +52,14 @@ def main(cfg: PseudoAnnoConfig):
         )
         ret_datasets = join_pseudo_and_gold_dataset(pseudo_dataset, gold_corpus)
         ret_datasets.save_to_disk(os.path.join(get_original_cwd(), cfg.output_dir))
+    ret_datasets = DatasetDict.load_from_disk(
+        os.path.join(get_original_cwd(), cfg.output_dir)
+    )
+    names = ret_datasets["train"].features["ner_tags"].feature.names
+    ner_tags = [
+        [names[tag] for tag in snt] for snt in ret_datasets["train"]["ner_tags"]
+    ]
+    ner_tags[42], ret_datasets["train"][42]
 
 
 if __name__ == "__main__":
