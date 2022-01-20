@@ -281,5 +281,16 @@
                 "T005"
             ],
         },
+        {
+            "name": "Get MSMLC Gold Dataset",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.preprocess.load_gold_msmlc",
+            "justMyCode": false,
+            "args": [
+                "--output-dir",
+                "data/gold/602888d88e03397028ecfa105a330dcb553da100"
+            ],
+        },
     ]
 }

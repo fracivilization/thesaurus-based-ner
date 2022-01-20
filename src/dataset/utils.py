@@ -63,7 +63,7 @@ STchild2parent = {
     "Vitamin": "Biologically Active Substance",
     "Immunologic Factor": "Biologically Active Substance",
     "Receptor": "Biologically Active Substance",
-    "Indicator, Reagent, or Diagnostic Acid": "Chemical Viewed Functionally",
+    "Indicator, Reagent, or Diagnostic Aid": "Chemical Viewed Functionally",
     "Hazardous or Poisonous Substance": "Chemical Viewed Functionally",
     "Chemical Viewed Structurally": "Chemical",
     "Organic Chemical": "Chemical Viewed Structurally",
@@ -438,3 +438,21 @@ def get_umls_negative_cats(focus_tuis: List[str]):
     negative_concepts = candidate_negative_STs - focus_STs
     negative_cats = [ST2tui[concept] for concept in negative_concepts]
     return negative_cats
+
+
+def get_ascendants(tui: str = "T204"):
+    pass
+
+
+def get_tui2ascendants():
+    ST2tui = {v: k for k, v in tui2ST.items()}
+    tui2ascendants = dict()
+    for tui, st in tui2ST.items():
+        orig_tui = tui
+        ascendants = [tui]
+        while tui != "T000":
+            st = STchild2parent[st]
+            tui = ST2tui[st]
+            ascendants.append(tui)
+        tui2ascendants[orig_tui] = sorted(ascendants)
+    return tui2ascendants

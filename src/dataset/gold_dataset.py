@@ -1,5 +1,6 @@
 import re
 from datasets.info import DatasetInfo
+from src.ner_model.chunker.abstract_model import Chunker
 from src.utils.params import get_ner_dataset_features
 from datasets import DatasetDict, Dataset
 from src.dataset.term2cat.terms import get_descendants_TUIs
@@ -7,10 +8,12 @@ from typing import List, Dict, Tuple
 import spacy
 from logging import getLogger
 from tqdm import tqdm
-from collections import Counter
+from collections import Counter, defaultdict
 import os
 from seqeval.metrics.sequence_labeling import get_entities
 import json
+from src.dataset.utils import tui2ST, get_tui2ascendants
+import datasets
 
 logger = getLogger(__name__)
 nlp = spacy.load("en_core_sci_sm")
@@ -228,32 +231,33 @@ def translate_conll_into_dataset(
 def remove_span_duplication(docs: List[str]):
     screened_docs = []
     for doc in tqdm(docs):
-        doc = doc.split("\n")
-        title = doc[0]
-        abstract = doc[1]
-        spans = doc[2:]
-        remained_spans = spans
-        span_areas = []
-        for span in spans:
-            pmid, start, end, name, label, cui = span.split("\t")
-            start, end = int(start), int(end)
-            span_areas.append(set(range(start, end)))
-        remove_spans = []
-        for i1, s1 in enumerate(span_areas):
-            for i2, s2 in enumerate(span_areas):
-                if i2 > i1:
-                    if s1 & s2:
-                        if s1 <= s2:
-                            remove_spans.append(spans[i1])
-                        elif s2 <= s1:
-                            remove_spans.append(spans[i2])
-                        else:
-                            remove_spans.append(spans[i1])
-                            remove_spans.append(spans[i2])
-        for rs in remove_spans:
-            if rs in remained_spans:
-                remained_spans.remove(rs)
-        screened_docs.append("\n".join([title, abstract] + remained_spans))
+        if doc != "":
+            doc = doc.split("\n")
+            title = doc[0]
+            abstract = doc[1]
+            spans = doc[2:]
+            remained_spans = spans
+            span_areas = []
+            for span in spans:
+                pmid, start, end, name, label, cui = span.split("\t")
+                start, end = int(start), int(end)
+                span_areas.append(set(range(start, end)))
+            remove_spans = []
+            for i1, s1 in enumerate(span_areas):
+                for i2, s2 in enumerate(span_areas):
+                    if i2 > i1:
+                        if s1 & s2:
+                            if s1 <= s2:
+                                remove_spans.append(spans[i1])
+                            elif s2 <= s1:
+                                remove_spans.append(spans[i2])
+                            else:
+                                remove_spans.append(spans[i1])
+                                remove_spans.append(spans[i2])
+            for rs in remove_spans:
+                if rs in remained_spans:
+                    remained_spans.remove(rs)
+            screened_docs.append("\n".join([title, abstract] + remained_spans))
     return screened_docs
     pass
 
@@ -313,3 +317,104 @@ def load_gold_datasets(
     dataset_dict["test"] = translate_conll_into_dataset(test_conll, ner_tag_names, desc)
     # describe focus_cat into datasetdict or dataset (describing into dataset dict is better)
     return DatasetDict(dataset_dict)
+
+
+def translate_conll_into_msmlc_dataset(
+    conll_snt: List[Dict],
+    label_names: List[str],
+    desc: Dict = dict(),
+    with_o: bool = True,
+    chunker: Chunker = None,
+) -> Dataset:
+    # TODO: multi span multi class datasetに変換する
+    desc = json.dumps(desc)
+    ret_dataset = defaultdict(list)
+    tui2ascendants = get_tui2ascendants()
+    for snt in conll_snt:
+        ret_dataset["tokens"].append(snt["tokens"])
+        starts, ends, labels = [], [], []
+        for l, s, e in get_entities(snt["tags"]):
+            if l == "UnknownType":
+                continue
+            starts.append(s), ends.append(e + 1)
+            ascendant_labels = tui2ascendants[l]
+            labels.append(ascendant_labels)
+        labeled_spans = set(zip(starts, ends))
+        if with_o:
+            for s, e in chunker.predict(snt["tokens"]):
+                if (s, e) not in labeled_spans:
+                    starts.append(s)
+                    ends.append(e)
+                    labels.append(["O"])
+
+        ret_dataset["starts"].append(starts)
+        ret_dataset["ends"].append(ends)
+        ret_dataset["labels"].append(labels)
+        pass
+
+    features = datasets.Features(
+        {
+            "tokens": datasets.Sequence(datasets.Value("string")),
+            "starts": datasets.Sequence(datasets.Value("int32")),
+            "ends": datasets.Sequence(datasets.Value("int32")),
+            "labels": datasets.Sequence(
+                datasets.Sequence(datasets.ClassLabel(names=label_names))
+            ),
+        }
+    )
+
+    ret_dataset = Dataset.from_dict(
+        ret_dataset,
+        info=DatasetInfo(description=desc, features=features),
+    )
+    return ret_dataset
+
+
+def load_gold_msmlc_datasets(
+    input_dir: str, with_o: bool = True, chunker_for_o: Chunker = None
+):
+    # load dataset
+    pubtator = os.path.join(input_dir, "corpus_pubtator.txt")
+    with open(pubtator) as f:
+        all_dataset = f.read().split("\n\n")
+
+    screened_docs = remove_span_duplication(all_dataset)
+    pmid2conll = dict()
+    for doc in tqdm(screened_docs):
+        pmid, conll = translate_pubtator_into_conll(doc)
+        pmid2conll[pmid] = conll
+
+    # Split Dataset
+    train_pmids = os.path.join(input_dir, "corpus_pubtator_pmids_trng.txt")
+    dev_pmids = os.path.join(input_dir, "corpus_pubtator_pmids_dev.txt")
+    test_pmids = os.path.join(input_dir, "corpus_pubtator_pmids_test.txt")
+    with open(train_pmids) as f:
+        train_pmids = [int(line.strip()) for line in f]
+    with open(dev_pmids) as f:
+        dev_pmids = [int(line.strip()) for line in f]
+    with open(test_pmids) as f:
+        test_pmids = [int(line.strip()) for line in f]
+    train_conll = [snt for pmid in train_pmids for snt in pmid2conll[pmid]]
+    # train_conll = train_conll[:train_snt_num]
+    dev_conll = [snt for pmid in dev_pmids for snt in pmid2conll[pmid]]
+    test_conll = [snt for pmid in test_pmids for snt in pmid2conll[pmid]]
+    label_names = sorted(tui2ST.keys())
+    if with_o:
+        label_names = ["O"] + label_names
+    desc = {"desc": "MSMLC Dataset"}
+    dataset_dict = dict()
+    desc["split"] = "train"
+    dataset_dict["train"] = translate_conll_into_msmlc_dataset(
+        train_conll, label_names, desc, with_o, chunker_for_o
+    )
+    desc["split"] = "validation"
+    dataset_dict["validation"] = translate_conll_into_msmlc_dataset(
+        dev_conll, label_names, desc, with_o, chunker_for_o
+    )
+    desc["split"] = "test"
+    dataset_dict["test"] = translate_conll_into_msmlc_dataset(
+        test_conll, label_names, desc, with_o, chunker_for_o
+    )
+    # describe focus_cat into datasetdict or dataset (describing into dataset dict is better)
+    return DatasetDict(dataset_dict)
+    pass

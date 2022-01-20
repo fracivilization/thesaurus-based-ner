@@ -9,9 +9,11 @@ CHUNKER ?= spacy_np
 POSITIVE_RATIO_THR_OF_NEGATIVE_CAT ?= 1.0
 O_SAMPLING_RATIO ?= 1.0
 MSC_O_SAMPLING_RATIO ?= 1.0
+MSMLC_O_SAMPLING_RATIO ?= 1.0
 TRAIN_SNT_NUM ?= 9223372036854775807
 
 MSC_ARGS := "WITH_O: $(WITH_O) CHUNKER: $(CHUNKER) MSC_O_SAMPLING_RATIO: $(MSC_O_SAMPLING_RATIO)"
+MSMLC_ARGS := "WITH_O: $(WITH_O) CHUNKER: $(CHUNKER) MSC_O_SAMPLING_RATIO: $(MSMLC_O_SAMPLING_RATIO)"
 
 DATA_DIR := data
 TERM2CAT_DIR := $(DATA_DIR)/term2cat
@@ -41,6 +43,8 @@ PSEUDO_OUT := outputs/$(firstword $(shell echo "PSEUDO_OUT" $(PSEUDO_DATA_ARGS) 
 GOLD_DIR := $(DATA_DIR)/gold
 GOLD_DATA := $(GOLD_DIR)/$(firstword $(shell echo "MedMentions" $(FOCUS_CATS) $(TRAIN_SNT_NUM) | sha1sum))
 GOLD_MSC_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSC DATA" $(GOLD_DATA) $(MSC_ARGS) | sha1sum)) 
+GOLD_MSMLC_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSMLC DATA" $(GOLD_DATA) | sha1sum)) 
+GOLD_TRAINED_MSMLC_MODEL := $(GOLD_DIR)/$(firstword $(shell echo "GOLD TRAINED MSMLC MODEL" $(GOLD_MSMLC_DATA) | sha1sum)) 
 
 PSEUDO_DATA_BASE_CMD := poetry run python -m cli.preprocess.load_pseudo_ner \
 		++ner_model.typer.term2cat=$(TERM2CAT) \
@@ -49,7 +53,9 @@ MSC_DATA_BASE_CMD := poetry run python -m cli.preprocess.load_msc_dataset chunke
 
 
 PSEUDO_DATA_ON_GOLD := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "PSEUDO_DATA_ON_GOLD" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum)) 
-PSEUDO_MSC_DATA_ON_GOLD := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MSC DATASET ON GOLD" $(PSEUDO_DATA_ON_GOLD) $(MSC_ARGS) | sha1sum)) 
+PSEUDO_MSC_DATA_ON_GOLD := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "PSEUDO MSC DATASET ON GOLD" $(PSEUDO_DATA_ON_GOLD) $(MSC_ARGS) | sha1sum)) 
+PSEUDO_MSMLC_DATA_ON_GOLD := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "PSEUDO MSMLC DATASET ON GOLD" $(MSMLC_ARGS) | sha1sum))  
+PSEUDO_TRAINED_MSMLC_MODEL := $(GOLD_DIR)/$(firstword $(shell echo "TRAINED MSMLC MODEL" $(GOLD_MSMLC_DATA) | sha1sum)) 
 FP_REMOVED_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "FP_REMOVED_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
 EROSION_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "EROSION_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
 MISGUIDANCE_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MISGUIDANCE_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
@@ -225,3 +231,29 @@ $(PSEUDO_OUT): $(GOLD_DATA) $(TERM2CAT)
 		+testor.baseline_typer.term2cat=$(TERM2CAT) 2>&1 | tee ${PSEUDO_OUT}
 train_pseudo_anno: $(PSEUDO_OUT)
 	@echo $(PSEUDO_OUT)
+
+$(GOLD_MSMLC_DATA):
+	poetry run python -m cli.preprocess.load_gold_msmlc --output-dir $(GOLD_MSMLC_DATA) --with-o $(WITH_O) --chunker $(CHUNKER)
+
+make_gold_msmlc: $(GOLD_MSMLC_DATA)
+	echo $(GOLD_MSMLC_DATA)
+$(PSEUDO_MSMLC_DATA_ON_GOLD): $(GOLD_MSMLC_DATA)
+	poetry run python -m cli.preprocess.load_pseudo_msmlc ++output_dir=$(PSEUDO_MSMLC_DATA_ON_GOLD)
+make_pseudo_msmlc: $(PSEUDO_MSMLC_DATA_ON_GOLD)
+
+$(PSEUDO_TRAINED_MSMLC_MODEL): $(PSEUDO_MSMLC_DATA_ON_GOLD)
+	poetry run python -m cli.train_msmlc ++model_output_path=$(PSEUDO_TRAINED_MSMLC_MODEL) ++msmlc_datasets=$(PSEUDO_MSMLC_DATA_ON_GOLD)
+train_msmlc: $(PSEUDO_TRAINED_MSMLC_MODEL)
+
+$(GOLD_TRAINED_MSMLC_MODEL): $(GOLD_MSMLC_DATA)
+	poetry run python -m cli.train_msmlc ++model_output_path=$(GOLD_TRAINED_MSMLC_MODEL) ++msmlc_datasets=$(GOLD_MSMLC_DATA)
+train_msmlc_gold: $(GOLD_TRAINED_MSMLC_MODEL)
+
+eval_msmlc:
+	poetry run python -m cli.train \
+		ner_model=PseudoMSMLCTwoStage \
+		--focused_cats=
+eval_msmlc_gold:
+	poetry run python -m cli.train \
+		ner_model=PseudoMSMLCTwoStage \
+		--focused_cats=
