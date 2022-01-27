@@ -1,3 +1,4 @@
+from matplotlib.pyplot import axis
 from .abstract_model import NERModelConfig, NERModel
 from dataclasses import dataclass
 from .multi_label.abstract_model import MultiLabelNERModelConfig
@@ -5,6 +6,8 @@ from .multi_label.ml_typer import MultiLabelTyperOutput
 from omegaconf.omegaconf import MISSING
 from typing import List, Tuple
 import numpy as np
+from multi_label.abstract_model import MultiLabelNERModel
+from scipy.special import softmax
 
 
 @dataclass
@@ -19,6 +22,7 @@ class FlattenMultiLabelNERModel(NERModel):
 
     def __init__(self, conf: FlattenMultiLabelNERModelConfig) -> None:
         self.conf: FlattenMultiLabelNERModel = NERModelConfig()
+        self.multi_label_ner_model: MultiLabelNERModel = None  # 後で追加する
         self.focus_cats = ["nc-O"] + self.conf.focus_cats.split("_")
         self.focus_label_ids = np.array(
             [
@@ -57,13 +61,19 @@ class FlattenMultiLabelNERModel(NERModel):
         Returns:
             List[List[str]]: BIO tags
         """
-        starts, ends, labels = self.multi_label_batch_predict(tokens)
+        starts, ends, labels = self.multi_label_ner_model.batch_predict(tokens)
         ner_tags = []
         for snt_tokens, snt_starts, snt_ends, snt_type_and_max_probs in zip(
             tokens, starts, ends, labels
         ):
-            snt_types = snt_type_and_max_probs.labels
-            max_probs = snt_type_and_max_probs.max_probs
+            logits = snt_type_and_max_probs.logits  # (span_num, label_num)
+            focus_logits = np.take_along_axis(
+                logits, np.tile(self.focus_label_ids[None, :], (len(logits), 1)), axis=1
+            )  # (span_num, focus_cat_num)
+            snt_types = [
+                self.focus_cats[max_id] for max_id in focus_logits.argmax(axis=1)
+            ]
+            max_probs = softmax(focus_logits, axis=1).max(axis=1)
             snt_ner_tags = ["O"] * len(snt_tokens)
             assert len(snt_starts) == len(snt_ends)
             assert len(snt_ends) == len(snt_types)
