@@ -1,7 +1,7 @@
-from src.ner_model.chunker import chunker_builder
-from src.ner_model.typer import typer_builder
+from src.ner_model.chunker import chunker_builder, register_chunker_configs
+from src.ner_model.typer import register_typer_configs, typer_builder
 from src.ner_model.typer.abstract_model import TyperConfig
-from typing import List
+from typing import List, Tuple
 from hydra.core.config_store import ConfigStore
 
 from src.utils.mlflow import MlflowWriter
@@ -15,6 +15,8 @@ from src.ner_model.chunker.abstract_model import (
 from src.ner_model.typer.abstract_model import Typer
 from datasets import DatasetDict
 from omegaconf import MISSING
+import numpy as np
+from scipy.special import softmax
 
 
 @dataclass
@@ -24,75 +26,11 @@ class TwoStageConfig(NERModelConfig):
     typer: TyperConfig = MISSING
 
 
-def register_chunker_configs(group="ner_model/chunker") -> None:
+def register_two_stage_configs(group="ner_model") -> None:
     cs = ConfigStore.instance()
-    from .chunker.flair_model import FlairNPChunkerConfig
-    from .chunker.spacy_model import BeneparNPChunkerConfig, SpacyNPChunkerConfig
-    from .chunker.abstract_model import EnumeratedChunkerConfig
-
-    cs.store(
-        group=group,
-        name="FlairNPChunker",
-        node=FlairNPChunkerConfig,
-    )
-
-    cs.store(
-        group=group,
-        name="BeneparNPChunker",
-        node=BeneparNPChunkerConfig,
-    )
-
-    cs.store(
-        group=group,
-        name="SpacyNPChunker",
-        node=SpacyNPChunkerConfig,
-    )
-    cs.store(
-        group=group,
-        name="EnumeratedChunker",
-        node=EnumeratedChunkerConfig,
-    )
-
-
-def register_typer_configs() -> None:
-    cs = ConfigStore.instance()
-    from .typer.dict_match_typer import DictMatchTyperConfig
-    from .typer.inscon_typer import InsconTyperConfig
-    from .typer.enumerated_typer import EnumeratedTyperConfig
-    from .typer.abstract_model import RandomTyperConfig
-    from src.dataset.term2cat.term2cat import register_term2cat_configs
-
-    register_term2cat_configs()
-    cs.store(
-        group="ner_model/typer",
-        name="base_DictMatchTyper_config",
-        node=DictMatchTyperConfig,
-    )
-
-    cs.store(
-        group="ner_model/typer",
-        name="base_InsconTyper_config",
-        node=InsconTyperConfig,
-    )
-
-    cs.store(
-        group="ner_model/typer",
-        name="base_EnumeratedTyper_config",
-        node=EnumeratedTyperConfig,
-    )
-
-    cs.store(
-        group="ner_model/typer",
-        name="base_RandomTyper_config",
-        node=RandomTyperConfig,
-    )
-
-
-def register_two_stage_configs() -> None:
-    cs = ConfigStore.instance()
-    cs.store(group="ner_model", name="base_TwoStage_model_config", node=TwoStageConfig)
-    register_chunker_configs()
-    register_typer_configs()
+    cs.store(group=group, name="base_TwoStage_model_config", node=TwoStageConfig)
+    register_chunker_configs(group="%s/chunker" % group)
+    register_typer_configs(group="%s/typer" % group)
 
 
 class TwoStageModel(NERModel):
@@ -132,32 +70,6 @@ class TwoStageModel(NERModel):
         ends = [[e for s, e in snt] for snt in chunks]
         types = self.typer.batch_predict(tokens, starts, ends)
         # chunksとtypesを組み合わせて、BIO形式に変換する
-        ner_tags = []
-        for snt_tokens, snt_starts, snt_ends, snt_type_and_max_probs in zip(
-            tokens, starts, ends, types
-        ):
-            snt_types = snt_type_and_max_probs.labels
-            max_probs = snt_type_and_max_probs.max_probs
-            snt_ner_tags = ["O"] * len(snt_tokens)
-            assert len(snt_starts) == len(snt_ends)
-            assert len(snt_ends) == len(snt_types)
-            labeled_chunks = sorted(
-                zip(snt_starts, snt_ends, snt_types, max_probs),
-                key=lambda x: x[3],
-                reverse=True,
-            )
-            for s, e, label, max_prob in labeled_chunks:
-                if not label.startswith("nc-") and all(
-                    tag == "O" for tag in snt_ner_tags[s:e]
-                ):
-                    for i in range(s, e):
-                        if i == s:
-                            snt_ner_tags[i] = "B-%s" % label
-                        else:
-                            snt_ner_tags[i] = "I-%s" % label
-            assert len(snt_tokens) == len(snt_ner_tags)
-            ner_tags.append(snt_ner_tags)
-        return ner_tags
 
     def train(self):
         self.chunker.train()

@@ -110,9 +110,9 @@
             "justMyCode": false,
             "args": [
                 "--category",
-                "PubChem",
+                "T000",
                 "--output",
-                "data/dict/PubChem",
+                "data/dict/T000",
             ],
         },
         {
@@ -289,7 +289,74 @@
             "justMyCode": false,
             "args": [
                 "--output-dir",
-                "data/gold/602888d88e03397028ecfa105a330dcb553da100"
+                "data/gold/602888d88e03397028ecfa105a330dcb553da100",
+                "--with-o",
+                "True",
+                "--chunker",
+                "spacy_np"
+            ],
+        },
+        {
+            "name": "Get Pseudo MSMLC Dataset",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.preprocess.load_pseudo_msmlc",
+            "justMyCode": false,
+            "args": [
+                "++multi_label_ner_model.multi_label_typer.term2cats=data/term2cat/d8f23e25ae9fd1286c54c41e20dc9e373e933159.pkl",
+                "+gold_corpus=data/gold/602888d88e03397028ecfa105a330dcb553da100",
+                "+raw_corpus=data/gold/4ca2de199c95f868bf1a0c23e529541b1a72be19",
+                "+output_dir=data/pseudo/8df544275c7123f2947169dd5c2eca4f9733db03",
+            ],
+        },
+        {
+            "name": "Check Pseudo MSMLC",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.train_msmlc",
+            "justMyCode": false,
+            "args": [
+                "+multi_label_typer=MultiLabelDictMatchTyper",
+                "datasets=data/gold/602888d88e03397028ecfa105a330dcb553da100",
+                "multi_label_typer.term2cats=data/term2cat/d8f23e25ae9fd1286c54c41e20dc9e373e933159.pkl"
+            ],
+        },
+        {
+            "name": "Train MSMLC",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.train_msmlc",
+            "justMyCode": false,
+            "args": [
+                "+multi_label_typer=enumerated",
+                "++multi_label_typer.train_datasets=data/gold/602888d88e03397028ecfa105a330dcb553da100",
+                "++model_output_path=data/buffer/baef081ad631d0ee336be9fb20499b4860abec60",
+                "+datasets=data/gold/602888d88e03397028ecfa105a330dcb553da100",
+            ],
+        },
+        {
+            "name": "Load Term2Cats",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.preprocess.load_term2cats",
+            "justMyCode": false,
+            "args": [
+                "output=data/term2cat/d8f23e25ae9fd1286c54c41e20dc9e373e933159.pkl",
+                "focus_cats=T000_T116_T020_T052_T100_T087_T011_T190_T008_T017_T195_T194_T123_T007_T031_T022_T053_T038_T012_T029_T091_T122_T023_T030_T026_T043_T025_T019_T103_T120_T104_T185_T201_T200_T077_T049_T088_T060_T056_T203_T047_T065_T069_T196_T050_T018_T071_T126_T204_T051_T099_T021_T013_T033_T004_T168_T169_T045_T083_T028_T064_T102_T096_T068_T093_T058_T131_T125_T016_T078_T129_T055_T197_T037_T170_T130_T171_T059_T034_T015_T063_T066_T074_T041_T073_T048_T044_T085_T191_T114_T070_T086_T057_T090_T109_T032_T040_T001_T092_T042_T046_T072_T067_T039_T121_T002_T101_T098_T097_T094_T080_T081_T192_T014_T062_T075_T089_T167_T095_T054_T184_T082_T024_T079_T061_T005_T127_T010"
+            ],
+        },
+        {
+            "name": "Train (Pseudo MultiLabelTwoStage)",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.train",
+            "justMyCode": false,
+            "args": [
+                "ner_model=PseudoMultiLabelTwoStage",
+                "ner_model.focus_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
+                "ner_model.multi_label_typer.term2cats=data/term2cat/d8f23e25ae9fd1286c54c41e20dc9e373e933159.pkl",
+                "++dataset.name_or_path=data/gold/836053d1bd47c7cf824672a17714a61a354af8e9",
+                "+testor.baseline_typer.term2cat=data/term2cat/4a346fc7708eff30dc3a5a0bd47df4b3cb61823a.pkl",
             ],
         },
     ]

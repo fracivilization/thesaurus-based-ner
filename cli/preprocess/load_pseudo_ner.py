@@ -59,7 +59,6 @@ def main(cfg: PseudoAnnoConfig):
     ner_tags = [
         [names[tag] for tag in snt] for snt in ret_datasets["train"]["ner_tags"]
     ]
-    ner_tags[42], ret_datasets["train"][42]
 
 
 if __name__ == "__main__":

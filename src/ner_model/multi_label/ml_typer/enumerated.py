@@ -1,10 +1,13 @@
 import os
 import pickle
-from turtle import forward
 from typing import List, Optional
 import numpy as np
 from transformers.trainer_utils import set_seed
 from src.ner_model.chunker.abstract_model import Chunker
+from src.ner_model.multi_label.ml_typer.abstract import (
+    MultiLabelTyper,
+    MultiLabelTyperConfig,
+)
 from src.ner_model.typer.data_translator import (
     MSCConfig,
     translate_into_msc_datasets,
@@ -15,11 +18,7 @@ from src.utils.hydra import (
     HydraAddaptedTrainingArguments,
     get_orig_transoformers_train_args_from_hydra_addapted_train_args,
 )
-from .abstract_model import (
-    Typer,
-    TyperConfig,
-    TyperOutput,
-)
+from .abstract import MultiLabelTyper, MultiLabelTyperOutput, MultiLabelTyperOutput
 from dataclasses import field, dataclass
 from omegaconf import MISSING
 from transformers import TrainingArguments, training_args
@@ -51,7 +50,7 @@ span_end_token = "[unused2]"
 
 
 @dataclass
-class EnumeratedModelArguments:
+class MultiLabelEnumeratedModelArguments:
     """
     Arguments pertaining to which model/config/tokenizer we are going to fine-tune from.
     """
@@ -88,51 +87,14 @@ class EnumeratedModelArguments:
     nc_sampling_ratio: float = 1.0  # O sampling in train
 
 
-class MLP(torch.nn.Module):
-    def __init__(self, input_dim, output_dim) -> None:
-        super().__init__()
-        self.first_classifier = torch.nn.Linear(input_dim, 2 * input_dim, bias=False)
-        self.activation_function = torch.tanh
-        self.last_classifier = torch.nn.Linear(2 * input_dim, output_dim, bias=False)
-
-    def forward(self, input_vec: torch.Tensor):
-        middle_state = self.activation_function(self.first_classifier(input_vec))
-        return self.last_classifier(middle_state)
-
-
-class LiEtAlLogitExtractor(torch.nn.Module):
-    def __init__(self, hidden_size, label_num) -> None:
-        super().__init__()
-        self.MLP = MLP(hidden_size * 4, label_num)
-        self.hidden_size = hidden_size
-
-    def forward(self, hidden_states: torch.Tensor, starts, ends):
-        minibatch_size, max_span_num = starts.shape
-        start_vecs = torch.gather(
-            hidden_states,
-            1,
-            starts[:, :, None].expand(minibatch_size, max_span_num, self.hidden_size),
-        )  # (BatchSize, SpanNum, HiddenDim)
-        # start_vecs[i,j,k] = hidden_states[i,starts[i,j,k],k]
-        end_vecs = torch.gather(
-            hidden_states,
-            1,
-            ends[:, :, None].expand(minibatch_size, max_span_num, self.hidden_size),
-        )  # (BatchSize, SpanNum, HiddenDim)
-        # end_vecs[i,j,k] = hidden_states[i,ends[i,j,k],k]
-        logits = self.MLP(
-            torch.cat(
-                [start_vecs, end_vecs, start_vecs - end_vecs, start_vecs * end_vecs],
-                dim=2,
-            )
-        )
-        return logits
-
-
 class BertForEnumeratedTyper(BertForTokenClassification):
     @classmethod
     def from_pretrained(
-        cls, model_args: EnumeratedModelArguments, nc_ids: List[int], *args, **kwargs
+        cls,
+        model_args: MultiLabelEnumeratedModelArguments,
+        nc_ids: List[int],
+        *args,
+        **kwargs,
     ):
         cls.model_args = model_args
         self = super().from_pretrained(model_args.model_name_or_path, *args, **kwargs)
@@ -144,10 +106,6 @@ class BertForEnumeratedTyper(BertForTokenClassification):
         super().__init__(config)
         self.start_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
         self.end_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
-        self.li_et_al_logit_extractor = LiEtAlLogitExtractor(
-            config.hidden_size, config.num_labels
-        )
-        self.MLP = MLP(4 * config.hidden_size, config.num_labels)
         self.config = config
 
     def get_valid_entities(self, starts, ends, labels):
@@ -207,7 +165,7 @@ class BertForEnumeratedTyper(BertForTokenClassification):
         """
         if self.training:
             starts, ends, labels = self.under_sample_o(starts, ends, labels)
-            # starts, ends, labels = self.under_sample_nc(starts, ends, labels)
+            starts, ends, labels = self.under_sample_nc(starts, ends, labels)
             # starts, ends, labels = self.get_valid_entities(starts, ends, labels)
         minibatch_size, max_seq_lens = input_ids.shape
         outputs = self.bert(
@@ -216,55 +174,32 @@ class BertForEnumeratedTyper(BertForTokenClassification):
         )
         hidden_states = outputs.last_hidden_state  # (BatchSize, SeqLength, EmbedDim)
         # device = starts.device
-        # droped_hidden_states = self.dropout(hidden_states)
-        # start_logits = self.start_classifier(
-        #     droped_hidden_states
-        # )  # (BatchSize, SeqLength, ClassNum)
-        # end_logits = self.end_classifier(
-        #     droped_hidden_states
-        # )  # (BatchSize, SeqLength, ClassNum)
-        logits = self.li_et_al_logit_extractor(hidden_states, starts, ends)
-        # starts = starts  # (BatchSize, SeqLength, SpanNum)
-        # minibatch_size, max_span_num = starts.shape
-        # start_vecs = torch.gather(
-        #     hidden_states,
-        #     1,
-        #     starts[:, :, None].expand(
-        #         minibatch_size, max_span_num, self.config.hidden_size
-        #     ),
-        # )  # (BatchSize, SpanNum, HiddenDim)
-        # # start_vecs[i,j,k] = hidden_states[i,starts[i,j,k],k]
-        # end_vecs = torch.gather(
-        #     hidden_states,
-        #     1,
-        #     ends[:, :, None].expand(
-        #         minibatch_size, max_span_num, self.config.hidden_size
-        #     ),
-        # )  # (BatchSize, SpanNum, HiddenDim)
-        # # end_vecs[i,j,k] = hidden_states[i,ends[i,j,k],k]
-        # logits = self.MLP(
-        #     torch.cat(
-        #         [start_vecs, end_vecs, start_vecs - end_vecs, start_vecs * end_vecs],
-        #         dim=2,
-        #     )
-        # )
-        # start_logits_per_span = torch.gather(
-        #     start_logits,
-        #     1,
-        #     starts[:, :, None].expand(
-        #         minibatch_size, max_span_num, self.config.num_labels
-        #     ),
-        # )  # (BatchSize, SpanNum, ClassNum)
-        # # starts_logits_per_span[i,j,k] = start_logits[i,starts[i,j,k],k]
-        # end_logits_per_span = torch.gather(
-        #     end_logits,
-        #     1,
-        #     ends[:, :, None].expand(
-        #         minibatch_size, max_span_num, self.config.num_labels
-        #     ),
-        # )  # (BatchSize, SpanNum, ClassNum)
-        # # ends_logits_per_span[i,j,k] = ends_logits[i,starts[i,j,k],k]
-        # logits = start_logits_per_span + end_logits_per_span
+        droped_hidden_states = self.dropout(hidden_states)
+        start_logits = self.start_classifier(
+            droped_hidden_states
+        )  # (BatchSize, SeqLength, ClassNum)
+        end_logits = self.end_classifier(
+            droped_hidden_states
+        )  # (BatchSize, SeqLength, ClassNum)
+        starts = starts  # (BatchSize, SeqLength, SpanNum)
+        minibatch_size, max_span_num = starts.shape
+        start_logits_per_span = torch.gather(
+            start_logits,
+            1,
+            starts[:, :, None].expand(
+                minibatch_size, max_span_num, self.config.num_labels
+            ),
+        )  # (BatchSize, SpanNum, ClassNum)
+        # starts_logits_per_span[i,j,k] = start_logits[i,starts[i,j,k],k]
+        end_logits_per_span = torch.gather(
+            end_logits,
+            1,
+            ends[:, :, None].expand(
+                minibatch_size, max_span_num, self.config.num_labels
+            ),
+        )  # (BatchSize, SpanNum, ClassNum)
+        # ends_logits_per_span[i,j,k] = ends_logits[i,starts[i,j,k],k]
+        logits = start_logits_per_span + end_logits_per_span
         loss = None
         if labels is not None:
             loss_fct = torch.nn.CrossEntropyLoss(ignore_index=-1)
@@ -279,7 +214,7 @@ class BertForEnumeratedTyper(BertForTokenClassification):
 
 
 @dataclass
-class EnumeratedDataTrainingArguments:
+class MultiLabelEnumeratedDataTrainingArguments:
     """
     Arguments pertaining to what data we are going to input our model for training and eval.
     """
@@ -320,7 +255,7 @@ class EnumeratedDataTrainingArguments:
 
 
 @dataclass
-class EnumeratedTrainingArguments(TrainingArguments):
+class MultiLabelEnumeratedTrainingArguments(TrainingArguments):
     load_best_model_at_end: Optional[bool] = field(
         default=False,
         metadata={
@@ -330,24 +265,26 @@ class EnumeratedTrainingArguments(TrainingArguments):
 
 
 @dataclass
-class EnumeratedTyperConfig(TyperConfig):
-    msc_datasets: str = MISSING
-    typer_name: str = "Enumerated"
-    label_names: str = "non_initialized"  # this variable is dinamically decided
-    model_args: EnumeratedModelArguments = EnumeratedModelArguments(
+class MultiLabelEnumeratedTyperConfig(MultiLabelTyperConfig):
+    multi_label_typer_name: str = "MultiLabelEnumeratedTyper"
+    label_names: str = "non_initialized: this variable is dinamically decided"
+    train_datasets: str = "Please add path to DatasetDict"
+    model_args: MultiLabelEnumeratedModelArguments = MultiLabelEnumeratedModelArguments(
         model_name_or_path="dmis-lab/biobert-base-cased-v1.1"
     )
-    data_args: EnumeratedDataTrainingArguments = EnumeratedDataTrainingArguments()
+    data_args: MultiLabelEnumeratedDataTrainingArguments = (
+        MultiLabelEnumeratedDataTrainingArguments()
+    )
     train_args: HydraAddaptedTrainingArguments = HydraAddaptedTrainingArguments(
         output_dir="."
     )
     # msc_args: MSCConfig = MSCConfig()
 
 
-class EnumeratedTyper(Typer):
+class MultiLabelEnumeratedTyper(MultiLabelTyper):
     def __init__(
         self,
-        config: EnumeratedTyperConfig,
+        config: MultiLabelEnumeratedTyperConfig,
     ) -> None:
         """[summary]
 
@@ -382,7 +319,7 @@ class EnumeratedTyper(Typer):
         set_seed(train_args.seed)
 
         span_classification_datasets = DatasetDict.load_from_disk(
-            os.path.join(get_original_cwd(), config.msc_datasets)
+            os.path.join(get_original_cwd(), config.train_datasets)
         )
         log_label_ratio(span_classification_datasets)
         if train_args.do_train:
@@ -525,7 +462,7 @@ class EnumeratedTyper(Typer):
 
     def predict(
         self, tokens: List[str], starts: List[str], ends: List[str]
-    ) -> TyperOutput:
+    ) -> MultiLabelTyperOutput:
         context_tokens = self.get_spanned_token(tokens, starts, ends)
         tokenized_context = self.tokenizer(
             context_tokens,
@@ -593,7 +530,7 @@ class EnumeratedTyper(Typer):
 
     def batch_predict(
         self, tokens: List[List[str]], starts: List[List[int]], ends: List[List[int]]
-    ) -> List[TyperOutput]:
+    ) -> List[MultiLabelTyperOutput]:
         assert len(tokens) == len(starts)
         assert len(starts) == len(ends)
         max_context_len = max(
@@ -619,7 +556,7 @@ class EnumeratedTyper(Typer):
             logit = logit[:span_num]
             probs = softmax(logit, axis=1)
             ret_list.append(
-                TyperOutput(
+                MultiLabelTyperOutput(
                     labels=[self.label_names[l] for l in logit.argmax(axis=1)],
                     max_probs=probs.max(axis=1),
                     probs=probs,

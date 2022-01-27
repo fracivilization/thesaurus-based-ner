@@ -1,0 +1,6 @@
+defaults:
+  - base_pseudo_msmlc_anno
+  - ner_model: PseudoTwoStage
+
+
+

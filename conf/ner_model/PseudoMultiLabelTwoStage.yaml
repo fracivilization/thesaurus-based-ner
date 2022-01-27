@@ -1,0 +1,10 @@
+defaults:
+  - base_MultiLabelTwoStage_model_config
+  - chunker: SpacyNPChunker
+  - multi_label_typer: MultiLabelDictMatchTyper
+  # - typer: enumerated
+
+# typer:
+#   train_args:
+#     do_train: True
+#     overwrite_output_dir: True

@@ -1,6 +1,6 @@
 # pseudo dataset related args
 DBPEDIA_CATS = GeneLocation Species Disease Work SportsSeason Device Media SportCompetitionResult EthnicGroup Protocol Award Demographics MeanOfTransportation FileSystem Medicine Area Flag UnitOfWork MedicalSpecialty GrossDomesticProduct Biomolecule Identifier Blazon PersonFunction List TimePeriod Event Relationship Altitude TopicalConcept Spreadsheet Currency Cipher Browser Tank Food Depth Population Statistic StarCluster Language GrossDomesticProductPerCapita ChemicalSubstance ElectionDiagram Diploma Place Algorithm ChartsPlacements Unknown Activity PublicService Agent Name AnatomicalStructure Colour
-UMLS_CATS = T002 T004 T194 T075 T200 T081 T080 T079 T171 T102 T099 T100 T101 T054 T055 T056 T064 T065 T066 T068 T005 T007 T017 T022 T031 T033 T037 T038 T058 T062 T074 T082 T091 T092 T097 T098 T103 T168 T170 T201 T204
+UMLS_CATS = T000 T116 T020 T052 T100 T087 T011 T190 T008 T017 T195 T194 T123 T007 T031 T022 T053 T038 T012 T029 T091 T122 T023 T030 T026 T043 T025 T019 T103 T120 T104 T185 T201 T200 T077 T049 T088 T060 T056 T203 T047 T065 T069 T196 T050 T018 T071 T126 T204 T051 T099 T021 T013 T033 T004 T168 T169 T045 T083 T028 T064 T102 T096 T068 T093 T058 T131 T125 T016 T078 T129 T055 T197 T037 T170 T130 T171 T059 T034 T015 T063 T066 T074 T041 T073 T048 T044 T085 T191 T114 T070 T086 T057 T090 T109 T032 T040 T001 T092 T042 T046 T072 T067 T039 T121 T002 T101 T098 T097 T094 T080 T081 T192 T014 T062 T075 T089 T167 T095 T054 T184 T082 T024 T079 T061 T005 T127 T010
 FOCUS_CATS ?= T005 T007 T017 T022 T031 T033 T037 T038 T058 T062 T074 T082 T091 T092 T097 T098 T103 T168 T170 T201 T204
 NEGATIVE_CATS ?= T054 T055 T056 T064 T065 T066 T068 T075 T079 T080 T081 T099 T100 T101 T102 T171 T194 T200 $(DBPEDIA_CATS)
 # WITH_NC ?= True
@@ -19,6 +19,7 @@ DATA_DIR := data
 TERM2CAT_DIR := $(DATA_DIR)/term2cat
 
 TERM2CAT := $(TERM2CAT_DIR)/$(firstword $(shell echo  "TERM2CAT" "FOCUS_CATS: $(FOCUS_CATS)" "NEGATIVE_CATS: $(NEGATIVE_CATS)" "POSITIVE_RATIO_THR_OF_NEGATIVE_CAT: ${POSITIVE_RATIO_THR_OF_NEGATIVE_CAT}" | sha1sum)).pkl
+UMLS_TERM2CATS := $(TERM2CAT_DIR)/$(firstword $(shell echo  "TERM2CATS" "FOCUS_CATS: $(UMLS_CATS)" | sha1sum)).pkl
 
 PSEUDO_DATA_ARGS := $(TERM2CAT)
 RUN_ARGS := $(O_SAMPLING_RATIO) $(CHUNKER)
@@ -26,6 +27,7 @@ RUN_ARGS := $(O_SAMPLING_RATIO) $(CHUNKER)
 APPEARED_CATS := $(FOCUS_CATS) $(NEGATIVE_CATS)
 DICT_DIR := $(DATA_DIR)/dict
 DICT_FILES := $(addprefix $(DICT_DIR)/,$(APPEARED_CATS))
+UMLS_DICT_FILES := $(addprefix $(DICT_DIR)/,$(UMLS_CATS))
 UMLS_DIR := $(DATA_DIR)/2021AA-full
 DBPEDIA_DIR := $(DATA_DIR)/DBPedia
 PubChem_DIR := $(DATA_DIR)/PubChem
@@ -44,7 +46,7 @@ GOLD_DIR := $(DATA_DIR)/gold
 GOLD_DATA := $(GOLD_DIR)/$(firstword $(shell echo "MedMentions" $(FOCUS_CATS) $(TRAIN_SNT_NUM) | sha1sum))
 GOLD_MSC_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSC DATA" $(GOLD_DATA) $(MSC_ARGS) | sha1sum)) 
 GOLD_MSMLC_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSMLC DATA" $(GOLD_DATA) | sha1sum)) 
-GOLD_TRAINED_MSMLC_MODEL := $(GOLD_DIR)/$(firstword $(shell echo "GOLD TRAINED MSMLC MODEL" $(GOLD_MSMLC_DATA) | sha1sum)) 
+GOLD_TRAINED_MSMLC_MODEL := $(DATA_DIR)/buffer/$(firstword $(shell echo "GOLD TRAINED MSMLC MODEL" $(GOLD_MSMLC_DATA) | sha1sum)) 
 
 PSEUDO_DATA_BASE_CMD := poetry run python -m cli.preprocess.load_pseudo_ner \
 		++ner_model.typer.term2cat=$(TERM2CAT) \
@@ -152,7 +154,7 @@ $(GOLD_MSC_DATA): $(GOLD_DATA)
 
 all: ${DICT_FILES} $(PSEUDO_NER_DATA_DIR) $(PSEUDO_MSC_NER_DATA_DIR) $(GOLD_DATA) $(GOLD_MSC_DATA) $(PSEUDO_DATA_ON_GOLD) $(PSEUDO_MSC_DATA_ON_GOLD) $(FP_REMOVED_PSEUDO_DATA)
 
-$(DICT_FILES): $(DICT_DIR) $(UMLS_DIR) $(DBPEDIA_DIR)
+$(DICT_FILES) $(UMLS_DICT_FILES): $(DICT_DIR) $(UMLS_DIR) $(DBPEDIA_DIR)
 	@echo make dict files $@
 	poetry run python -m cli.preprocess.load_terms --category $(notdir $@) --output $@
 
@@ -217,7 +219,7 @@ $(TRAIN_OUT): $(PSEUDO_MSC_DATA_ON_GOLD) $(TERM2CAT)
 train: $(TRAIN_OUT)
 	@echo TRAIN_OUT: $(TRAIN_OUT)
 
-$(TRAIN_ON_GOLD_OUT): $(GOLD_MSC_DATA) $(TERM2CAT)
+$(TRAIN_ON_GOLD_OUT): $(GOLD_MSC_DATA)
 	$(TRAIN_BASE_CMD) \
 		ner_model.typer.msc_datasets=$(GOLD_MSC_DATA) 2>&1 | tee $(TRAIN_ON_GOLD_OUT)
 train_on_gold: $(TRAIN_ON_GOLD_OUT) 
@@ -241,6 +243,24 @@ $(PSEUDO_MSMLC_DATA_ON_GOLD): $(GOLD_MSMLC_DATA)
 	poetry run python -m cli.preprocess.load_pseudo_msmlc ++output_dir=$(PSEUDO_MSMLC_DATA_ON_GOLD)
 make_pseudo_msmlc: $(PSEUDO_MSMLC_DATA_ON_GOLD)
 
+$(UMLS_TERM2CATS): $(UMLS_DICT_FILES)
+	@echo TERM2CAT: $(UMLS_TERM2CATS)
+	poetry run python -m cli.preprocess.load_term2cats \
+		output=$(UMLS_TERM2CATS) \
+		focus_cats=$(subst $() ,_,$(UMLS_CATS))
+
+make_umls_term2cats: $(UMLS_TERM2CATS)
+	@echo UMLS_TERM2CATS: $(UMLS_TERM2CATS)
+check_pseudo_msmlc: $(GOLD_MSMLC_DATA) $(UMLS_TERM2CATS)
+	poetry run python -m cli.train_msmlc +multi_label_typer=MultiLabelDictMatchTyper datasets=$(GOLD_MSMLC_DATA) multi_label_typer.term2cats=$(UMLS_TERM2CATS)
+check_pseudo_msmlc_on_ner: $(UMLS_TERM2CATS)
+	poetry run python -m cli.train \ 
+		ner_model=PseudoMultiLabelTwoStage \
+		ner_model.multi_label_typer.term2cats=$(UMLS_TERM2CATS) \
+		ner_model.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
+		++dataset.name_or_path=$(GOLD_DATA) \
+		+testor.baseline_typer.term2cat=$(TERM2CAT) 2>&1 | tee ${PSEUDO_OUT}
+
 $(PSEUDO_TRAINED_MSMLC_MODEL): $(PSEUDO_MSMLC_DATA_ON_GOLD)
 	poetry run python -m cli.train_msmlc ++model_output_path=$(PSEUDO_TRAINED_MSMLC_MODEL) ++msmlc_datasets=$(PSEUDO_MSMLC_DATA_ON_GOLD)
 train_msmlc: $(PSEUDO_TRAINED_MSMLC_MODEL)
@@ -257,3 +277,5 @@ eval_msmlc_gold:
 	poetry run python -m cli.train \
 		ner_model=PseudoMSMLCTwoStage \
 		--focused_cats=
+
+make_umls_dict_files: $(UMLS_DICT_FILES)

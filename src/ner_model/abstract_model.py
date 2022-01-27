@@ -1,6 +1,5 @@
-from typing import List
+from typing import List, Tuple
 from dataclasses import dataclass
-
 from omegaconf.omegaconf import MISSING
 
 

@@ -12,6 +12,7 @@ from copy import deepcopy
 import logging
 from seqeval.metrics.sequence_labeling import get_entities
 from src.ner_model.chunker.abstract_model import Chunker
+from src.ner_model.multi_label.ml_typer.abstract import MultiLabelTyper
 from src.ner_model.two_stage import TwoStageModel
 from src.utils.mlflow import MlflowWriter
 from prettytable import PrettyTable

@@ -345,7 +345,7 @@ def translate_conll_into_msmlc_dataset(
                 if (s, e) not in labeled_spans:
                     starts.append(s)
                     ends.append(e)
-                    labels.append(["O"])
+                    labels.append(["nc-O"])
 
         ret_dataset["starts"].append(starts)
         ret_dataset["ends"].append(ends)
@@ -400,7 +400,7 @@ def load_gold_msmlc_datasets(
     test_conll = [snt for pmid in test_pmids for snt in pmid2conll[pmid]]
     label_names = sorted(tui2ST.keys())
     if with_o:
-        label_names = ["O"] + label_names
+        label_names = ["nc-O"] + label_names
     desc = {"desc": "MSMLC Dataset"}
     dataset_dict = dict()
     desc["split"] = "train"

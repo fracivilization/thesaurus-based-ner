@@ -6,6 +6,7 @@ from datasets import DatasetDict, load_dataset
 from src.ner_model.bert import BERTNERModel
 from src.ner_model.bond import BONDNERModel
 from src.ner_model.two_stage import TwoStageConfig, TwoStageModel
+from src.ner_model.multi_label.two_stage import MultiLabelTwoStageModel
 from datasets import DatasetDict
 from logging import getLogger
 from hydra.utils import get_original_cwd
@@ -44,6 +45,8 @@ def ner_model_builder(
         ner_model = BONDNERModel(datasets, config)
     elif config.ner_model_name == "TwoStage":
         ner_model = TwoStageModel(config, datasets, writer)
+    elif config.ner_model_name == "MultiLabelTwoStage":
+        ner_model = MultiLabelTwoStageModel(config, datasets, writer)
     elif config.ner_model_name == "NERMatcher":
         ner_model = NERMatcherModel(config)
     return ner_model

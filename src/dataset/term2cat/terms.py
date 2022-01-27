@@ -59,8 +59,15 @@ def get_descendants_TUIs(tui="T025"):
                 tui2stn[line[1]] = line[3]
             else:
                 raise NotImplementedError
-    root_stn = tui2stn[tui]
-    descendants_tuis = {tui for tui, stn in tui2stn.items() if stn.startswith(root_stn)}
+    if tui == "T000":
+        entities = {tui for tui, stn in tui2stn.items() if stn.startswith("A")}
+        events = {tui for tui, stn in tui2stn.items() if stn.startswith("B")}
+        descendants_tuis = entities | events
+    else:
+        root_stn = tui2stn[tui]
+        descendants_tuis = {
+            tui for tui, stn in tui2stn.items() if stn.startswith(root_stn)
+        }
     return descendants_tuis
 
 
