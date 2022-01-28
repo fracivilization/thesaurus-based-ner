@@ -27,7 +27,7 @@ def register_multi_label_typer_configs(group="multi_label_typer") -> None:
 
 def multi_label_typer_builder(
     config: MultiLabelTyperConfig,
-    datasets: DatasetDict,
+    # datasets: DatasetDict,
     writer: MlflowWriter,
 ):
     # if datasets:

@@ -38,7 +38,6 @@ class MultiLabelTwoStageModel(MultiLabelNERModel):
     def __init__(
         self,
         config: MultiLabelTwoStageConfig,
-        datasets: DatasetDict,
         writer: MlflowWriter,
     ) -> None:
         super().__init__()
@@ -46,9 +45,9 @@ class MultiLabelTwoStageModel(MultiLabelNERModel):
         self.writer = writer
         self.chunker = chunker_builder(config.chunker)
         self.multi_label_typer = multi_label_typer_builder(
-            config.multi_label_typer, datasets, writer
+            config.multi_label_typer, writer
         )
-        self.datasets = datasets
+        # self.datasets = datasets
 
     def predict(self, tokens: List[str]) -> List[str]:
         raise NotImplementedError

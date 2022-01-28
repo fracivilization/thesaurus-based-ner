@@ -33,7 +33,7 @@ logger = getLogger(__name__)
 
 @dataclass
 class PseudoMSMLCAnnoConfig:
-    multi_label_ner_model: MultiLabelNERModel = MultiLabelTwoStageConfig(
+    multi_label_ner_model: MultiLabelNERModelConfig = MultiLabelTwoStageConfig(
         chunker=SpacyNPChunkerConfig(),
         multi_label_typer=MultiLabelDictMatchTyperConfig(),
     )
@@ -110,11 +110,13 @@ def add_dict_erosion_entity(pred_tags, gold_tags):
 
 
 def load_pseudo_dataset(
-    raw_corpus: Dataset, ner_model: NERModel, conf: PseudoMSMLCAnnoConfig
+    raw_corpus: Dataset,
+    multi_label_ner_model: MultiLabelNERModel,
+    conf: PseudoMSMLCAnnoConfig,
 ) -> Dataset:
     desc = dict()
     desc["raw_corpus"] = json.loads(raw_corpus.info.description)
-    desc["ner_model"] = yaml.safe_load(OmegaConf.to_yaml(ner_model.conf))
+    desc["ner_model"] = yaml.safe_load(OmegaConf.to_yaml(multi_label_ner_model.conf))
 
     ret_tokens = []
     ner_tags = []
@@ -123,7 +125,7 @@ def load_pseudo_dataset(
         for tokens, gold_tags in tqdm(
             zip(raw_corpus["tokens"], raw_corpus["ner_tags"])
         ):
-            pred_tags = ner_model.predict(tokens)
+            pred_tags = multi_label_ner_model.predict(tokens)
             gold_tags = [label_names[tagid] for tagid in gold_tags]
             if conf.remove_fp_instance or conf.mark_misguided_fn:
                 if conf.remove_fp_instance:
@@ -136,7 +138,7 @@ def load_pseudo_dataset(
                 ner_tags.append(pred_tags)
     else:
         for tokens in tqdm(raw_corpus["tokens"]):
-            pred_tags = ner_model.predict(tokens)
+            pred_tags = multi_label_ner_model.predict(tokens)
             if any(tag != "O" for tag in pred_tags):
                 ret_tokens.append(tokens)
                 ner_tags.append(pred_tags)

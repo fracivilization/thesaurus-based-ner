@@ -43,15 +43,6 @@ class FlattenMultiLabelNERModel(NERModel):
         """
         raise NotImplementedError
 
-    def multi_label_batch_predict(
-        self, tokens: List[List[str]]
-    ) -> Tuple[List[List[int]], List[List[int]], List[List[MultiLabelTyperOutput]]]:
-        starts: List[List[int]] = None
-        ends: List[List[int]] = None
-        labels: List[List[MultiLabelTyperOutput]] = None
-        raise NotImplementedError
-        return starts, ends, labels
-
     def batch_predict(self, tokens: List[List[str]]) -> List[List[str]]:
         """predict class
 

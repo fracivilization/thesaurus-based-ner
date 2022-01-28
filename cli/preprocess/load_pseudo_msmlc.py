@@ -7,12 +7,9 @@ from src.ner_model.abstract_model import NERModel, NERModelConfig
 from src.ner_model.two_stage import TwoStageConfig
 from src.ner_model.chunker.spacy_model import SpacyNPChunkerConfig
 from src.ner_model.typer.dict_match_typer import DictMatchTyperConfig
-from src.dataset.utils import DatasetConfig
-from omegaconf import MISSING, OmegaConf
 from src.builder import dataset_builder, ner_model_builder
+from src.ner_model.multi_label import multi_label_ner_model_builder
 import logging
-from src.evaluator import NERTestor
-import json
 from datasets import Dataset
 import os
 from src.dataset.pseudo_dataset.pseudo_msmlc_dataset import (
@@ -26,11 +23,12 @@ logger = logging.getLogger(__name__)
 
 
 from src.ner_model.two_stage import register_two_stage_configs
+from src.ner_model.multi_label.two_stage import register_multi_label_two_stage_configs
 
 cs = ConfigStore.instance()
 cs.store(name="base_pseudo_msmlc_anno", node=PseudoMSMLCAnnoConfig)
-cs.store(group="ner_model", name="base_ner_model_config", node=NERModelConfig)
-register_two_stage_configs()
+# cs.store(group="ner_model", name="base_ner_model_config", node=NERModelConfig)
+register_multi_label_two_stage_configs(group="multi_label_ner_model")
 
 
 @hydra.main(config_path="../../conf", config_name="pseudo_anno_msmlc")

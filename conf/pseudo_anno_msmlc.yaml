@@ -1,6 +1,3 @@
 defaults:
   - base_pseudo_msmlc_anno
-  - ner_model: PseudoTwoStage
-
-
-
+  - multi_label_ner_model: base_MultiLabelTwoStage_model_config
