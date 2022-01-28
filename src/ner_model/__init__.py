@@ -1,14 +1,15 @@
 from .abstract_model import NERModel, NERModelConfig
 from datasets import DatasetDict
 from src.utils.mlflow import MlflowWriter
-from .bert import BERTNERModel
-from .bond import BONDNERModel
-from .two_stage import TwoStageModel
-from .matcher_model import NERMatcherModel
+from .bert import BERTNERModel, register_BERT_configs
+from .bond import BONDNERModel, register_BOND_configs
+from .two_stage import TwoStageModel, register_two_stage_configs
+from .matcher_model import NERMatcherModel, register_ner_matcher_configs
 from .flatten_ner_model import (
     FlattenMultiLabelNERModel,
-    FlattenMultiLabelNERModelConfig,
+    register_flattern_multi_label_ner_configs,
 )
+from hydra.core.config_store import ConfigStore
 
 
 def ner_model_builder(
@@ -27,3 +28,14 @@ def ner_model_builder(
     else:
         raise NotImplementedError
     return ner_model
+
+
+def register_ner_model_configs(group="ner_model"):
+    cs = ConfigStore
+    cs.store(group="ner_model", name="base_ner_model_config", node=NERModelConfig)
+    register_BERT_configs()
+    register_BOND_configs()
+    register_two_stage_configs()
+    register_multi_label_two_stage_configs()
+    register_ner_matcher_configs()
+    register_ner_testor_configs()

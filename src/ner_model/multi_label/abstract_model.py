@@ -9,8 +9,9 @@ class MultiLabelNERModelConfig:
 
 
 class MultiLabelNERModel:
-    def __init__(self, conf: MultiLabelNERModelConfig) -> None:
-        self.conf: MultiLabelNERModelConfig = MultiLabelNERModelConfig
+    def __init__(self, conf: MultiLabelNERModelConfig, label_names: List[str]) -> None:
+        self.conf: MultiLabelNERModelConfig = conf
+        self.label_names = label_names
 
     def predict(
         self, tokens: List[str]

@@ -16,7 +16,7 @@ from typing import Tuple, List
 
 @dataclass
 class MultiLabelTwoStageConfig(MultiLabelNERModelConfig):
-    ner_model_name: str = "MultiLabelTwoStage"
+    multi_label_ner_model_name: str = "MultiLabelTwoStage"
     chunker: ChunkerConfig = MISSING
     multi_label_typer: MultiLabelTyperConfig = MISSING
     # focus_cats: str = MISSING
@@ -40,13 +40,13 @@ class MultiLabelTwoStageModel(MultiLabelNERModel):
         config: MultiLabelTwoStageConfig,
         writer: MlflowWriter,
     ) -> None:
-        super().__init__()
         self.conf = config
         self.writer = writer
         self.chunker = chunker_builder(config.chunker)
         self.multi_label_typer = multi_label_typer_builder(
             config.multi_label_typer, writer
         )
+        super().__init__(config, label_names=self.multi_label_typer.label_names)
         # self.datasets = datasets
 
     def predict(self, tokens: List[str]) -> List[str]:

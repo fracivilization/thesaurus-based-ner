@@ -2,11 +2,11 @@ from matplotlib.pyplot import axis
 from .abstract_model import NERModelConfig, NERModel
 from dataclasses import dataclass
 from .multi_label.abstract_model import MultiLabelNERModelConfig
-from .multi_label.ml_typer import MultiLabelTyperOutput
+from .multi_label.ml_typer.abstract import MultiLabelTyperOutput
 from omegaconf.omegaconf import MISSING
 from typing import List, Tuple
 import numpy as np
-from multi_label.abstract_model import MultiLabelNERModel
+from .multi_label.abstract_model import MultiLabelNERModel
 from scipy.special import softmax
 
 

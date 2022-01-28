@@ -5,7 +5,7 @@ from hydra.core.config_store import ConfigStore
 from dataclasses import dataclass
 from omegaconf import MISSING, OmegaConf, DictConfig
 import logging
-from src.evaluator import MultiLabelTestor
+from src.ner_model.evaluator import MultiLabelTestor
 from src.utils.mlflow import MlflowWriter
 import json
 import os

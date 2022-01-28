@@ -40,8 +40,8 @@ class PseudoMSMLCAnnoConfig:
     output_dir: str = MISSING
     raw_corpus: str = MISSING
     gold_corpus: str = MISSING
-    remove_fp_instance: bool = False
-    mark_misguided_fn: bool = False
+    # remove_fp_instance: bool = False
+    # mark_misguided_fn: bool = False
     # duplicate_cats: str = MISSING
     # focus_cats: str = MISSING
 
@@ -109,78 +109,87 @@ def add_dict_erosion_entity(pred_tags, gold_tags):
     return new_tags
 
 
-def load_pseudo_dataset(
+def get_msml_dataset_features(label_names):
+    features = datasets.Features(
+        {
+            "tokens": datasets.Sequence(datasets.Value("string")),
+            "starts": datasets.Sequence(datasets.Value("int32")),
+            "ends": datasets.Sequence(datasets.Value("int32")),
+            "labels": datasets.Sequence(
+                datasets.Sequence(datasets.ClassLabel(names=label_names))
+            ),
+        }
+    )
+    return features
+
+
+def load_msml_pseudo_dataset(
     raw_corpus: Dataset,
     multi_label_ner_model: MultiLabelNERModel,
     conf: PseudoMSMLCAnnoConfig,
 ) -> Dataset:
     desc = dict()
     desc["raw_corpus"] = json.loads(raw_corpus.info.description)
-    desc["ner_model"] = yaml.safe_load(OmegaConf.to_yaml(multi_label_ner_model.conf))
+    desc["multi_label_ner_model"] = yaml.safe_load(
+        OmegaConf.to_yaml(multi_label_ner_model.conf)
+    )
 
-    ret_tokens = []
-    ner_tags = []
-    if conf.remove_fp_instance or conf.mark_misguided_fn:
-        label_names = raw_corpus.features["ner_tags"].feature.names
-        for tokens, gold_tags in tqdm(
-            zip(raw_corpus["tokens"], raw_corpus["ner_tags"])
-        ):
-            pred_tags = multi_label_ner_model.predict(tokens)
-            gold_tags = [label_names[tagid] for tagid in gold_tags]
-            if conf.remove_fp_instance or conf.mark_misguided_fn:
-                if conf.remove_fp_instance:
-                    pred_tags = remove_fp_ents(pred_tags, gold_tags)
-                elif conf.mark_misguided_fn:
-                    pred_tags = mark_misguided_fn(pred_tags, gold_tags)
+    tokens = raw_corpus["tokens"]
+    starts, ends, outputs = multi_label_ner_model.batch_predict(tokens)
+    label_names = multi_label_ner_model.label_names
+    ret_tokens, ret_starts, ret_ends, ret_labels = [], [], [], []
+    for snt_tokens, snt_starts, snt_ends, snt_outputs in zip(
+        tokens, starts, ends, outputs
+    ):
+        if snt_outputs:
+            ret_tokens.append(snt_tokens)
+            ret_starts.append(snt_starts)
+            ret_ends.append(snt_ends)
+            ret_labels.append(snt_outputs.labels)
 
-            if any(tag != "O" for tag in pred_tags):
-                ret_tokens.append(tokens)
-                ner_tags.append(pred_tags)
-    else:
-        for tokens in tqdm(raw_corpus["tokens"]):
-            pred_tags = multi_label_ner_model.predict(tokens)
-            if any(tag != "O" for tag in pred_tags):
-                ret_tokens.append(tokens)
-                ner_tags.append(pred_tags)
+    # multi_label_ner_model
+    # for tokens in tqdm(raw_corpus["tokens"]):
+    #     pred_tags = multi_label_ner_model.predict(tokens)
+    #     if any(tag != "O" for tag in pred_tags):
+    #         ret_tokens.append(tokens)
+    #         ner_tags.append(pred_tags)
 
-    ner_labels = [
-        l for l, c in Counter([tag for snt in ner_tags for tag in snt]).most_common()
-    ]
+    # ner_labels = [
+    #     l for l, c in Counter([tag for snt in ner_tags for tag in snt]).most_common()
+    # ]
+    features = get_msml_dataset_features(label_names)
     pseudo_dataset = Dataset.from_dict(
-        {"tokens": ret_tokens, "ner_tags": ner_tags},
-        info=DatasetInfo(
-            description=json.dumps(desc),
-            features=get_ner_dataset_features(ner_labels),
-        ),
+        {
+            "tokens": ret_tokens,
+            "starts": ret_starts,
+            "ends": ret_ends,
+            "labels": ret_labels,
+        },
+        info=DatasetInfo(description=json.dumps(desc), features=features),
     )
     return pseudo_dataset
 
 
-def get_tags(ner_dataset: Dataset):
-    ner_labels = ner_dataset.features["ner_tags"].feature.names
-    ner_tags = []
-    for snt in ner_dataset["ner_tags"]:
-        for tag in snt:
-            ner_tags.append(ner_labels[tag])
-    return ner_tags
+def get_labels(ner_dataset: Dataset):
+    return ner_dataset.features["labels"].feature.feature.names
 
 
 import copy
 
 
-def change_ner_label_names(ner_dataset: Dataset, label_names: List[str]):
+def change_label_names(ner_dataset: Dataset, label_names: List[str]):
     info = copy.deepcopy(ner_dataset.info)
-    old_names = info.features["ner_tags"].feature.names
-    raw_ner_tags = []
-    for snt in ner_dataset["ner_tags"]:
-        raw_ner_tags.append([old_names[tag] for tag in snt])
+    old_names = info.features["labels"].feature.feature.names
+    raw_label_names = []
+    for snt in ner_dataset["labels"]:
+        raw_label_names.append([[old_names[tag] for tag in span] for span in snt])
     desc = info.description
     new_ner_dataset = ner_dataset.to_dict()
-    new_ner_dataset["ner_tags"] = raw_ner_tags
+    new_ner_dataset["labels"] = raw_label_names
     return Dataset.from_dict(
         new_ner_dataset,
         info=DatasetInfo(
-            description=desc, features=get_ner_dataset_features(label_names)
+            description=desc, features=get_msml_dataset_features(label_names)
         ),
     )
 
@@ -188,18 +197,19 @@ def change_ner_label_names(ner_dataset: Dataset, label_names: List[str]):
 def join_pseudo_and_gold_dataset(
     pseudo_dataset: Dataset, gold_dataset: DatasetDict
 ) -> DatasetDict:
-    ner_tags = []
-    ner_tags += get_tags(pseudo_dataset)
-    ner_tags += get_tags(gold_dataset["validation"])
-    ner_tags += get_tags(gold_dataset["test"])
-    label_names = [l for l, c in Counter(ner_tags).most_common()]
+    label_names = []
+    label_names += pseudo_dataset.features["labels"].feature.feature.names
+    label_names += gold_dataset["validation"].features["labels"].feature.feature.names
+    label_names += gold_dataset["test"].features["labels"].feature.feature.names
+    if "nc-O" in label_names:
+        label_names = ["nc-O"] + sorted(set([l for l in label_names if l != "nc-O"]))
+    else:
+        label_names = sorted(set(label_names))
     ret = DatasetDict(
         {
-            "train": change_ner_label_names(pseudo_dataset, label_names),
-            "validation": change_ner_label_names(
-                gold_dataset["validation"], label_names
-            ),
-            "test": change_ner_label_names(gold_dataset["test"], label_names),
+            "train": change_label_names(pseudo_dataset, label_names),
+            "validation": change_label_names(gold_dataset["validation"], label_names),
+            "test": change_label_names(gold_dataset["test"], label_names),
         }
     )
     return ret

@@ -11,7 +11,7 @@ from src.dataset.utils import DatasetConfig
 from omegaconf import MISSING, OmegaConf
 from src.builder import dataset_builder, ner_model_builder
 import logging
-from src.evaluator import NERTestor
+from src.ner_model.evaluator import NERTestor
 import json
 from datasets import Dataset
 import os

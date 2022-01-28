@@ -25,7 +25,7 @@ def test_spacy_chunker():
 
 
 def test_negative_evaluate():
-    from src.evaluator import (
+    from src.ner_model.evaluator import (
         calculate_negative_token_PRF,
         calculate_negative_precision,
     )
