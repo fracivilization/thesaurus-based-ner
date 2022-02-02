@@ -218,11 +218,9 @@ class NERMatcherConfig(NERModelConfig):
     term2cat: str = MISSING
 
 
-def register_ner_matcher_configs() -> None:
+def register_ner_matcher_configs(group="ner_model") -> None:
     cs = ConfigStore.instance()
-    cs.store(
-        group="ner_model", name="base_NERMatcher_model_config", node=NERMatcherConfig
-    )
+    cs.store(group=group, name="base_NERMatcher_model_config", node=NERMatcherConfig)
 
 
 class NERMatcherModel(NERModel):

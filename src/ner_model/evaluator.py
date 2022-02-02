@@ -90,9 +90,9 @@ class NERTestorConfig:
     baseline_typer: TyperConfig = MISSING
 
 
-def register_ner_testor_configs() -> None:
+def register_ner_testor_configs(group="testor") -> None:
     cs = ConfigStore.instance()
-    cs.store(group="testor", name="base_NERTestor_config", node=NERTestorConfig)
+    cs.store(group=group, name="base_NERTestor_config", node=NERTestorConfig)
 
 
 class NERTestor:

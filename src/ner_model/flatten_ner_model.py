@@ -8,6 +8,8 @@ from typing import List, Tuple
 import numpy as np
 from .multi_label.abstract_model import MultiLabelNERModel
 from scipy.special import softmax
+from hydra.core.config_store import ConfigStore
+from .multi_label import register_multi_label_ner_model
 
 
 @dataclass
@@ -88,3 +90,14 @@ class FlattenMultiLabelNERModel(NERModel):
 
     def train(self):
         raise NotImplementedError
+
+
+def register_flattern_multi_label_ner_configs(group="ner_model"):
+    cs = ConfigStore
+    cs.store(
+        group=group,
+        name="FlattenMultiLabelNER",
+        node=FlattenMultiLabelNERModelConfig,
+    )
+    register_multi_label_ner_model("%s/multi_label_ner_model" % group)
+    raise NotImplementedError

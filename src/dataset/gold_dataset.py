@@ -323,8 +323,6 @@ def translate_conll_into_msmlc_dataset(
     conll_snt: List[Dict],
     label_names: List[str],
     desc: Dict = dict(),
-    with_o: bool = True,
-    chunker: Chunker = None,
 ) -> Dataset:
     # TODO: multi span multi class datasetに変換する
     desc = json.dumps(desc)
@@ -340,12 +338,6 @@ def translate_conll_into_msmlc_dataset(
             ascendant_labels = tui2ascendants[l]
             labels.append(ascendant_labels)
         labeled_spans = set(zip(starts, ends))
-        if with_o:
-            for s, e in chunker.predict(snt["tokens"]):
-                if (s, e) not in labeled_spans:
-                    starts.append(s)
-                    ends.append(e)
-                    labels.append(["nc-O"])
 
         ret_dataset["starts"].append(starts)
         ret_dataset["ends"].append(ends)
@@ -370,7 +362,7 @@ def translate_conll_into_msmlc_dataset(
     return ret_dataset
 
 
-def load_gold_msmlc_datasets(
+def load_gold_multi_label_ner_datasets(
     input_dir: str, with_o: bool = True, chunker_for_o: Chunker = None
 ):
     # load dataset
@@ -405,15 +397,15 @@ def load_gold_msmlc_datasets(
     dataset_dict = dict()
     desc["split"] = "train"
     dataset_dict["train"] = translate_conll_into_msmlc_dataset(
-        train_conll, label_names, desc, with_o, chunker_for_o
+        train_conll, label_names, desc
     )
     desc["split"] = "validation"
     dataset_dict["validation"] = translate_conll_into_msmlc_dataset(
-        dev_conll, label_names, desc, with_o, chunker_for_o
+        dev_conll, label_names, desc
     )
     desc["split"] = "test"
     dataset_dict["test"] = translate_conll_into_msmlc_dataset(
-        test_conll, label_names, desc, with_o, chunker_for_o
+        test_conll, label_names, desc
     )
     # describe focus_cat into datasetdict or dataset (describing into dataset dict is better)
     return DatasetDict(dataset_dict)

@@ -1,4 +1,5 @@
 import dataclasses
+from distutils.command.config import config
 from enum import unique
 import click
 import datasets
@@ -39,6 +40,20 @@ from collections import Counter
 import random
 
 
+def log_label_ratio(msmlc_datasets: DatasetDict):
+    table = prettytable.PrettyTable(["Label", "Count", "Ratio (%)"])
+    pass
+    train_dataset = msmlc_datasets["train"]
+    label_names = train_dataset.features["labels"].feature.feature.names
+    c = Counter(
+        [label for snt in train_dataset["labels"] for span in snt for label in span]
+    )
+    label_sum = sum(c.values())
+    for lid, count in c.most_common():
+        table.add_row([label_names[lid], count, "%.2f" % (100 * count / label_sum)])
+    logger.info(table.get_string())
+
+
 def remove_misguided_fns(starts, ends, labels):
     new_starts, new_ends, new_labels = [], [], []
     misguided_tokens = set()
@@ -58,60 +73,95 @@ def remove_misguided_fns(starts, ends, labels):
     return new_starts, new_ends, new_labels
 
 
-def undersample_thesaurus_negatives(pre_span_classification_dataset):
-    label_counter = Counter(
-        [label for snt in pre_span_classification_dataset["labels"] for label in snt]
-    )
-    pass
-    positive_labels = [
-        label for label in label_counter.keys() if not label.startswith("nc-")
-    ]
-    max_positive_count = max(label_counter[label] for label in positive_labels)
-    thesaurus_negative_class_sampling_ratio = {
-        label: max_positive_count / count
-        for label, count in label_counter.items()
-        if label != "nc-O" and label.startswith("nc-")
-    }
-    new_pre_span_classification_dataset = defaultdict(list)
-    pscd = pre_span_classification_dataset
-    for tokens, starts, ends, labels in zip(
-        pscd["tokens"], pscd["starts"], pscd["ends"], pscd["labels"]
-    ):
-        new_starts = []
-        new_ends = []
-        new_labels = []
-        for s, e, l in zip(starts, ends, labels):
-            if (
-                l != "nc-O"
-                and l.startswith("nc-")
-                and random.random() > thesaurus_negative_class_sampling_ratio[l]
-            ):
+# def undersample_thesaurus_negatives(pre_span_classification_dataset):
+#     label_counter = Counter(
+#         [label for snt in pre_span_classification_dataset["labels"] for label in snt]
+#     )
+#     pass
+#     positive_labels = [
+#         label for label in label_counter.keys() if not label.startswith("nc-")
+#     ]
+#     max_positive_count = max(label_counter[label] for label in positive_labels)
+#     thesaurus_negative_class_sampling_ratio = {
+#         label: max_positive_count / count
+#         for label, count in label_counter.items()
+#         if label != "nc-O" and label.startswith("nc-")
+#     }
+#     new_pre_span_classification_dataset = defaultdict(list)
+#     pscd = pre_span_classification_dataset
+#     for tokens, starts, ends, labels in zip(
+#         pscd["tokens"], pscd["starts"], pscd["ends"], pscd["labels"]
+#     ):
+#         new_starts = []
+#         new_ends = []
+#         new_labels = []
+#         for s, e, l in zip(starts, ends, labels):
+#             if (
+#                 l != "nc-O"
+#                 and l.startswith("nc-")
+#                 and random.random() > thesaurus_negative_class_sampling_ratio[l]
+#             ):
+#                 continue
+#             new_starts.append(s)
+#             new_ends.append(e)
+#             new_labels.append(l)
+#         new_pre_span_classification_dataset["tokens"].append(tokens)
+#         new_pre_span_classification_dataset["starts"].append(new_starts)
+#         new_pre_span_classification_dataset["ends"].append(new_ends)
+#         new_pre_span_classification_dataset["labels"].append(new_labels)
+#     return new_pre_span_classification_dataset
+
+
+def undersample_o_span(msml_dataset: Dataset, info):
+    o_span_count: int = 0
+    non_o_span_count: int = 0
+    label_names = msml_dataset.features["labels"].feature.feature.names
+    o_id = label_names.index("nc-O")
+    for snt in msml_dataset["labels"]:
+        for span in snt:
+            if o_id in span:
+                o_span_count += 1
+            else:
+                non_o_span_count += 1
+    o_under_sampling_ratio = non_o_span_count / o_span_count
+    for snt in msml_dataset["labels"]:
+        for span in snt:
+            if o_id in span:
+                o_span_count += 1
+            else:
+                non_o_span_count += 1
+    ret_starts, ret_ends, ret_labels = [], [], []
+    for snt in msml_dataset:
+        ret_snt_starts, ret_snt_ends, ret_snt_labels = [], [], []
+        for s, e, ls in zip(snt["starts"], snt["ends"], snt["labels"]):
+            if o_id in ls and random.random() > o_under_sampling_ratio:
                 continue
-            new_starts.append(s)
-            new_ends.append(e)
-            new_labels.append(l)
-        new_pre_span_classification_dataset["tokens"].append(tokens)
-        new_pre_span_classification_dataset["starts"].append(new_starts)
-        new_pre_span_classification_dataset["ends"].append(new_ends)
-        new_pre_span_classification_dataset["labels"].append(new_labels)
-    return new_pre_span_classification_dataset
+            ret_snt_starts.append(s)
+            ret_snt_ends.append(e)
+            ret_snt_labels.append(ls)
+        ret_starts.append(ret_snt_starts)
+        ret_ends.append(ret_snt_ends)
+        ret_labels.append(ret_snt_labels)
+    return Dataset.from_dict(
+        {
+            "tokens": msml_dataset["tokens"],
+            "starts": ret_starts,
+            "ends": ret_ends,
+            "labels": ret_labels,
+        },
+        info=info,
+    )
+    # labelの何かしら付与されているらべｒ
 
 
-def ner_datasets_to_span_classification_datasets(
-    ner_datasets: datasets.DatasetDict,
+def multi_label_ner_datasets_to_multi_span_multi_label_classification_datasets(
+    multi_label_ner_datasets: datasets.DatasetDict,
     data_args: MSCConfig,
     enumerator: Chunker,
 ) -> datasets.DatasetDict:
-    pre_span_classification_datasets = dict()
-
-    label_names = sorted(
-        set(
-            [
-                remove_BIE(tag)
-                for tag in ner_datasets["test"].features["ner_tags"].feature.names
-                if tag != "O"
-            ]
-        )
+    pre_msml_datasets = dict()
+    label_names = (
+        multi_label_ner_datasets["test"].features["labels"].feature.feature.names
     )
     if data_args.with_o:
         if "nc-O" not in label_names:
@@ -122,47 +172,47 @@ def ner_datasets_to_span_classification_datasets(
                 "tokens": datasets.Sequence(datasets.Value("string")),
                 "starts": datasets.Sequence(datasets.Value("int32")),
                 "ends": datasets.Sequence(datasets.Value("int32")),
-                "labels": datasets.Sequence(datasets.ClassLabel(names=label_names)),
+                "labels": datasets.Sequence(
+                    datasets.Sequence(datasets.ClassLabel(names=label_names))
+                ),
             }
         )
     )
-    for key in ner_datasets:
-        pre_span_classification_dataset = defaultdict(list)
-        ner_tag_labels = ner_datasets[key].features["ner_tags"].feature.names
-        for snt in tqdm(ner_datasets[key]):
+    for key in multi_label_ner_datasets:
+        msml_dataset = defaultdict(list)
+        for snt in tqdm(multi_label_ner_datasets[key]):
             registered_chunks = set()
-            ner_tags = [ner_tag_labels[tag] for tag in snt["ner_tags"]]
-            starts = []
-            ends = []
-            labels = []
-            for label, s, e in get_entities(ner_tags):
-                starts.append(s)
-                ends.append(e + 1)
-                labels.append(label)
-                registered_chunks.add((s, e))
+            starts = snt["starts"]
+            ends = snt["ends"]
+            labels = snt["labels"]
+            registered_chunks = set(zip(starts, ends))
+            # for label, s, e in get_entities(ner_tags):
+            #     starts.append(s)
+            #     ends.append(e + 1)
+            #     labels.append(label)
+            #     registered_chunks.add((s, e))
             if data_args.with_o and key in {"train", "validation"}:
                 for s, e in enumerator.predict(snt["tokens"]):
-                    if (
-                        (s, e) not in registered_chunks
-                        and data_args.o_sampling_ratio > random.random()
-                    ):
+                    if (s, e) not in registered_chunks:
                         starts.append(s)
                         ends.append(e)
-                        labels.append("nc-O")
-            starts, ends, labels = remove_misguided_fns(starts, ends, labels)
+                        labels.append(["nc-O"])
             if labels:
-                pre_span_classification_dataset["tokens"].append(snt["tokens"])
-                pre_span_classification_dataset["starts"].append(starts)
-                pre_span_classification_dataset["ends"].append(ends)
-                pre_span_classification_dataset["labels"].append(labels)
+                msml_dataset["tokens"].append(snt["tokens"])
+                msml_dataset["starts"].append(starts)
+                msml_dataset["ends"].append(ends)
+                msml_dataset["labels"].append(labels)
         # if key == "train":
         #     pre_span_classification_dataset = undersample_thesaurus_negatives(
         #         pre_span_classification_dataset
         #     )
-        pre_span_classification_datasets[key] = datasets.Dataset.from_dict(
-            pre_span_classification_dataset, info=info
-        )
-    return datasets.DatasetDict(pre_span_classification_datasets)
+        pre_msml_datasets[key] = datasets.Dataset.from_dict(msml_dataset, info=info)
+    if data_args.under_samle:
+        for key in {"train", "validation"}:
+            pre_msml_datasets[key] = undersample_o_span(
+                pre_msml_datasets[key], info=info
+            )
+    return datasets.DatasetDict(pre_msml_datasets)
 
 
 import numpy as np
@@ -408,18 +458,6 @@ def join_span_classification_datasets(
     return DatasetDict(new_dataset_dict)
 
 
-def log_label_ratio(msmlc_datasets: DatasetDict):
-    table = prettytable.PrettyTable(["Label", "Count", "Ratio (%)"])
-    pass
-    train_dataset = msmlc_datasets["train"]
-    label_names = train_dataset.features["labels"].feature.feature.names
-    c = Counter([label for snt in train_dataset["labels"] for span in snt for label in span])
-    label_sum = sum(c.values())
-    for lid, count in c.most_common():
-        table.add_row([label_names[lid], count, "%.2f" % (100 * count / label_sum)])
-    logger.info(table.get_string())
-
-
 def translate_into_msc_datasets(
     ner_datasets: DatasetDict,
     msc_args: MSCConfig,
@@ -433,8 +471,10 @@ def translate_into_msc_datasets(
     )
     logger.info("output_dir of msc_datasets: " + str(output_dir))
     if not output_dir.exists():
-        msc_datasets = ner_datasets_to_span_classification_datasets(
-            ner_datasets, msc_args, enumerator
+        msc_datasets = (
+            multi_label_ner_datasets_to_multi_span_multi_label_classification_datasets(
+                ner_datasets, msc_args, enumerator
+            )
         )
         msc_datasets.save_to_disk(output_dir)
     else:

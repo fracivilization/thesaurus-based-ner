@@ -33,9 +33,8 @@ def ner_model_builder(
 def register_ner_model_configs(group="ner_model"):
     cs = ConfigStore
     cs.store(group="ner_model", name="base_ner_model_config", node=NERModelConfig)
-    register_BERT_configs()
-    register_BOND_configs()
-    register_two_stage_configs()
-    register_multi_label_two_stage_configs()
-    register_ner_matcher_configs()
-    register_ner_testor_configs()
+    register_BERT_configs(group)
+    register_BOND_configs(group)
+    register_two_stage_configs(group)
+    register_flattern_multi_label_ner_configs(group)
+    register_ner_matcher_configs(group)

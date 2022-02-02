@@ -1,6 +1,7 @@
 import os
 import pickle
 from typing import List, Optional
+import uuid
 import numpy as np
 from transformers.trainer_utils import set_seed
 from src.ner_model.chunker.abstract_model import Chunker
@@ -44,6 +45,9 @@ from transformers.modeling_outputs import (
 from scipy.special import softmax
 import psutil
 import itertools
+import datasets
+from datasets import DatasetDict
+from hydra.utils import get_original_cwd, to_absolute_path
 
 span_start_token = "[unused1]"
 span_end_token = "[unused2]"
@@ -87,7 +91,7 @@ class MultiLabelEnumeratedModelArguments:
     nc_sampling_ratio: float = 1.0  # O sampling in train
 
 
-class BertForEnumeratedTyper(BertForTokenClassification):
+class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
     @classmethod
     def from_pretrained(
         cls,
@@ -118,7 +122,7 @@ class BertForEnumeratedTyper(BertForTokenClassification):
         valid_ends = ends[:, :max_filled_ent_id]
         return valid_starts, valid_ends, valid_labels
 
-    def under_sample_o(self, starts, ends, labels):
+    def under_sample_o(self, starts, ends, labels, label_masks):
         """
         Get valid entities from start, end and label, cut tensor by no-ent label.
         """
@@ -156,7 +160,13 @@ class BertForEnumeratedTyper(BertForTokenClassification):
         return sorted_starts, sorted_ends, sorted_sampled_labels
 
     def forward(
-        self, input_ids=None, attention_mask=None, labels=None, starts=None, ends=None
+        self,
+        input_ids=None,
+        attention_mask=None,
+        starts=None,
+        ends=None,
+        labels=None,
+        label_masks=None,
     ):
         r"""
         labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size, sequence_length)`, `optional`):
@@ -164,8 +174,9 @@ class BertForEnumeratedTyper(BertForTokenClassification):
             1]``.
         """
         if self.training:
-            starts, ends, labels = self.under_sample_o(starts, ends, labels)
-            starts, ends, labels = self.under_sample_nc(starts, ends, labels)
+            starts, ends, labels = self.under_sample_o(
+                starts, ends, labels, label_masks
+            )
             # starts, ends, labels = self.get_valid_entities(starts, ends, labels)
         minibatch_size, max_seq_lens = input_ids.shape
         outputs = self.bert(
@@ -317,17 +328,17 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         logger.info("Training/evaluation parameters %s", train_args)
         # Set seed before initializing model.
         set_seed(train_args.seed)
-
-        span_classification_datasets = DatasetDict.load_from_disk(
+        # msml: Multi Span Multi Label
+        msml_datasets = DatasetDict.load_from_disk(
             os.path.join(get_original_cwd(), config.train_datasets)
         )
-        log_label_ratio(span_classification_datasets)
+        log_label_ratio(msml_datasets)
         if train_args.do_train:
-            column_names = span_classification_datasets["train"].column_names
-            features = span_classification_datasets["train"].features
+            column_names = msml_datasets["train"].column_names
+            features = msml_datasets["train"].features
         else:
-            column_names = span_classification_datasets["validation"].column_names
-            features = span_classification_datasets["validation"].features
+            column_names = msml_datasets["validation"].column_names
+            features = msml_datasets["validation"].features
         # text_column_name = "tokens" if "tokens" in column_names else column_names[0]
         # label_column_name = (
         #     f"{data_args.task_name}_tags"
@@ -335,9 +346,10 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         #     else column_names[1]
         # )
 
-        label_list = features["labels"].feature.names
+        label_list = features["labels"].feature.feature.names
         self.label_names = label_list
         num_labels = len(label_list)
+        self.label_num = num_labels
         nc_ids = [
             i for i, label in enumerate(self.label_names) if label.startswith("nc-")
         ]
@@ -368,7 +380,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
             model_args.o_label_id = label_list.index("nc-O")
         else:
             model_args.o_label_id = -2
-        model = BertForEnumeratedTyper.from_pretrained(
+        model = BertForEnumeratedMultiLabelTyper.from_pretrained(
             model_args,
             nc_ids=nc_ids,
             from_tf=bool(".ckpt" in model_args.model_name_or_path),
@@ -382,12 +394,24 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         self.tokenizer = tokenizer
         self.model = model
 
-        span_classification_datasets = DatasetDict(
+        msml_datasets = DatasetDict(
             {
-                "train": span_classification_datasets["train"],
-                "validation": span_classification_datasets["validation"],
+                "train": msml_datasets["train"],
+                "validation": msml_datasets["validation"],
             }
         )
+        # msml_datasets = DatasetDict(
+        #     {
+        #         "train": Dataset.from_dict(
+        #             msml_datasets["train"][:1500],
+        #             features=msml_datasets["train"].features,
+        #         ),
+        #         "validation": Dataset.from_dict(
+        #             msml_datasets["validation"][:1500],
+        #             features=msml_datasets["validation"].features,
+        #         ),
+        #     }
+        # )
 
         def get_buffer_path(arg_str: str):
 
@@ -396,18 +420,46 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
             )
 
         cache_file_names = {
-            k: get_buffer_path(v._fingerprint)
-            for k, v in span_classification_datasets.items()
+            k: get_buffer_path(v._fingerprint) for k, v in msml_datasets.items()
         }
-        self.span_classification_datasets = span_classification_datasets.map(
-            self.preprocess_function,
-            batched=True,
-            load_from_cache_file=True,
-            # cache_file_names=cache_file_names,
-            num_proc=psutil.cpu_count(logical=False),
+        buffer_file = to_absolute_path(
+            "data/buffer/%s" % md5(str(cache_file_names).encode()).hexdigest()
         )
+        if not os.path.exists(buffer_file):
+            self.span_classification_datasets: DatasetDict = msml_datasets.map(
+                self.preprocess_function,
+                batched=True,
+                load_from_cache_file=True,
+                keep_in_memory=True,
+                # cache_file_names=cache_file_names,
+                num_proc=psutil.cpu_count(logical=False),
+                features=datasets.Features(
+                    {
+                        "input_ids": datasets.Sequence(
+                            datasets.Value("int32"),
+                            length=config.max_position_embeddings,
+                        ),
+                        "attention_mask": datasets.Sequence(
+                            datasets.Value("int8"),
+                            length=config.max_position_embeddings,
+                        ),
+                        "starts": datasets.Sequence(datasets.Value("int16")),
+                        "ends": datasets.Sequence(datasets.Value("int16")),
+                        "labels": datasets.features.Array2D(
+                            (data_args.max_span_num, num_labels), "bool"
+                        ),
+                        "label_masks": datasets.Sequence(
+                            datasets.Value("bool"),
+                            length=config.max_position_embeddings,
+                        ),
+                        "tokens": datasets.Sequence(datasets.Value("string")),
+                    }
+                ),
+            )
+            self.span_classification_datasets.save_to_disk(buffer_file)
+        self.span_classification_datasets = DatasetDict.load_from_disk(buffer_file)
         assert (
-            len(self.span_classification_datasets["train"]["labels"][0])
+            len(self.span_classification_datasets["train"][0]["labels"])
             == data_args.max_span_num
         )
 
@@ -544,7 +596,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         )
         max_span_num = max(len(snt) for snt in starts)
         model_input = self.load_model_input(
-            tokens, starts, ends, max_span_num=max_span_num
+            tokens, starts, ends, self.label_num, max_span_num=max_span_num
         )
         del model_input["labels"]
         dataset = Dataset.from_dict(model_input)
@@ -569,6 +621,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         tokens: List[List[str]],
         snt_starts: List[List[int]],
         snt_ends: List[List[int]],
+        label_num: int,
         labels: List[List[int]] = None,
         max_span_num=10000,
     ):
@@ -579,12 +632,12 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
             labels,
             self.data_args,
             max_span_num,
+            label_num,
         )
         buffer_file = os.path.join(
             get_original_cwd(), "data/buffer", md5(str(args).encode()).hexdigest()
         )
         if not os.path.exists(buffer_file):
-
             example = self.padding_spans(
                 {
                     "tokens": tokens,
@@ -650,13 +703,32 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                     self.data_args.max_length - len(padded_subwords)
                 )
                 all_padded_subwords.append(padded_subwords)
-                ret_dict = {
-                    "input_ids": all_padded_subwords,
-                    "attention_mask": all_attention_mask,
-                    "starts": all_starts,
-                    "ends": all_ends,
-                    "labels": example["labels"],
-                }
+                # TODO: labelsをTensor(shapeが一貫したものに変換する)
+            all_labels = []
+            all_label_masks = []
+            padded_labels = [False for i in range(label_num)]
+            for snt_labels in example["labels"]:
+                ret_snt_labels = []
+                ret_snt_label_mask = []
+                for span_labels in snt_labels:
+                    if -1 in span_labels:
+                        ret_snt_labels.append(padded_labels)
+                        ret_snt_label_mask.append(False)
+                    else:
+                        ret_snt_labels.append(
+                            [i in span_labels for i in range(label_num)]
+                        )
+                        ret_snt_label_mask.append(True)
+                all_labels.append(ret_snt_labels)
+                all_label_masks.append(ret_snt_label_mask)
+            ret_dict = {
+                "input_ids": all_padded_subwords,
+                "attention_mask": all_attention_mask,
+                "starts": all_starts,
+                "ends": all_ends,
+                "labels": np.array(all_labels),
+                "label_masks": all_label_masks,
+            }
             with open(buffer_file, "wb") as f:
                 pickle.dump(ret_dict, f)
         with open(buffer_file, "rb") as f:
@@ -668,6 +740,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
             example["tokens"],
             example["starts"],
             example["ends"],
+            label_num=len(self.label_names),
             labels=example["labels"],
             max_span_num=self.data_args.max_span_num,
         )
@@ -683,6 +756,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         sn = max_span_num
         ignore_label = -1
         padding_label = 0
+        ignore_span_label = [-1] * max_span_num
         for key, value in example.items():
             if key in {"starts", "ends", "labels"}:
                 new_value = []
@@ -694,7 +768,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                             )
                         elif key == "labels":
                             new_value.append(
-                                snt[:sn] + [ignore_label] * (sn - len(snt))
+                                snt[:sn] + [ignore_span_label] * (sn - len(snt))
                             )
                     example[key] = new_value
                 else:

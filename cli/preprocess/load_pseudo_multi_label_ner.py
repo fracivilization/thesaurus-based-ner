@@ -15,7 +15,7 @@ from src.ner_model.multi_label import (
 import logging
 from datasets import Dataset
 import os
-from src.dataset.pseudo_dataset.pseudo_msmlc_dataset import (
+from src.dataset.pseudo_dataset.pseudo_multi_label_ner_dataset import (
     PseudoMSMLCAnnoConfig,
     load_msml_pseudo_dataset,
     join_pseudo_and_gold_dataset,

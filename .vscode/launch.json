@@ -282,18 +282,41 @@
             ],
         },
         {
-            "name": "Get MSMLC Gold Dataset",
+            "name": "Get MultiLabelNER Gold Dataset",
             "type": "python",
             "request": "launch",
-            "module": "cli.preprocess.load_gold_msmlc",
+            "module": "cli.preprocess.load_gold_multi_label_ner",
             "justMyCode": false,
             "args": [
                 "--output-dir",
-                "data/gold/602888d88e03397028ecfa105a330dcb553da100",
-                "--with-o",
-                "True",
-                "--chunker",
-                "spacy_np"
+                "data/gold/multi_label_ner"
+            ],
+        },
+        {
+            "name": "Get MSMLC Gold Dataset",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.preprocess.load_msmlc_dataset",
+            "justMyCode": false,
+            "args": [
+                "+chunker=enumerated",
+                "++with_o=True",
+                "++under_sample=False",
+                "+multi_label_ner_dataset=data/gold/multi_label_ner",
+                "+output_dir=data/gold/59eb531b4a37f968e1af817a39c850629a694987",
+            ],
+        },
+        {
+            "name": "Get Pseudo MultiLabelNER Dataset",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.preprocess.load_pseudo_multi_label_ner",
+            "justMyCode": false,
+            "args": [
+                "++multi_label_ner_model.multi_label_typer.term2cats=data/term2cat/d8f23e25ae9fd1286c54c41e20dc9e373e933159.pkl",
+                "+gold_corpus=data/gold/multi_label_ner",
+                "+raw_corpus=data/gold/multi_label_ner",
+                "+output_dir=data/pseudo/0a52994264a3777384dc41a450687a30aa0c3991"
             ],
         },
         {
@@ -329,9 +352,9 @@
             "justMyCode": false,
             "args": [
                 "+multi_label_typer=enumerated",
-                "++multi_label_typer.train_datasets=data/gold/602888d88e03397028ecfa105a330dcb553da100",
-                "++model_output_path=data/buffer/baef081ad631d0ee336be9fb20499b4860abec60",
-                "+datasets=data/gold/602888d88e03397028ecfa105a330dcb553da100",
+                "++multi_label_typer.train_datasets=data/gold/6417d5d8c92b62836035f3415389c7ff47335959",
+                "++model_output_path=data/buffer/63775ed89f7688ea042c724cac4b0b22c0cf7120",
+                "++msmlc_datasets=data/gold/6417d5d8c92b62836035f3415389c7ff47335959"
             ],
         },
         {
