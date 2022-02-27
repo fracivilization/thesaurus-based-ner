@@ -18,13 +18,11 @@ from src.utils.utils import UnionFind
 import copy
 import pickle
 import sys
-from src.dataset.term2cat.term2cat import Term2Cat
 import os
 from hydra.utils import get_original_cwd
 import dartsclone
 from hydra.core.config_store import ConfigStore
 from dataclasses import dataclass
-from src.dataset.term2cat.term2cat import Term2CatConfig, load_term2cat
 from src.utils.string_match import ComplexKeywordTyper
 from omegaconf import MISSING
 

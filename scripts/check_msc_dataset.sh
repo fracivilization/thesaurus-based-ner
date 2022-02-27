@@ -1,6 +1,6 @@
-BASE_OPTS="WITH_NC=True WITH_O=False CHUNKER=spacy_np"
+BASE_OPTS="WITH_NC=True WITH_O=False FIRST_STAGE_CHUNKER=spacy_np"
 BASE_MSC_DATA=`eval ${BASE_OPTS} make -n all | grep PSEUDO_MSC_DATA_ON_GOLD | awk '{print $3}'`
-FOCUS_OPTS="WITH_NC=True WITH_O=True CHUNKER=spacy_np"
+FOCUS_OPTS="WITH_NC=True WITH_O=True FIRST_STAGE_CHUNKER=spacy_np"
 FOCUS_MSC_DATA=`eval ${FOCUS_OPTS} make -n all | grep PSEUDO_MSC_DATA_ON_GOLD | awk '{print $3}'`
 
 OUTPUT_DIR=outputs/error_analysis/check_msc_dataset

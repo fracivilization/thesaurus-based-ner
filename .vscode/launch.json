@@ -201,15 +201,15 @@
             "module": "cli.train",
             "justMyCode": false,
             "args": [
-                "++dataset.name_or_path=data/gold/7dbc67bfbe96b89c197084f0a75a325d2ca506d3",
+                "++dataset.name_or_path=data/gold/836053d1bd47c7cf824672a17714a61a354af8e9",
                 "ner_model/chunker=enumerated",
                 "ner_model.typer.model_args.o_sampling_ratio=1.0",
                 "ner_model.typer.train_args.per_device_train_batch_size=8",
-                "ner_model.typer.train_args.per_device_eval_batch_size=32",
+                "ner_model.typer.train_args.per_device_eval_batch_size=16",
                 "ner_model.typer.train_args.do_train=True",
                 "ner_model.typer.train_args.overwrite_output_dir=True",
                 "testor.baseline_typer.term2cat=data/term2cat/e04122e7582b6bf5c6c447b6069f8be77b17620f.pkl",
-                "ner_model.typer.msc_datasets=data/gold/aa3563d65115635144812a5cc6beabe17b44e37d",
+                "ner_model.typer.msc_datasets=data/gold/d9202dcfe78419d1d05039ad1c00f00635eb3dae",
             ],
         },
         {
@@ -219,10 +219,10 @@
             "module": "cli.compare_result",
             "justMyCode": false,
             "args": [
-                // Dict Match
+                // Gold Single
                 "outputs/2021-09-28/16-58-30/data/output/0d71eb7b67f1d1aec0d530f0f4ccaf11/prediction_for_validation.dataset/",
-                // NP Chunker + Classifier + Negative
-                "outputs/2021-09-28/10-15-11/data/output/17cc08c939356bf90aefb5a5c7015f04/prediction_for_validation.dataset/",
+                // Gold Multi Label
+                "outputs/2022-02-15/17-49-11/prediction_for_validation.dataset/"
             ],
         },
         {
@@ -300,10 +300,10 @@
             "justMyCode": false,
             "args": [
                 "+chunker=enumerated",
-                "++with_o=True",
                 "++under_sample=False",
+                "++with_o=True",
                 "+multi_label_ner_dataset=data/gold/multi_label_ner",
-                "+output_dir=data/gold/59eb531b4a37f968e1af817a39c850629a694987",
+                "+output_dir=data/gold/776996445f60149f6a6397d0106dbf8465b87eec"
             ],
         },
         {
@@ -316,7 +316,7 @@
                 "++multi_label_ner_model.multi_label_typer.term2cats=data/term2cat/d8f23e25ae9fd1286c54c41e20dc9e373e933159.pkl",
                 "+gold_corpus=data/gold/multi_label_ner",
                 "+raw_corpus=data/gold/multi_label_ner",
-                "+output_dir=data/pseudo/0a52994264a3777384dc41a450687a30aa0c3991"
+                "+output_dir=data/pseudo/0a52994264a3777384dc41a450687a30aa0c3991",
             ],
         },
         {
@@ -352,9 +352,13 @@
             "justMyCode": false,
             "args": [
                 "+multi_label_typer=enumerated",
-                "++multi_label_typer.train_datasets=data/gold/6417d5d8c92b62836035f3415389c7ff47335959",
-                "++model_output_path=data/buffer/63775ed89f7688ea042c724cac4b0b22c0cf7120",
-                "++msmlc_datasets=data/gold/6417d5d8c92b62836035f3415389c7ff47335959"
+                "++multi_label_typer.train_datasets=data/pseudo/4c1983f8b55322f5d75b371a07cfe132ff4a13a3",
+                "++multi_label_typer.model_output_path=data/pseudo/908c7fc343facc382b124373a0a28c7db6444835",
+                "++msmlc_datasets=data/gold/776996445f60149f6a6397d0106dbf8465b87eec",
+                "++multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss",
+                "++ner_model.multi_label_ner_model.multi_label_typer.train_args.do_train=True",
+                "++ner_model.multi_label_ner_model.multi_label_typer.data_args.pn_ratio_equivalence=True",
+                "++ner_model.multi_label_ner_model.multi_label_typer.data_args.negative_ratio_over_positive=1.0"
             ],
         },
         {
@@ -365,21 +369,90 @@
             "justMyCode": false,
             "args": [
                 "output=data/term2cat/d8f23e25ae9fd1286c54c41e20dc9e373e933159.pkl",
-                "focus_cats=T000_T116_T020_T052_T100_T087_T011_T190_T008_T017_T195_T194_T123_T007_T031_T022_T053_T038_T012_T029_T091_T122_T023_T030_T026_T043_T025_T019_T103_T120_T104_T185_T201_T200_T077_T049_T088_T060_T056_T203_T047_T065_T069_T196_T050_T018_T071_T126_T204_T051_T099_T021_T013_T033_T004_T168_T169_T045_T083_T028_T064_T102_T096_T068_T093_T058_T131_T125_T016_T078_T129_T055_T197_T037_T170_T130_T171_T059_T034_T015_T063_T066_T074_T041_T073_T048_T044_T085_T191_T114_T070_T086_T057_T090_T109_T032_T040_T001_T092_T042_T046_T072_T067_T039_T121_T002_T101_T098_T097_T094_T080_T081_T192_T014_T062_T075_T089_T167_T095_T054_T184_T082_T024_T079_T061_T005_T127_T010"
+                "focus_cats=T000_T116_T020_T052_T100_T087_T011_T190_T008_T017_T195_T194_T123_T007_T031_T022_T053_T038_T012_T029_T091_T122_T023_T030_T026_T043_T025_T019_T103_T120_T104_T185_T201_T200_T077_T049_T088_T060_T056_T203_T047_T065_T069_T196_T050_T018_T071_T126_T204_T051_T099_T021_T013_T033_T004_T168_T169_T045_T083_T028_T064_T102_T096_T068_T093_T058_T131_T125_T016_T078_T129_T055_T197_T037_T170_T130_T171_T059_T034_T015_T063_T066_T074_T041_T073_T048_T044_T085_T191_T114_T070_T086_T057_T090_T109_T032_T040_T001_T092_T042_T046_T072_T067_T039_T121_T002_T101_T098_T097_T094_T080_T081_T192_T014_T062_T075_T089_T167_T095_T054_T184_T082_T024_T079_T061_T005_T127_T010",
+                "++remove_ambiguate_terms=True",
             ],
         },
         {
-            "name": "Train (Pseudo MultiLabelTwoStage)",
+            "name": "Train (Flatten MSMLC)",
             "type": "python",
             "request": "launch",
             "module": "cli.train",
             "justMyCode": false,
             "args": [
-                "ner_model=PseudoMultiLabelTwoStage",
+                "ner_model=flatten_ner",
                 "ner_model.focus_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
-                "ner_model.multi_label_typer.term2cats=data/term2cat/d8f23e25ae9fd1286c54c41e20dc9e373e933159.pkl",
-                "++dataset.name_or_path=data/gold/836053d1bd47c7cf824672a17714a61a354af8e9",
-                "+testor.baseline_typer.term2cat=data/term2cat/4a346fc7708eff30dc3a5a0bd47df4b3cb61823a.pkl",
+                "ner_model/multi_label_ner_model=two_stage",
+                "+ner_model/multi_label_ner_model/chunker=enumerated",
+                "+ner_model/multi_label_ner_model/multi_label_typer=enumerated",
+                "++msmlc_datasets=data/gold/776996445f60149f6a6397d0106dbf8465b87eec",
+                "testor.baseline_typer.term2cat=data/term2cat/8a23fbd2bc56b5182ab677063f52af0497d1d5c6.pkl",
+                // "++ner_model.multi_label_ner_model.multi_label_typer.model_args.saved_param_path=outputs/2022-02-16/12-30-34/checkpoint-2000",
+                "++ner_model.multi_label_ner_model.multi_label_typer.train_args.do_train=False",
+                "++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=data/pseudo/4c1983f8b55322f5d75b371a07cfe132ff4a13a3",
+                // "++ner_model.multi_label_ner_model.multi_label_typer.model_output_path=data/buffer/30c347f526562c1c62b2ed931e13e61c00a84d8f",
+                "++ner_model.multi_label_ner_model.multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss",
+                // "++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=data/pseudo/fe237f63d08d4a49a18f9e3f4a3316e16123d288",
+            ],
+        },
+        {
+            "name": "Train (Flatten Marginal Softmax MSMLC)",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.train",
+            "justMyCode": false,
+            "args": [
+                "ner_model=flatten_marginal_softmax_ner",
+                "ner_model.focus_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
+                "ner_model/multi_label_ner_model=two_stage",
+                "+ner_model/multi_label_ner_model/chunker=enumerated",
+                "+ner_model/multi_label_ner_model/multi_label_typer=enumerated",
+                "++msmlc_datasets=data/gold/776996445f60149f6a6397d0106dbf8465b87eec",
+                "testor.baseline_typer.term2cat=data/term2cat/8a23fbd2bc56b5182ab677063f52af0497d1d5c6.pkl",
+                // "++ner_model.multi_label_ner_model.multi_label_typer.model_args.saved_param_path=data/pseudo/908c7fc343facc382b124373a0a28c7db6444835",
+                "++ner_model.multi_label_ner_model.multi_label_typer.train_args.do_train=True",
+                "++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=data/gold/776996445f60149f6a6397d0106dbf8465b87eec",
+                // "++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=data/pseudo/4c1983f8b55322f5d75b371a07cfe132ff4a13a3",
+                "++ner_model.multi_label_ner_model.multi_label_typer.model_output_path=data/buffer/30c347f526562c1c62b2ed931e13e61c00a84d8f",
+                // "++ner_model.multi_label_ner_model.multi_label_typer.model_output_path=data/buffer/30c347f526562c1c62b2ed931e13e61c00a84d8f",
+                "++ner_model.multi_label_ner_model.multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss",
+                "++ner_model.multi_label_ner_model.multi_label_typer.data_args.pn_ratio_equivalence=True",
+                "++ner_model.multi_label_ner_model.multi_label_typer.data_args.negative_ratio_over_positive=1.0"
+                // "++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=data/pseudo/fe237f63d08d4a49a18f9e3f4a3316e16123d288",
+            ],
+        },
+        // {
+        //     "name": "Eval (Gold MultiLabelTwoStage)",
+        //     "type": "python",
+        //     "request": "launch",
+        //     "module": "cli.train",
+        //     "justMyCode": false,
+        //     "args": [
+        //         "ner_model=PseudoMultiLabelTwoStage",
+        //         "ner_model.focus_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
+        //         "ner_model.multi_label_typer.term2cats=data/term2cat/d8f23e25ae9fd1286c54c41e20dc9e373e933159.pkl",
+        //         "++dataset.name_or_path=data/gold/836053d1bd47c7cf824672a17714a61a354af8e9",
+        //         "+testor.baseline_typer.term2cat=data/term2cat/4a346fc7708eff30dc3a5a0bd47df4b3cb61823a.pkl",
+        //     ],
+        // },
+        {
+            "name": "Eval (Gold MultiLabelTwoStage)",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.train",
+            "justMyCode": false,
+            "args": [
+                "ner_model=flatten_ner",
+                "ner_model.focus_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
+                "ner_model/multi_label_ner_model=two_stage",
+                "+ner_model/multi_label_ner_model/chunker=enumerated",
+                "+ner_model/multi_label_ner_model/multi_label_typer=enumerated",
+                "++ner_model.multi_label_ner_model.multi_label_typer.model_args.saved_param_path=outputs/2022-02-11/18-00-49/checkpoint-2000",
+                "++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=data/gold/59eb531b4a37f968e1af817a39c850629a694987",
+                // "++ner_model.multi_label_ner_model.multi_label_typer.train_args.num_train_epochs=10.0",
+                "++ner_model.multi_label_ner_model.multi_label_typer.train_args.do_train=False",
+                "++ner_model.multi_label_ner_model.multi_label_typer.prediction_threshold=0.97",
+                "testor.baseline_typer.term2cat=data/term2cat/8a23fbd2bc56b5182ab677063f52af0497d1d5c6.pkl",
             ],
         },
     ]

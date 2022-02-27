@@ -362,9 +362,7 @@ def translate_conll_into_msmlc_dataset(
     return ret_dataset
 
 
-def load_gold_multi_label_ner_datasets(
-    input_dir: str, with_o: bool = True, chunker_for_o: Chunker = None
-):
+def load_gold_multi_label_ner_datasets(input_dir: str):
     # load dataset
     pubtator = os.path.join(input_dir, "corpus_pubtator.txt")
     with open(pubtator) as f:
@@ -391,8 +389,8 @@ def load_gold_multi_label_ner_datasets(
     dev_conll = [snt for pmid in dev_pmids for snt in pmid2conll[pmid]]
     test_conll = [snt for pmid in test_pmids for snt in pmid2conll[pmid]]
     label_names = sorted(tui2ST.keys())
-    if with_o:
-        label_names = ["nc-O"] + label_names
+    # if with_o:
+    #     label_names = ["nc-O"] + label_names
     desc = {"desc": "MSMLC Dataset"}
     dataset_dict = dict()
     desc["split"] = "train"
@@ -409,4 +407,3 @@ def load_gold_multi_label_ner_datasets(
     )
     # describe focus_cat into datasetdict or dataset (describing into dataset dict is better)
     return DatasetDict(dataset_dict)
-    pass

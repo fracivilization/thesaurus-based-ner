@@ -9,9 +9,9 @@ get_make () {
     FOCUS_CATS=$1
     NEGATIVE_CATS=`poetry run python -m cli.get_umls_negative_cats --focus-cats ${FOCUS_CATS}`
     local make_opts=(
-        "FOCUS_CATS=${FOCUS_CATS} NEGATIVE_CATS=\"\" CHUNKER=spacy_np POSITIVE_RATIO_THR_OF_NEGATIVE_CAT=1.0 make train_pseudo_anno"
-        "FOCUS_CATS=${FOCUS_CATS} NEGATIVE_CATS=\"\" WITH_O=True CHUNKER=enumerated POSITIVE_RATIO_THR_OF_NEGATIVE_CAT=1.0 O_SAMPLING_RATIO=0.03 make train"
-        "FOCUS_CATS=${FOCUS_CATS} NEGATIVE_CATS=\"${NEGATIVE_CATS}\" WITH_O=True CHUNKER=enumerated POSITIVE_RATIO_THR_OF_NEGATIVE_CAT=1.0 O_SAMPLING_RATIO=0.005 make train"
+        "FOCUS_CATS=${FOCUS_CATS} NEGATIVE_CATS=\"\" FIRST_STAGE_CHUNKER=spacy_np POSITIVE_RATIO_THR_OF_NEGATIVE_CAT=1.0 make train_pseudo_anno"
+        "FOCUS_CATS=${FOCUS_CATS} NEGATIVE_CATS=\"\" WITH_O=True FIRST_STAGE_CHUNKER=enumerated POSITIVE_RATIO_THR_OF_NEGATIVE_CAT=1.0 O_SAMPLING_RATIO=0.03 make train"
+        "FOCUS_CATS=${FOCUS_CATS} NEGATIVE_CATS=\"${NEGATIVE_CATS}\" WITH_O=True FIRST_STAGE_CHUNKER=enumerated POSITIVE_RATIO_THR_OF_NEGATIVE_CAT=1.0 O_SAMPLING_RATIO=0.005 make train"
     )
     for line in ${make_opts[@]}; do
         echo $line

@@ -412,12 +412,17 @@ def log_label_ratio(msmlc_datasets: DatasetDict):
     table = prettytable.PrettyTable(["Label", "Count", "Ratio (%)"])
     pass
     train_dataset = msmlc_datasets["train"]
-    label_names = train_dataset.features["labels"].feature.feature.names
-    c = Counter([label for snt in train_dataset["labels"] for span in snt for label in span])
-    label_sum = sum(c.values())
-    for lid, count in c.most_common():
-        table.add_row([label_names[lid], count, "%.2f" % (100 * count / label_sum)])
-    logger.info(table.get_string())
+
+    try:
+        label_names = train_dataset.features["labels"].feature.feature.names
+        c = Counter([label for snt in train_dataset["labels"] for span in snt for label in span])
+        label_sum = sum(c.values())
+        for lid, count in c.most_common():
+            table.add_row([label_names[lid], count, "%.2f" % (100 * count / label_sum)])
+        logger.info(table.get_string())
+    except AttributeError:
+        pass
+
 
 
 def translate_into_msc_datasets(

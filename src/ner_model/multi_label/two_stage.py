@@ -59,23 +59,7 @@ class MultiLabelTwoStageModel(MultiLabelNERModel):
         starts = [[s for s, e in snt] for snt in chunks]
         ends = [[e for s, e in snt] for snt in chunks]
         outputs = self.multi_label_typer.batch_predict(tokens, starts, ends)
-
-        # DONE: "nc-O" を出力から除外する
-        labels = [output.labels for output in outputs]
-        ret_starts, ret_ends, ret_labels = [], [], []
-        for snt_starts, snt_ends, snt_labels in zip(starts, ends, labels):
-            ret_snt_starts, ret_snt_ends, ret_snt_labels = [], [], []
-            for s, e, span_labels in zip(snt_starts, snt_ends, snt_labels):
-                if span_labels == ["nc-O"]:
-                    continue
-                else:
-                    ret_snt_starts.append(s)
-                    ret_snt_ends.append(e)
-                    ret_snt_labels.append(span_labels)
-            ret_starts.append(ret_snt_starts)
-            ret_ends.append(ret_snt_ends)
-            ret_labels.append(ret_snt_labels)
-        return ret_starts, ret_ends, ret_labels
+        return starts, ends, outputs
 
     def train(self):
         self.chunker.train()

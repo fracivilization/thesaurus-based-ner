@@ -3,7 +3,7 @@ dir=`dirname $0`
 source ${dir}/../params.sh
 MAKEOPT=${make_opts[4]} 
 thresholds=(0.002 0.004 0.006 0.008)
-CHUNKER="spacy_np"
+FIRST_STAGE_CHUNKER="spacy_np"
 for threshold in ${thresholds[@]}; do
     MAKEOPT="${make_opts[4]} POSITIVE_RATIO_THR_OF_NEGATIVE_CAT=${threshold}"
     echo ${MAKEOPT}

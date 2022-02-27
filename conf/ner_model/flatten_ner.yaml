@@ -1,0 +1,3 @@
+defaults:
+  - FlattenMultiLabelNER
+  - multi_label_ner_model: two_stage

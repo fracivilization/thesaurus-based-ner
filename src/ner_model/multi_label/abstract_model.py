@@ -4,6 +4,7 @@ from .ml_typer.abstract import MultiLabelTyperOutput
 from dataclasses import dataclass
 
 
+@dataclass
 class MultiLabelNERModelConfig:
     multi_label_ner_model_name: str = MISSING
 

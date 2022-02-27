@@ -63,8 +63,11 @@ def calculate_negative_token_PRF(
                 negative_token_tp += 1
             elif negative_cat_count == 0 and g_tag == "O" and p_tag == "O":
                 pass
-    precision = negative_token_tp / negative_token_predicted
-    recall = negative_token_tp / negative_token_gold
+    if negative_token_tp != 0:
+        precision = negative_token_tp / negative_token_predicted
+        recall = negative_token_tp / negative_token_gold
+    else:
+        precision, recall = 0, 0
     if precision != 0 and recall != 0:
         f1 = 2 / (1 / precision + 1 / recall)
     else:
@@ -108,6 +111,13 @@ class NERTestor:
     ) -> None:
         pass
         self.ner_model = ner_model
+        # For debugging
+        ner_dataset = DatasetDict(
+            {
+                key: Dataset.from_dict(split[:1000], features=split.features)
+                for key, split in ner_dataset.items()
+            }
+        )
         self.datasets = ner_dataset
         self.datasets_hash = {
             key: split.__hash__() for key, split in ner_dataset.items()

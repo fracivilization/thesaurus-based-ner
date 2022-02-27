@@ -1,0 +1,2 @@
+defaults:
+  - base_MultiLabelTwoStage_model_config

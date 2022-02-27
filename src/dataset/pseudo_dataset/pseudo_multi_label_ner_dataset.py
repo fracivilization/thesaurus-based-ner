@@ -145,7 +145,7 @@ def load_msml_pseudo_dataset(
             ret_tokens.append(snt_tokens)
             ret_starts.append(snt_starts)
             ret_ends.append(snt_ends)
-            ret_labels.append(snt_outputs)
+            ret_labels.append(snt_outputs.labels)
 
     # multi_label_ner_model
     # for tokens in tqdm(raw_corpus["tokens"]):

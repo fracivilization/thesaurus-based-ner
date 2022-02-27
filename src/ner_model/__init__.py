@@ -9,6 +9,10 @@ from .flatten_ner_model import (
     FlattenMultiLabelNERModel,
     register_flattern_multi_label_ner_configs,
 )
+from .marginal_softmax_model import (
+    FlattenMarginalSoftmaxNERModel,
+    register_flattern_marginal_softmax_ner_configs,
+)
 from hydra.core.config_store import ConfigStore
 
 
@@ -25,16 +29,19 @@ def ner_model_builder(
         ner_model = NERMatcherModel(config)
     elif config.ner_model_name == "FlattenMultiLabelNER":
         ner_model = FlattenMultiLabelNERModel(config)
+    elif config.ner_model_name == "FlattenMarginalSoftmaxNER":
+        ner_model = FlattenMarginalSoftmaxNERModel(config)
     else:
         raise NotImplementedError
     return ner_model
 
 
 def register_ner_model_configs(group="ner_model"):
-    cs = ConfigStore
+    cs = ConfigStore()
     cs.store(group="ner_model", name="base_ner_model_config", node=NERModelConfig)
     register_BERT_configs(group)
     register_BOND_configs(group)
     register_two_stage_configs(group)
     register_flattern_multi_label_ner_configs(group)
     register_ner_matcher_configs(group)
+    register_flattern_marginal_softmax_ner_configs(group)

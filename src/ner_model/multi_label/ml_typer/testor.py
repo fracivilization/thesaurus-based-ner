@@ -4,6 +4,7 @@ from src.utils.mlflow import MlflowWriter
 from pathlib import Path
 from loguru import logger
 import os
+from scipy.special import expit
 
 
 class MultiLabelTestor:
@@ -17,6 +18,13 @@ class MultiLabelTestor:
         # config: NERTestorConfig,
     ) -> None:
         pass
+        # For debugging
+        msml_dataset = DatasetDict(
+            {
+                key: Dataset.from_dict(split[:1000], features=split.features)
+                for key, split in msml_dataset.items()
+            }
+        )
         self.multi_label_typer_model = multi_label_typer_model
         self.datasets = msml_dataset
         focused_cats = (
@@ -90,8 +98,8 @@ class MultiLabelTestor:
             #  _dict_ner_tags
         ):
             tokens.append(doc["tokens"])
-            pred_labels.append(_pred.labels)
-            pred_probs.append(_pred.probs)
+            pred_labels.append([span.labels for span in _pred])
+            pred_probs.append([expit(span.logits) for span in _pred])
             gold_labels.append(_gold)
             # dict_ner_tags.append(_dict)
         assert len(tokens) == len(gold_labels)
@@ -100,6 +108,8 @@ class MultiLabelTestor:
         prediction_for_split = Dataset.from_dict(
             {
                 "tokens": tokens,
+                "starts": starts,
+                "ends": ends,
                 "gold_labels": gold_labels,
                 "pred_labels": pred_labels,
                 "pred_probs": pred_probs

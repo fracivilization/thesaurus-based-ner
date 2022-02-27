@@ -1,0 +1,3 @@
+defaults:
+  - FlattenMarginalSoftmaxNER
+  - multi_label_ner_model: two_stage

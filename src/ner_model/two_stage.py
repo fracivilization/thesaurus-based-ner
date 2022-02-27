@@ -41,7 +41,7 @@ class TwoStageModel(NERModel):
         self.conf = config
         self.writer = writer
         self.chunker = chunker_builder(config.chunker)
-        self.typer = typer_builder(config.typer, datasets, writer, self.chunker)
+        self.typer = typer_builder(config.typer, datasets, writer)
         self.datasets = datasets
 
     def predict(self, tokens: List[str]) -> List[str]:
@@ -69,7 +69,19 @@ class TwoStageModel(NERModel):
         starts = [[s for s, e in snt] for snt in chunks]
         ends = [[e for s, e in snt] for snt in chunks]
         types = self.typer.batch_predict(tokens, starts, ends)
-        # chunksとtypesを組み合わせて、BIO形式に変換する
+        ner_tags = []
+        for snt_starts, snt_ends, snt_types, snt in zip(starts, ends, types, tokens):
+            snt_ner_tags = ["O"] * len(snt)
+            for s, e, l in zip(snt_starts, snt_ends, snt_types.labels):
+                if l != "nc-O":
+                    for i in range(s, e):
+                        if i == s:
+                            snt_ner_tags[i] = "B-%s" % l
+                        else:
+                            snt_ner_tags[i] = "I-%s" % l
+            ner_tags.append(snt_ner_tags)
+
+        return ner_tags
 
     def train(self):
         self.chunker.train()

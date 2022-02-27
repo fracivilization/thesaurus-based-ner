@@ -6,6 +6,7 @@ from collections import defaultdict
 from rdflib import Graph, URIRef
 import re
 from logging import getLogger
+from hydra.utils import to_absolute_path
 
 logger = getLogger(__name__)
 
@@ -69,6 +70,29 @@ def get_descendants_TUIs(tui="T025"):
             tui for tui, stn in tui2stn.items() if stn.startswith(root_stn)
         }
     return descendants_tuis
+
+
+def get_ascendants_TUIs(tui="T025"):
+    tui2stn: Dict[str, str] = dict()
+    with open(to_absolute_path(srdef)) as f:
+        for line in f:
+            line = line.strip().split("|")
+            if line[1] not in tui2stn:
+                tui2stn[line[1]] = line[3]
+            else:
+                raise NotImplementedError
+    if tui == "T000":
+        return {"T000"}
+        # entities = {tui for tui, stn in tui2stn.items() if stn.startswith("A")}
+        # events = {tui for tui, stn in tui2stn.items() if stn.startswith("B")}
+        # ascendants_tuis = entities | events
+    else:
+        leaf_stn = tui2stn[tui]
+        ascendants_tuis = {
+            tui for tui, stn in tui2stn.items() if leaf_stn.startswith(stn)
+        }
+        ascendants_tuis.add("T000")
+        return ascendants_tuis
 
 
 def load_TUI_terms(tui="T025"):

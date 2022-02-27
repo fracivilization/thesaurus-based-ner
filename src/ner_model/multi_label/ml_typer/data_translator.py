@@ -24,12 +24,17 @@ logger = getLogger(__name__)
 
 
 @dataclasses.dataclass
-class MSCConfig:
-    ner_dataset: str = MISSING
+class MSMLCConfig:
+    multi_label_ner_dataset: str = MISSING
     output_dir: str = MISSING
     with_o: bool = False
     chunker: ChunkerConfig = ChunkerConfig()
-    o_sampling_ratio: float = 1.0
+    under_sample: bool = False
+    # multi_label_ner_dataset: str = MISSING
+    # output_dir: str = MISSING
+    # with_o: bool = False
+    # chunker: ChunkerConfig = ChunkerConfig()
+    # o_sampling_ratio: float = 1.0
     # hard_o_sampling: bool = False
     # o_outside_entity: bool = False
     # weight_of_hard_o_for_easy_o: float = 0.5  #
@@ -131,6 +136,8 @@ def undersample_o_span(msml_dataset: Dataset, info):
             else:
                 non_o_span_count += 1
     ret_starts, ret_ends, ret_labels = [], [], []
+    # TODO: ラベル比でUndersamplingする
+    raise NotImplementedError
     for snt in msml_dataset:
         ret_snt_starts, ret_snt_ends, ret_snt_labels = [], [], []
         for s, e, ls in zip(snt["starts"], snt["ends"], snt["labels"]):
@@ -156,7 +163,7 @@ def undersample_o_span(msml_dataset: Dataset, info):
 
 def multi_label_ner_datasets_to_multi_span_multi_label_classification_datasets(
     multi_label_ner_datasets: datasets.DatasetDict,
-    data_args: MSCConfig,
+    data_args: MSMLCConfig,
     enumerator: Chunker,
 ) -> datasets.DatasetDict:
     pre_msml_datasets = dict()
@@ -166,6 +173,10 @@ def multi_label_ner_datasets_to_multi_span_multi_label_classification_datasets(
     if data_args.with_o:
         if "nc-O" not in label_names:
             label_names = ["nc-O"] + label_names
+        else:
+            raise NotImplementedError
+    else:
+        assert "nc-O" not in label_names
     info = datasets.DatasetInfo(
         features=datasets.Features(
             {
@@ -185,18 +196,23 @@ def multi_label_ner_datasets_to_multi_span_multi_label_classification_datasets(
             starts = snt["starts"]
             ends = snt["ends"]
             labels = snt["labels"]
+            if data_args.with_o:
+                # "nc-O" の分だけ1つずらす
+                labels = [[label + 1 for label in span] for span in labels]
             registered_chunks = set(zip(starts, ends))
             # for label, s, e in get_entities(ner_tags):
             #     starts.append(s)
             #     ends.append(e + 1)
             #     labels.append(label)
             #     registered_chunks.add((s, e))
-            if data_args.with_o and key in {"train", "validation"}:
-                for s, e in enumerator.predict(snt["tokens"]):
-                    if (s, e) not in registered_chunks:
-                        starts.append(s)
-                        ends.append(e)
+            for s, e in enumerator.predict(snt["tokens"]):
+                if (s, e) not in registered_chunks:
+                    starts.append(s)
+                    ends.append(e)
+                    if data_args.with_o:
                         labels.append(["nc-O"])
+                    else:
+                        labels.append([])
             if labels:
                 msml_dataset["tokens"].append(snt["tokens"])
                 msml_dataset["starts"].append(starts)
@@ -207,7 +223,7 @@ def multi_label_ner_datasets_to_multi_span_multi_label_classification_datasets(
         #         pre_span_classification_dataset
         #     )
         pre_msml_datasets[key] = datasets.Dataset.from_dict(msml_dataset, info=info)
-    if data_args.under_samle:
+    if data_args.under_sample:
         for key in {"train", "validation"}:
             pre_msml_datasets[key] = undersample_o_span(
                 pre_msml_datasets[key], info=info
@@ -340,7 +356,7 @@ def load_o_label_spans(unlabelled_corpus: Dataset, span_num: int) -> List:
             (s, e)
             for s in range(len(snt))
             for e in range(s + 1, len(snt) + 1)
-            if e - s <= MSCConfig.span_length
+            if e - s <= MSMLCConfig.span_length
         ]
         for s, e in random.sample(spans, min(span_num_per_snt, len(spans))):
             o_label_spans.append(snt[s:e])
@@ -460,7 +476,7 @@ def join_span_classification_datasets(
 
 def translate_into_msc_datasets(
     ner_datasets: DatasetDict,
-    msc_args: MSCConfig,
+    msc_args: MSMLCConfig,
     enumerator: Chunker,
 ):
     input_hash = {k: v._fingerprint for k, v in ner_datasets.items()}

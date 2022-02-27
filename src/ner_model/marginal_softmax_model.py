@@ -13,28 +13,28 @@ from .multi_label import register_multi_label_ner_model, multi_label_ner_model_b
 
 
 @dataclass
-class FlattenMultiLabelNERModelConfig(NERModelConfig):
-    ner_model_name: str = "FlattenMultiLabelNER"
+class FlattenMarginalSoftmaxNERModelConfig(NERModelConfig):
+    ner_model_name: str = "FlattenMarginalSoftmaxNER"
     multi_label_ner_model: MultiLabelNERModelConfig = MISSING
     focus_cats: str = MISSING
 
 
-class FlattenMultiLabelNERModel(NERModel):
+class FlattenMarginalSoftmaxNERModel(NERModel):
     """Abstract Class for Evaluation"""
 
-    def __init__(self, conf: FlattenMultiLabelNERModelConfig) -> None:
-        self.conf: FlattenMultiLabelNERModelConfig = conf
+    def __init__(self, conf: FlattenMarginalSoftmaxNERModelConfig) -> None:
+        self.conf: FlattenMarginalSoftmaxNERModelConfig = conf
         self.multi_label_ner_model: MultiLabelNERModel = multi_label_ner_model_builder(
             conf.multi_label_ner_model
         )  # 後で追加する
-        self.focus_cats = self.conf.focus_cats.split("_")
+        self.focus_cats = ["nc-O"] + self.conf.focus_cats.split("_")
         self.focus_label_ids = np.array(
             [
                 label_id
                 for label_id, label in enumerate(
                     self.multi_label_ner_model.multi_label_typer.label_names
                 )
-                if label == "nc-O" or label in self.focus_cats
+                if label in self.focus_cats
             ]
         )
 
@@ -72,19 +72,13 @@ class FlattenMultiLabelNERModel(NERModel):
             for s, e, o in zip(snt_starts, snt_ends, snt_outputs):
                 # focus_catsが何かしら出力されているスパンのみ残す
                 # 更に残っている場合は最大確率のものを残す
-                candidate_cats = set(o.labels) & focus_cats
-                if candidate_cats:
-                    candidate_cats = list(candidate_cats)
-                    candidate_logits = [
-                        o.logits[label_names.index(cat)] for cat in candidate_cats
-                    ]
-                    max_logit = max(candidate_logits)
-                    predicted_cat = candidate_cats[candidate_logits.index(max_logit)]
-
-                    remained_starts.append(s)
-                    remained_ends.append(e)
-                    remained_labels.append(predicted_cat)
-                    max_logits.append(max_logit)
+                focus_logits = o.logits[self.focus_label_ids]
+                max_logit = focus_logits.max()
+                max_logit = max(focus_logits)
+                remained_starts.append(s)
+                remained_ends.append(e)
+                remained_labels.append(self.focus_cats[focus_logits.argmax()])
+                max_logits.append(max_logit)
             labeled_chunks = sorted(
                 zip(remained_starts, remained_ends, remained_labels, max_logits),
                 key=lambda x: x[3],
@@ -108,12 +102,12 @@ class FlattenMultiLabelNERModel(NERModel):
         self.multi_label_ner_model.train()
 
 
-def register_flattern_multi_label_ner_configs(group="ner_model"):
+def register_flattern_marginal_softmax_ner_configs(group="ner_model"):
     cs = ConfigStore()
     cs.store(
         group=group,
-        name="FlattenMultiLabelNER",
-        node=FlattenMultiLabelNERModelConfig,
+        name="FlattenMarginalSoftmaxNER",
+        node=FlattenMarginalSoftmaxNERModelConfig,
     )
     register_multi_label_ner_model("%s/multi_label_ner_model" % group)
     # raise NotImplementedError

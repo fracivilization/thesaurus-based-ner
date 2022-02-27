@@ -258,20 +258,20 @@ class BERTModelConfig(NERModelConfig):
     )
 
 
-def register_BERT_configs() -> None:
+def register_BERT_configs(group="ner_model") -> None:
     cs = ConfigStore.instance()
     cs.store(
-        group="ner_model/train_args",
+        group="%s/train_args" % group,
         name="BERT_train_args",
         node=TrainingArguments,
     )
     cs.store(
-        group="ner_model/model_args",
+        group="%s/model_args" % group,
         name="BERT_model_args",
         node=ModelArguments,
     )
     cs.store(
-        group="ner_model/data_args",
+        group="%s/data_args" % group,
         name="BERT_data_args",
         node=DataTrainingArguments,
     )

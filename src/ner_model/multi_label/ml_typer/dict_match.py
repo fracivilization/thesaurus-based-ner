@@ -9,7 +9,6 @@ from src.utils.string_match import ComplexKeywordTyper
 from tqdm import tqdm
 from dataclasses import dataclass
 from omegaconf import MISSING
-from src.dataset.term2cat.term2cat import Term2CatConfig, load_term2cat
 import numpy as np
 import pickle
 from hydra.utils import get_original_cwd
@@ -22,7 +21,6 @@ np.ones(13)
 @dataclass
 class MultiLabelDictMatchTyperConfig(MultiLabelTyperConfig):
     multi_label_typer_name: str = "MultiLabelDictMatchTyper"
-    # term2cat: Term2CatConfig = Term2CatConfig()
     term2cats: str = MISSING  # path for picled term2cat
     label_names: str = "non_initialized"  # this variable is dinamically decided
     # focus_cats: str = MISSING
@@ -36,7 +34,7 @@ class MultiLabelDictMatchTyper(MultiLabelTyper):
             self.term2cats = pickle.load(f)
         self.keyword_processor = ComplexKeywordTyper(self.term2cats)
         jointed_label_names = set(self.term2cats.values())
-        self.label_names = ["nc-O"] + sorted(
+        self.label_names = sorted(
             set(
                 [
                     label
@@ -57,15 +55,22 @@ class MultiLabelDictMatchTyper(MultiLabelTyper):
             for start, end in zip(starts, ends):
                 term = " ".join(tokens[start:end])
                 label = self.keyword_processor.type_chunk(term)
-                labels.append(label.split("_"))
+                if label == "nc-O":
+                    labels.append(list())
+                else:
+                    labels.append(label.split("_"))
             # label_ids = np.array([self.label_names.index(l) for l in labels])
             logits = []
             for span_labels in labels:
-                label_ids = np.array(
-                    [self.label_names.index(label) for label in span_labels]
-                )
-                logit = 10 * np.eye(len(self.label_names))[label_ids].sum(axis=0)
+                if span_labels:
+                    label_ids = np.array(
+                        [self.label_names.index(label) for label in span_labels]
+                    )
+                    logit = 10 * np.eye(len(self.label_names))[label_ids].sum(axis=0)
+                else:
+                    logit = np.zeros(len(self.label_names))
                 logits.append(logit)
+
             logits = np.array(logits)
             return MultiLabelTyperOutput(labels=labels, logits=logits)
 

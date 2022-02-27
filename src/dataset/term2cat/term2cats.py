@@ -18,6 +18,8 @@ from hydra.core.config_store import ConfigStore
 from datasets import DatasetDict
 from collections import Counter
 from prettytable import PrettyTable
+from src.dataset.utils import STchild2parent, tui2ST
+from .terms import get_ascendants_TUIs
 
 
 @dataclass
@@ -35,6 +37,7 @@ class DictTerm2CatsConfig(Term2CatsConfig):
     dict_dir: str = os.path.join(os.getcwd(), "data/dict")
     # with_nc: bool = False
     output: str = MISSING
+    remove_ambiguate_terms: bool = False
 
 
 @dataclass
@@ -117,7 +120,12 @@ def load_dict_term2cats(conf: DictTerm2CatsConfig):
         print("Start loading: ", cat)
         buffer_file = os.path.join(get_original_cwd(), conf.dict_dir, cat)
         with open(buffer_file) as f:
+            # wc = 0
             for line in tqdm(f):
+                # for debug
+                # wc += 1
+                # if wc == 100:
+                #     break
                 term = line.strip()
                 if term:
                     if term not in term2cats:
@@ -125,6 +133,21 @@ def load_dict_term2cats(conf: DictTerm2CatsConfig):
                     else:
                         if cat not in term2cats[term]:
                             term2cats[term] += "_%s" % cat
+    # 階層構造的にあり得るカテゴリの組み合わせを列挙する
+    print(Counter(term2cats.values()).most_common())
+    print("term2cats length: ", len(term2cats))
+    if conf.remove_ambiguate_terms:
+        acceptable_cat_combination = {
+            "_".join(sorted(get_ascendants_TUIs(tui))) for tui in focus_cats
+        }
+        remove_terms = []
+        for term, cats in term2cats.items():
+            if cats not in acceptable_cat_combination:
+                remove_terms.append(term)
+        for term in remove_terms:
+            del term2cats[term]
+        print("term2cats length after removing ambiguate terms: ", len(term2cats))
+        print(Counter(term2cats.values()).most_common())
     return term2cats
 
 

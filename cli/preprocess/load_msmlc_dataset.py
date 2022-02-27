@@ -17,6 +17,7 @@ import os
 from src.ner_model.multi_label.ml_typer.data_translator import (
     multi_label_ner_datasets_to_multi_span_multi_label_classification_datasets,
     log_label_ratio,
+    MSMLCConfig
 )
 from hydra.utils import get_original_cwd, to_absolute_path
 from dataclasses import dataclass
@@ -28,17 +29,17 @@ logger = logging.getLogger(__name__)
 from src.ner_model.two_stage import register_chunker_configs, chunker_builder
 
 
-@dataclass
-class MSMLCConfig:
-    multi_label_ner_dataset: str = MISSING
-    output_dir: str = MISSING
-    with_o: bool = False
-    chunker: ChunkerConfig = ChunkerConfig()
-    under_sample: bool = False
-    # o_sampling_ratio: float = 1.0
-    # hard_o_sampling: bool = False
-    # o_outside_entity: bool = False
-    # weight_of_hard_o_for_easy_o: float = 0.5  #
+# @dataclass
+# class MSMLCConfig:
+#     multi_label_ner_dataset: str = MISSING
+#     output_dir: str = MISSING
+#     with_o: bool = False
+#     chunker: ChunkerConfig = ChunkerConfig()
+#     under_sample: bool = False
+#     # o_sampling_ratio: float = 1.0
+#     # hard_o_sampling: bool = False
+#     # o_outside_entity: bool = False
+#     # weight_of_hard_o_for_easy_o: float = 0.5  #
 
 
 cs = ConfigStore.instance()

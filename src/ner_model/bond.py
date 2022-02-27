@@ -135,9 +135,9 @@ class BONDArgs(NERModelConfig):
     saved_param_path: str = ""
 
 
-def register_BOND_configs() -> None:
+def register_BOND_configs(group) -> None:
     cs = ConfigStore.instance()
-    cs.store(group="ner_model", name="base_BOND_model_config", node=BONDArgs)
+    cs.store(group=group, name="base_BOND_model_config", node=BONDArgs)
 
 
 def set_seed(args):

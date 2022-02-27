@@ -11,7 +11,6 @@ from src.utils.string_match import ComplexKeywordTyper
 from tqdm import tqdm
 from dataclasses import dataclass
 from omegaconf import MISSING
-from src.dataset.term2cat.term2cat import Term2CatConfig, load_term2cat
 import numpy as np
 import pickle
 from hydra.utils import get_original_cwd
@@ -23,8 +22,7 @@ np.ones(13)
 @dataclass
 class DictMatchTyperConfig(TyperConfig):
     typer_name: str = "DictMatchTyper"
-    # term2cat: Term2CatConfig = Term2CatConfig()
-    term2cat: str = MISSING  # path for picled term2cat
+    term2cat: str = MISSING  # path for pickled term2cat
     label_names: str = "non_initialized"  # this variable is dinamically decided
 
 

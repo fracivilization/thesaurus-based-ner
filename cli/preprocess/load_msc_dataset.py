@@ -9,7 +9,8 @@ from src.ner_model.chunker.spacy_model import SpacyNPChunkerConfig
 from src.ner_model.typer.dict_match_typer import DictMatchTyperConfig
 from src.dataset.utils import DatasetConfig
 from omegaconf import MISSING, OmegaConf
-from src.builder import dataset_builder, ner_model_builder
+from src.dataset import dataset_builder
+from src.ner_model import ner_model_builder
 import logging
 from src.ner_model.evaluator import NERTestor
 import json
