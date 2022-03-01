@@ -97,6 +97,24 @@ class MultiLabelEnumeratedModelArguments:
             "help": "loss_fucntion of model: BCEWithLogitsLoss or MarginalCrossEntropyLoss"
         },
     )
+    pn_ratio_equivalence: bool = field(
+        default=False,
+        metadata={
+            "help": "Make positive and negative ratio equal for each category by label mask.(statically: not on running)"
+        },
+    )
+    dynamic_pn_ratio_equivalence: bool = field(
+        default=False,
+        metadata={
+            "help": "Make positive and negative ratio equal for each category by label mask.(Dinamically: on running)"
+        },
+    )
+    negative_ratio_over_positive: float = field(
+        default=1.0,
+        metadata={
+            "help": "Positive Negative Ratio; if negative is twice as positive, this parameter will be 2."
+        },
+    )
 
 
 class MarginalCrossEntropyLoss(torch.nn.BCEWithLogitsLoss):
@@ -120,13 +138,16 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
         cls,
         model_args: MultiLabelEnumeratedModelArguments,
         nc_ids: List[int],
+        negative_under_sampling_ratio: float,
         *args,
         **kwargs,
     ):
         cls.model_args = model_args
         self = super().from_pretrained(model_args.model_name_or_path, *args, **kwargs)
+        assert model_args.o_label_id >= 0
         self.model_args = model_args
         self.nc_ids = nc_ids
+        self.negative_under_sampling_ratio = negative_under_sampling_ratio
         return self
 
     def __init__(self, config):
@@ -240,6 +261,17 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
             Labels for computing the token classification loss. Indices should be in ``[0, ..., config.num_labels -
             1]``.
         """
+        if self.model_args.dynamic_pn_ratio_equivalence and labels is not None:
+            self.negative_under_sampling_ratio
+            # hypothesize "O" as "nc-O"
+            o_labeled_spans = labels[:, :, self.model_args.o_label_id]
+            non_o_spans = torch.logical_not(o_labeled_spans)
+            remained_spans = (
+                torch.rand(o_labeled_spans.shape, device=o_labeled_spans.device)
+                < self.negative_under_sampling_ratio
+            )
+            remained_o_spans = o_labeled_spans * remained_spans
+            label_masks = torch.logical_or(non_o_spans, remained_o_spans) * label_masks
         # if self.training:
         #     # label_masks = self.get_o_under_sampled_label_masks(
         #     #     starts, ends, labels, label_masks
@@ -350,18 +382,6 @@ class MultiLabelEnumeratedDataTrainingArguments:
     max_length: int = field(
         default=512,
         metadata={"help": "Max sequence length in training."},
-    )
-    pn_ratio_equivalence: bool = field(
-        default=False,
-        metadata={
-            "help": "Make positive and negative ratio equal for each category by label mask.(statically: not on running)"
-        },
-    )
-    negative_ratio_over_positive: float = field(
-        default=1.0,
-        metadata={
-            "help": "Positive Negative Ratio; if negative is twice as positive, this parameter will be 2."
-        },
     )
 
 
@@ -487,31 +507,11 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
             use_fast=True,
             additional_special_tokens=[span_start_token, span_end_token],
         )
+        self.tokenizer = tokenizer
         if "nc-O" in label_list:
             model_args.o_label_id = label_list.index("nc-O")
         else:
             model_args.o_label_id = -2
-        model = BertForEnumeratedMultiLabelTyper.from_pretrained(
-            model_args,
-            nc_ids=nc_ids,
-            from_tf=bool(".ckpt" in model_args.model_name_or_path),
-            config=config,
-            cache_dir=model_args.cache_dir,
-        )
-        # model.calculate_sampling_ratio(msml_datasets["train"])
-        if model_args.saved_param_path:
-            model.load_state_dict(
-                torch.load(
-                    os.path.join(
-                        to_absolute_path(model_args.saved_param_path),
-                        "pytorch_model.bin",
-                    )
-                )
-            )
-        # Preprocessing the dataset
-        # Padding strategy
-        self.tokenizer = tokenizer
-        self.model = model
 
         msml_datasets = DatasetDict(
             {
@@ -520,19 +520,19 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
             }
         )
         # For Debugging
-        msml_datasets = DatasetDict(
-            {
-                "train": Dataset.from_dict(
-                    msml_datasets["train"][:1000],
-                    features=msml_datasets["train"].features,
-                ),
-                "validation": Dataset.from_dict(
-                    msml_datasets["validation"][:1000],
-                    features=msml_datasets["validation"].features,
-                ),
-            }
-        )
-        if data_args.pn_ratio_equivalence:
+        # msml_datasets = DatasetDict(
+        #     {
+        #         "train": Dataset.from_dict(
+        #             msml_datasets["train"][:10000],
+        #             features=msml_datasets["train"].features,
+        #         ),
+        #         "validation": Dataset.from_dict(
+        #             msml_datasets["validation"][:10000],
+        #             features=msml_datasets["validation"].features,
+        #         ),
+        #     }
+        # )
+        if model_args.pn_ratio_equivalence or model_args.dynamic_pn_ratio_equivalence:
             if self.model_args.loss_func == "MarginalCrossEntropyLoss":
                 train_dataset = msml_datasets["train"]
                 label_names = train_dataset.features["labels"].feature.feature.names
@@ -547,7 +547,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                         else:
                             pos_label_count += 1
                 self.negative_under_sampling_ratio = (
-                    data_args.negative_ratio_over_positive
+                    model_args.negative_ratio_over_positive
                     * pos_label_count
                     / neg_label_count
                 )
@@ -564,10 +564,10 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                 self.label_count = np.array(label_count)
                 negative_count = self.span_num - self.label_count
                 self.positive_sampling_ratio = negative_count / (
-                    self.label_count * data_args.negative_ratio_over_positive
+                    self.label_count * model_args.negative_ratio_over_positive
                 )
                 self.negative_sampling_ratio = (
-                    data_args.negative_ratio_over_positive
+                    model_args.negative_ratio_over_positive
                     * self.label_count
                     / negative_count
                 )
@@ -629,6 +629,28 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
             num_proc=psutil.cpu_count(logical=False),
             features=features,
         )
+
+        model = BertForEnumeratedMultiLabelTyper.from_pretrained(
+            model_args,
+            nc_ids=nc_ids,
+            negative_under_sampling_ratio=self.negative_under_sampling_ratio,
+            from_tf=bool(".ckpt" in model_args.model_name_or_path),
+            config=config,
+            cache_dir=model_args.cache_dir,
+        )
+        # model.calculate_sampling_ratio(msml_datasets["train"])
+        if model_args.saved_param_path:
+            model.load_state_dict(
+                torch.load(
+                    os.path.join(
+                        to_absolute_path(model_args.saved_param_path),
+                        "pytorch_model.bin",
+                    )
+                )
+            )
+        # Preprocessing the dataset
+        # Padding strategy
+        self.model = model
         assert (
             len(self.span_classification_datasets["train"][0]["labels"])
             == data_args.max_span_num
@@ -881,7 +903,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                 ret_snt_labels = []
                 ret_snt_label_mask = []
                 for span_labels in snt_labels:
-                    if self.conf.data_args.pn_ratio_equivalence:
+                    if self.conf.model_args.pn_ratio_equivalence:
                         if self.conf.model_args.loss_func == "MarginalCrossEntropyLoss":
                             if -1 in span_labels:
                                 span_labels = padded_labels

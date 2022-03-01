@@ -12,11 +12,11 @@ MSC_O_SAMPLING_RATIO ?= 1.0
 UNDERSAMPLE_MSLC ?= False
 TRAIN_SNT_NUM ?= 9223372036854775807
 MSMLC_PN_RATIO_EQUIVALENCE ?= False
-MSMLC_NEGATIVE_RATIO_OVER_POSITIVE ?= 4.0
+MSMLC_NEGATIVE_RATIO_OVER_POSITIVE ?= 0.8
 FLATTEN_NER_THRESHOLD ?= 0.97
 
 MSC_ARGS := "WITH_O: $(WITH_O) FIRST_STAGE_CHUNKER: $(FIRST_STAGE_CHUNKER) MSC_O_SAMPLING_RATIO: $(MSC_O_SAMPLING_RATIO)"
-MSMLC_ARGS := "FIRST_STAGE_CHUNKER: $(FIRST_STAGE_CHUNKER) UNDERSAMPLE_MSLC: $(UNDERSAMPLE_MSLC) MSMLC_PN_RATIO_EQUIVALENCE: $(MSMLC_PN_RATIO_EQUIVALENCE) MSMLC_NEGATIVE_RATIO_OVER_POSITIVE"
+MSMLC_ARGS := "FIRST_STAGE_CHUNKER: $(FIRST_STAGE_CHUNKER) UNDERSAMPLE_MSLC: $(UNDERSAMPLE_MSLC) MSMLC_PN_RATIO_EQUIVALENCE: $(MSMLC_PN_RATIO_EQUIVALENCE) MSMLC_NEGATIVE_RATIO_OVER_POSITIVE: $(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE)"
 FLATTEN_MSMLC_ARGS := "FLATTEN_NER_THRESHOLD: $(FLATTEN_NER_THRESHOLD) MSMLC_ARGS: $(MSMLC_ARGS)"
 
 DATA_DIR := data
@@ -94,6 +94,7 @@ MISGUIDANCE_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MISGUIDA
 
 TRAIN_ON_GOLD_OUT := outputs/$(firstword $(shell echo "TRAIN_ON_GOLD_LOCK" $(GOLD_MSC_DATA) $(RUN_ARGS) | sha1sum))
 TRAIN_OUT := outputs/$(firstword $(shell echo "TRAIN_LOCK" $(PSEUDO_MSC_DATA_ON_GOLD) $(RUN_ARGS) | sha1sum))
+TRAIN_AND_EVAL_MSMLC_OUT := outputs/$(firstword $(shell echo "TRAIN_AND_EVAL_MSMLC_OUT" $(PSEUDO_MSMLC_DATA_ON_GOLD) $(MSMLC_ARGS) | sha1sum))
 
 TRAIN_BASE_CMD := poetry run python -m cli.train \
 		++dataset.name_or_path=$(GOLD_DATA) \
@@ -320,8 +321,8 @@ $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL): $(PSEUDO_MSMLC_DATA_ON_GOLD) $(GOLD_MSMLC
 		++multi_label_typer.model_output_path=$(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL) \
 		++msmlc_datasets=$(GOLD_MSMLC_DATA) \
 		++multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss \
-		++ner_model.multi_label_ner_model.multi_label_typer.data_args.pn_ratio_equivalence=True \
-		++ner_model.multi_label_ner_model.multi_label_typer.data_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE)
+		++ner_model.multi_label_ner_model.multi_label_typer.model_args.pn_ratio_equivalence=True \
+		++ner_model.multi_label_ner_model.multi_label_typer.model_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE)
 train_msmlc: $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL)
 	@echo $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL)
 
@@ -331,16 +332,16 @@ $(GOLD_TRAINED_MSMLC_MODEL): $(GOLD_MSMLC_DATA)
 		++multi_label_typer.model_output_path=$(GOLD_TRAINED_MSMLC_MODEL) \
 		++msmlc_datasets=$(GOLD_MSMLC_DATA) \
 		++multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss \
-		++ner_model.multi_label_ner_model.multi_label_typer.data_args.pn_ratio_equivalence=True \
-		++ner_model.multi_label_ner_model.multi_label_typer.data_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE)
+		++ner_model.multi_label_ner_model.multi_label_typer.model_args.pn_ratio_equivalence=True \
+		++ner_model.multi_label_ner_model.multi_label_typer.model_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE)
 train_msmlc_gold: $(GOLD_TRAINED_MSMLC_MODEL)
 	@echo $(GOLD_TRAINED_MSMLC_MODEL)
 
 
 $(GOLD_FLATTEN_MULTILABEL_NER_OUTPUT): $(GOLD_MSMLC_DATA)
 	$(FLATTEN_MULTILABEL_NER_BASE_CMD) \
-		++ner_model.multi_label_ner_model.multi_label_typer.data_args.pn_ratio_equivalence=$(MSMLC_PN_RATIO_EQUIVALENCE) \
-		++multi_label_typer.data_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE) \
+		++ner_model.multi_label_ner_model.multi_label_typer.model_args.pn_ratio_equivalence=$(MSMLC_PN_RATIO_EQUIVALENCE) \
+		++multi_label_typer.model_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE) \
 		++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=$(GOLD_MSMLC_DATA)
 train_flattern_multilabel_ner_gold: $(GOLD_FLATTEN_MULTILABEL_NER_OUTPUT)
 	@echo GOLD_MULTILABEL_NER_OUTPUT: $(GOLD_FLATTEN_MULTILABEL_NER_OUTPUT)
@@ -348,8 +349,8 @@ train_flattern_multilabel_ner_gold: $(GOLD_FLATTEN_MULTILABEL_NER_OUTPUT)
 
 $(PSEUDO_ON_GOLD_FLATTEN_MULTILABEL_NER_OUTPUT): $(PSEUDO_MSMLC_DATA_ON_GOLD)
 	$(FLATTEN_MULTILABEL_NER_BASE_CMD) \
-		++ner_model.multi_label_ner_model.multi_label_typer.data_args.pn_ratio_equivalence=$(MSMLC_PN_RATIO_EQUIVALENCE) \
-		++multi_label_typer.data_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE) \
+		++ner_model.multi_label_ner_model.multi_label_typer.model_args.pn_ratio_equivalence=$(MSMLC_PN_RATIO_EQUIVALENCE) \
+		++multi_label_typer.model_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE) \
 		++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=$(PSEUDO_MSMLC_DATA_ON_GOLD)
 train_flattern_multilabel_ner: $(PSEUDO_ON_GOLD_FLATTEN_MULTILABEL_NER_OUTPUT)
 	@echo PSEUDO_ON_GOLD_FLATTEN_MULTILABEL_NER_OUTPUT: $(PSEUDO_ON_GOLD_FLATTEN_MULTILABEL_NER_OUTPUT)
@@ -364,6 +365,30 @@ eval_flatten_marginal_softmax: $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL) $(TERM2CAT)
 	$(FLATTEN_MARGINAL_SOFTMAX_NER_BASE_CMD) \
 		++ner_model.multi_label_ner_model.multi_label_typer.model_args.saved_param_path=$(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL) \
 		++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=$(PSEUDO_MSMLC_DATA_ON_GOLD)
+
+$(TRAIN_AND_EVAL_MSMLC_OUT): $(TERM2CAT) $(GOLD_MSMLC_DATA) $(GOLD_DATA) $(PSEUDO_MSMLC_DATA_ON_GOLD)
+	@echo $(TRAIN_AND_EVAL_MSMLC_OUT)
+	poetry run python -m cli.train \
+			ner_model=flatten_marginal_softmax_ner \
+			ner_model.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
+			ner_model/multi_label_ner_model=two_stage \
+			+ner_model/multi_label_ner_model/chunker=$(FIRST_STAGE_CHUNKER) \
+			+ner_model/multi_label_ner_model/multi_label_typer=enumerated \
+			testor.baseline_typer.term2cat=$(TERM2CAT) \
+			++ner_model.multi_label_ner_model.multi_label_typer.train_args.do_train=True \
+			++ner_model.multi_label_ner_model.multi_label_typer.model_output_path=$(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL) \
+			++msmlc_datasets=$(GOLD_MSMLC_DATA) \
+			++dataset.name_or_path=$(GOLD_DATA) \
+			++ner_model.multi_label_ner_model.multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss \
+			++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=$(PSEUDO_MSMLC_DATA_ON_GOLD) \
+			++ner_model.multi_label_ner_model.multi_label_typer.model_args.dynamic_pn_ratio_equivalence=$(MSMLC_PN_RATIO_EQUIVALENCE) \
+			++ner_model.multi_label_ner_model.multi_label_typer.model_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE) \
+			2>&1 | tee $(TRAIN_AND_EVAL_MSMLC_OUT)
+train_and_eval_flatten_marginal_softmax: $(TRAIN_AND_EVAL_MSMLC_OUT)
+	@echo $(TRAIN_AND_EVAL_MSMLC_OUT)
+
+
+
 
 eval_msmlc:
 	poetry run python -m cli.train \

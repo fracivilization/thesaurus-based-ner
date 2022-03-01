@@ -112,12 +112,12 @@ class NERTestor:
         pass
         self.ner_model = ner_model
         # For debugging
-        ner_dataset = DatasetDict(
-            {
-                key: Dataset.from_dict(split[:1000], features=split.features)
-                for key, split in ner_dataset.items()
-            }
-        )
+        # ner_dataset = DatasetDict(
+        #     {
+        #         key: Dataset.from_dict(split[:1000], features=split.features)
+        #         for key, split in ner_dataset.items()
+        #     }
+        # )
         self.datasets = ner_dataset
         self.datasets_hash = {
             key: split.__hash__() for key, split in ner_dataset.items()
