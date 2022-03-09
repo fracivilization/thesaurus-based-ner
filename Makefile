@@ -2,7 +2,8 @@
 DBPEDIA_CATS = GeneLocation Species Disease Work SportsSeason Device Media SportCompetitionResult EthnicGroup Protocol Award Demographics MeanOfTransportation FileSystem Medicine Area Flag UnitOfWork MedicalSpecialty GrossDomesticProduct Biomolecule Identifier Blazon PersonFunction List TimePeriod Event Relationship Altitude TopicalConcept Spreadsheet Currency Cipher Browser Tank Food Depth Population Statistic StarCluster Language GrossDomesticProductPerCapita ChemicalSubstance ElectionDiagram Diploma Place Algorithm ChartsPlacements Unknown Activity PublicService Agent Name AnatomicalStructure Colour
 UMLS_CATS = T000 T116 T020 T052 T100 T087 T011 T190 T008 T017 T195 T194 T123 T007 T031 T022 T053 T038 T012 T029 T091 T122 T023 T030 T026 T043 T025 T019 T103 T120 T104 T185 T201 T200 T077 T049 T088 T060 T056 T203 T047 T065 T069 T196 T050 T018 T071 T126 T204 T051 T099 T021 T013 T033 T004 T168 T169 T045 T083 T028 T064 T102 T096 T068 T093 T058 T131 T125 T016 T078 T129 T055 T197 T037 T170 T130 T171 T059 T034 T015 T063 T066 T074 T041 T073 T048 T044 T085 T191 T114 T070 T086 T057 T090 T109 T032 T040 T001 T092 T042 T046 T072 T067 T039 T121 T002 T101 T098 T097 T094 T080 T081 T192 T014 T062 T075 T089 T167 T095 T054 T184 T082 T024 T079 T061 T005 T127 T010
 FOCUS_CATS ?= T005 T007 T017 T022 T031 T033 T037 T038 T058 T062 T074 T082 T091 T092 T097 T098 T103 T168 T170 T201 T204
-NEGATIVE_CATS ?= T054 T055 T056 T064 T065 T066 T068 T075 T079 T080 T081 T099 T100 T101 T102 T171 T194 T200 $(DBPEDIA_CATS)
+# NEGATIVE_CATS ?= T054 T055 T056 T064 T065 T066 T068 T075 T079 T080 T081 T099 T100 T101 T102 T171 T194 T200 $(DBPEDIA_CATS)
+NEGATIVE_CATS ?= T054 T055 T056 T064 T065 T066 T068 T075 T079 T080 T081 T099 T100 T101 T102 T171 T194 T200
 # WITH_NC ?= True
 WITH_O ?= True
 FIRST_STAGE_CHUNKER ?= enumerated # ２段階モデルの１段階目 擬似データの際のChunkerを意味しない
@@ -12,11 +13,12 @@ MSC_O_SAMPLING_RATIO ?= 1.0
 UNDERSAMPLE_MSLC ?= False
 TRAIN_SNT_NUM ?= 9223372036854775807
 MSMLC_PN_RATIO_EQUIVALENCE ?= False
+MSMLC_DYNAMIC_PN_RATIO_EQUIVALENCE ?= False
 MSMLC_NEGATIVE_RATIO_OVER_POSITIVE ?= 0.8
 FLATTEN_NER_THRESHOLD ?= 0.97
 
 MSC_ARGS := "WITH_O: $(WITH_O) FIRST_STAGE_CHUNKER: $(FIRST_STAGE_CHUNKER) MSC_O_SAMPLING_RATIO: $(MSC_O_SAMPLING_RATIO)"
-MSMLC_ARGS := "FIRST_STAGE_CHUNKER: $(FIRST_STAGE_CHUNKER) UNDERSAMPLE_MSLC: $(UNDERSAMPLE_MSLC) MSMLC_PN_RATIO_EQUIVALENCE: $(MSMLC_PN_RATIO_EQUIVALENCE) MSMLC_NEGATIVE_RATIO_OVER_POSITIVE: $(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE)"
+MSMLC_ARGS := "FIRST_STAGE_CHUNKER: $(FIRST_STAGE_CHUNKER) UNDERSAMPLE_MSLC: $(UNDERSAMPLE_MSLC) MSMLC_PN_RATIO_EQUIVALENCE: $(MSMLC_PN_RATIO_EQUIVALENCE) MSMLC_NEGATIVE_RATIO_OVER_POSITIVE: $(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE) MSMLC_DYNAMIC_PN_RATIO_EQUIVALENCE: $(MSMLC_DYNAMIC_PN_RATIO_EQUIVALENCE)"
 FLATTEN_MSMLC_ARGS := "FLATTEN_NER_THRESHOLD: $(FLATTEN_NER_THRESHOLD) MSMLC_ARGS: $(MSMLC_ARGS)"
 
 DATA_DIR := data
@@ -73,6 +75,7 @@ FLATTEN_MULTILABEL_NER_BASE_CMD := poetry run python -m cli.train ner_model=flat
 FLATTEN_MARGINAL_SOFTMAX_NER_BASE_CMD := poetry run python -m cli.train \
 		ner_model=flatten_marginal_softmax_ner \
 		ner_model.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
+		ner_model.negative_cats=$(subst $() ,_,$(NEGATIVE_CATS)) \
 		ner_model/multi_label_ner_model=two_stage \
 		+ner_model/multi_label_ner_model/chunker=$(FIRST_STAGE_CHUNKER) \
 		+ner_model/multi_label_ner_model/multi_label_typer=enumerated \
@@ -81,6 +84,11 @@ FLATTEN_MARGINAL_SOFTMAX_NER_BASE_CMD := poetry run python -m cli.train \
 		++ner_model.multi_label_ner_model.multi_label_typer.model_output_path="no_output" \
 		++msmlc_datasets=$(GOLD_MSMLC_DATA) \
 		++ner_model.multi_label_ner_model.multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss
+TRAIN_MSMLC_BASE_CMD := poetry run python -m cli.train_msmlc +multi_label_typer=enumerated \
+		++multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss \
+		++multi_label_typer.model_args.dynamic_pn_ratio_equivalence=$(MSMLC_DYNAMIC_PN_RATIO_EQUIVALENCE) \
+		++multi_label_typer.model_args.pn_ratio_equivalence=$(MSMLC_PN_RATIO_EQUIVALENCE) \
+		++multi_label_typer.model_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE)
 
 PSEUDO_DATA_ON_GOLD := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "PSEUDO_DATA_ON_GOLD" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum)) 
 PSEUDO_MSC_DATA_ON_GOLD := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "PSEUDO MSC DATASET ON GOLD" $(PSEUDO_DATA_ON_GOLD) $(MSC_ARGS) | sha1sum)) 
@@ -88,6 +96,7 @@ PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD := $(PSEUDO_DATA_DIR)/$(firstword $(shell ec
 PSEUDO_MSMLC_DATA_ON_GOLD := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "PSEUDO MSMLC DATASET ON GOLD" $(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD) $(MSMLC_ARGS) | sha1sum))  
 PSEUDO_ON_GOLD_FLATTEN_MULTILABEL_NER_OUTPUT := $(DATA_DIR)/outputs/$(firstword $(shell echo "OUTPUTS Multi Label NER" $(PSEUDO_MSMLC_DATA_ON_GOLD) $(FOCUS_CATS) $(FLATTEN_NER_THRESHOLD) | sha1sum)) 
 PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "PSEUDO ON GOLD TRAINED MSMLC MODEL" $(PSEUDO_MSMLC_DATA_ON_GOLD) | sha1sum)) 
+TRAINED_MSMLC_MODEL_ON_GOLD := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "TRAINED MSMLC MODEL ON GOLD" $(GOLD_MSMLC_DATA) | sha1sum)) 
 FP_REMOVED_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "FP_REMOVED_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
 EROSION_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "EROSION_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
 MISGUIDANCE_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MISGUIDANCE_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
@@ -95,6 +104,8 @@ MISGUIDANCE_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MISGUIDA
 TRAIN_ON_GOLD_OUT := outputs/$(firstword $(shell echo "TRAIN_ON_GOLD_LOCK" $(GOLD_MSC_DATA) $(RUN_ARGS) | sha1sum))
 TRAIN_OUT := outputs/$(firstword $(shell echo "TRAIN_LOCK" $(PSEUDO_MSC_DATA_ON_GOLD) $(RUN_ARGS) | sha1sum))
 TRAIN_AND_EVAL_MSMLC_OUT := outputs/$(firstword $(shell echo "TRAIN_AND_EVAL_MSMLC_OUT" $(PSEUDO_MSMLC_DATA_ON_GOLD) $(MSMLC_ARGS) | sha1sum))
+EVAL_FLATTEN_MARGINAL_MSMLC_OUT := outputs/$(firstword $(shell echo "TRAIN_AND_EVAL_MSMLC_OUT" $(PSEUDO_MSMLC_DATA_ON_GOLD) $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL) | sha1sum))
+EVAL_FLATTEN_MARGINAL_MSMLC_ON_GOLD_OUT := outputs/$(firstword $(shell echo "TRAIN_AND_EVAL_MSMLC_OUT" $(GOLD_MSMLC_DATA) $(TRAINED_MSMLC_MODEL_ON_GOLD) | sha1sum))
 
 TRAIN_BASE_CMD := poetry run python -m cli.train \
 		++dataset.name_or_path=$(GOLD_DATA) \
@@ -316,35 +327,27 @@ check_pseudo_msmlc_on_ner: $(UMLS_TERM2CATS)
 		+testor.baseline_typer.term2cat=$(TERM2CAT) 2>&1 | tee ${PSEUDO_OUT}
 
 $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL): $(PSEUDO_MSMLC_DATA_ON_GOLD) $(GOLD_MSMLC_DATA)
-	poetry run python -m cli.train_msmlc +multi_label_typer=enumerated \
+	$(TRAIN_MSMLC_BASE_CMD) \
 		++multi_label_typer.train_datasets=$(PSEUDO_MSMLC_DATA_ON_GOLD) \
 		++multi_label_typer.model_output_path=$(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL) \
-		++msmlc_datasets=$(GOLD_MSMLC_DATA) \
-		++multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss \
-		++ner_model.multi_label_ner_model.multi_label_typer.model_args.pn_ratio_equivalence=True \
-		++ner_model.multi_label_ner_model.multi_label_typer.model_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE)
 train_msmlc: $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL)
 	@echo $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL)
 
 $(GOLD_TRAINED_MSMLC_MODEL): $(GOLD_MSMLC_DATA)
-	poetry run python -m cli.train_msmlc +multi_label_typer=enumerated \
+	$(TRAIN_MSMLC_BASE_CMD) \
 		++multi_label_typer.train_datasets=$(GOLD_MSMLC_DATA) \
-		++multi_label_typer.model_output_path=$(GOLD_TRAINED_MSMLC_MODEL) \
-		++msmlc_datasets=$(GOLD_MSMLC_DATA) \
-		++multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss \
-		++ner_model.multi_label_ner_model.multi_label_typer.model_args.pn_ratio_equivalence=True \
-		++ner_model.multi_label_ner_model.multi_label_typer.model_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE)
+		++multi_label_typer.model_output_path=$(GOLD_TRAINED_MSMLC_MODEL)
 train_msmlc_gold: $(GOLD_TRAINED_MSMLC_MODEL)
 	@echo $(GOLD_TRAINED_MSMLC_MODEL)
 
 
-$(GOLD_FLATTEN_MULTILABEL_NER_OUTPUT): $(GOLD_MSMLC_DATA)
-	$(FLATTEN_MULTILABEL_NER_BASE_CMD) \
-		++ner_model.multi_label_ner_model.multi_label_typer.model_args.pn_ratio_equivalence=$(MSMLC_PN_RATIO_EQUIVALENCE) \
-		++multi_label_typer.model_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE) \
-		++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=$(GOLD_MSMLC_DATA)
-train_flattern_multilabel_ner_gold: $(GOLD_FLATTEN_MULTILABEL_NER_OUTPUT)
-	@echo GOLD_MULTILABEL_NER_OUTPUT: $(GOLD_FLATTEN_MULTILABEL_NER_OUTPUT)
+# $(GOLD_FLATTEN_MULTILABEL_NER_OUTPUT): $(GOLD_MSMLC_DATA)
+# 	$(FLATTEN_MULTILABEL_NER_BASE_CMD) \
+# 		++ner_model.multi_label_ner_model.multi_label_typer.model_args.pn_ratio_equivalence=$(MSMLC_PN_RATIO_EQUIVALENCE) \
+# 		++multi_label_typer.model_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE) \
+# 		++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=$(GOLD_MSMLC_DATA)
+# train_flattern_multilabel_ner_gold: $(GOLD_FLATTEN_MULTILABEL_NER_OUTPUT)
+# 	@echo GOLD_MULTILABEL_NER_OUTPUT: $(GOLD_FLATTEN_MULTILABEL_NER_OUTPUT)
 
 
 $(PSEUDO_ON_GOLD_FLATTEN_MULTILABEL_NER_OUTPUT): $(PSEUDO_MSMLC_DATA_ON_GOLD)
@@ -355,48 +358,55 @@ $(PSEUDO_ON_GOLD_FLATTEN_MULTILABEL_NER_OUTPUT): $(PSEUDO_MSMLC_DATA_ON_GOLD)
 train_flattern_multilabel_ner: $(PSEUDO_ON_GOLD_FLATTEN_MULTILABEL_NER_OUTPUT)
 	@echo PSEUDO_ON_GOLD_FLATTEN_MULTILABEL_NER_OUTPUT: $(PSEUDO_ON_GOLD_FLATTEN_MULTILABEL_NER_OUTPUT)
 
-eval_flatten_marginal_softmax_gold: $(GOLD_TRAINED_MSMLC_MODEL) $(TERM2CAT) $(GOLD_MSMLC_DATA)
+$(EVAL_FLATTEN_MARGINAL_MSMLC_ON_GOLD_OUT): $(GOLD_TRAINED_MSMLC_MODEL) $(TERM2CAT) $(GOLD_MSMLC_DATA)
 	$(FLATTEN_MARGINAL_SOFTMAX_NER_BASE_CMD) \
 		++ner_model.multi_label_ner_model.multi_label_typer.model_args.saved_param_path=$(GOLD_TRAINED_MSMLC_MODEL) \
-		++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=$(GOLD_MSMLC_DATA) 
+		++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=$(GOLD_MSMLC_DATA) \
+		2>&1 | tee $(EVAL_FLATTEN_MARGINAL_MSMLC_ON_GOLD_OUT)
+eval_flatten_marginal_softmax_gold: $(EVAL_FLATTEN_MARGINAL_MSMLC_ON_GOLD_OUT)
 
-eval_flatten_marginal_softmax: $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL) $(TERM2CAT) $(PSEUDO_MSMLC_DATA_ON_GOLD)
+$(EVAL_FLATTEN_MARGINAL_MSMLC_OUT): $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL) $(TERM2CAT) $(PSEUDO_MSMLC_DATA_ON_GOLD)
 	@echo $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL)
 	$(FLATTEN_MARGINAL_SOFTMAX_NER_BASE_CMD) \
 		++ner_model.multi_label_ner_model.multi_label_typer.model_args.saved_param_path=$(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL) \
-		++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=$(PSEUDO_MSMLC_DATA_ON_GOLD)
+		++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=$(PSEUDO_MSMLC_DATA_ON_GOLD) \
+		2>&1 | tee $(EVAL_FLATTEN_MARGINAL_MSMLC_OUT)
 
-$(TRAIN_AND_EVAL_MSMLC_OUT): $(TERM2CAT) $(GOLD_MSMLC_DATA) $(GOLD_DATA) $(PSEUDO_MSMLC_DATA_ON_GOLD)
-	@echo $(TRAIN_AND_EVAL_MSMLC_OUT)
-	poetry run python -m cli.train \
-			ner_model=flatten_marginal_softmax_ner \
-			ner_model.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
-			ner_model/multi_label_ner_model=two_stage \
-			+ner_model/multi_label_ner_model/chunker=$(FIRST_STAGE_CHUNKER) \
-			+ner_model/multi_label_ner_model/multi_label_typer=enumerated \
-			testor.baseline_typer.term2cat=$(TERM2CAT) \
-			++ner_model.multi_label_ner_model.multi_label_typer.train_args.do_train=True \
-			++ner_model.multi_label_ner_model.multi_label_typer.model_output_path=$(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL) \
-			++msmlc_datasets=$(GOLD_MSMLC_DATA) \
-			++dataset.name_or_path=$(GOLD_DATA) \
-			++ner_model.multi_label_ner_model.multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss \
-			++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=$(PSEUDO_MSMLC_DATA_ON_GOLD) \
-			++ner_model.multi_label_ner_model.multi_label_typer.model_args.dynamic_pn_ratio_equivalence=$(MSMLC_PN_RATIO_EQUIVALENCE) \
-			++ner_model.multi_label_ner_model.multi_label_typer.model_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE) \
-			2>&1 | tee $(TRAIN_AND_EVAL_MSMLC_OUT)
-train_and_eval_flatten_marginal_softmax: $(TRAIN_AND_EVAL_MSMLC_OUT)
-	@echo $(TRAIN_AND_EVAL_MSMLC_OUT)
+eval_flatten_marginal_softmax: $(EVAL_FLATTEN_MARGINAL_MSMLC_OUT)
+
+# $(TRAIN_AND_EVAL_MSMLC_OUT): $(TERM2CAT) $(GOLD_MSMLC_DATA) $(GOLD_DATA) $(PSEUDO_MSMLC_DATA_ON_GOLD)
+# 	@echo $(TRAIN_AND_EVAL_MSMLC_OUT)
+# 	poetry run python -m cli.train \
+# 			ner_model=flatten_marginal_softmax_ner \
+# 			ner_model.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
+# 			ner_model.negative_cats=$(subst $() ,_,$(NEGATIVE_CATS)) \
+# 			ner_model/multi_label_ner_model=two_stage \
+# 			+ner_model/multi_label_ner_model/chunker=$(FIRST_STAGE_CHUNKER) \
+# 			+ner_model/multi_label_ner_model/multi_label_typer=enumerated \
+# 			testor.baseline_typer.term2cat=$(TERM2CAT) \
+# 			++ner_model.multi_label_ner_model.multi_label_typer.train_args.do_train=True \
+# 			++ner_model.multi_label_ner_model.multi_label_typer.model_output_path=$(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL) \
+# 			++msmlc_datasets=$(GOLD_MSMLC_DATA) \
+# 			++dataset.name_or_path=$(GOLD_DATA) \
+# 			++ner_model.multi_label_ner_model.multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss \
+# 			++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=$(PSEUDO_MSMLC_DATA_ON_GOLD) \
+# 			++ner_model.multi_label_ner_model.multi_label_typer.model_args.dynamic_pn_ratio_equivalence=$(MSMLC_DYNAMIC_PN_RATIO_EQUIVALENCE) \
+# 			++ner_model.multi_label_ner_model.multi_label_typer.model_args.pn_ratio_equivalence=$(MSMLC_PN_RATIO_EQUIVALENCE) \
+# 			++ner_model.multi_label_ner_model.multi_label_typer.model_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE) \
+# 			2>&1 | tee $(TRAIN_AND_EVAL_MSMLC_OUT)
+# train_and_eval_flatten_marginal_softmax: $(TRAIN_AND_EVAL_MSMLC_OUT)
+# 	@echo $(TRAIN_AND_EVAL_MSMLC_OUT)
 
 
 
 
-eval_msmlc:
-	poetry run python -m cli.train \
-		ner_model=PseudoMSMLCTwoStage \
-		--focused_cats=
-eval_msmlc_gold:
-	poetry run python -m cli.train \
-		ner_model=PseudoMSMLCTwoStage \
-		--focused_cats=
+# eval_msmlc:
+# 	poetry run python -m cli.train \
+# 		ner_model=PseudoMSMLCTwoStage \
+# 		--focused_cats=
+# eval_msmlc_gold:
+# 	poetry run python -m cli.train \
+# 		ner_model=PseudoMSMLCTwoStage \
+# 		--focused_cats=
 
 make_umls_dict_files: $(UMLS_DICT_FILES)

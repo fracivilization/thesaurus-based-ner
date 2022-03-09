@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MultiLabelTyperTrainConfig:
     multi_label_typer: MultiLabelTyperConfig = MISSING
-    msmlc_datasets: str = MISSING
+    # msmlc_datasets: str = MISSING
 
 
 cs = ConfigStore.instance()
@@ -46,7 +46,7 @@ def main(cfg: MultiLabelTyperTrainConfig):
     writer.log_param("cwd", os.getcwd())
     writer.log_params_from_omegaconf_dict(cfg)
     # dataset = dataset_builder(cfg.dataset)
-    msmlc_datasets = DatasetDict.load_from_disk(to_absolute_path(cfg.msmlc_datasets))
+    # msmlc_datasets = DatasetDict.load_from_disk(to_absolute_path(cfg.msmlc_datasets))
     # if True:
     #     pass
     #     small_train = Dataset.from_dict(
@@ -64,7 +64,7 @@ def main(cfg: MultiLabelTyperTrainConfig):
 
     # testor = NERTestor(ml_typer, dataset, writer, cfg.testor, chunk)
     # TODO: MultiLabelTyper単体でtestをする
-    testor = MultiLabelTestor(ml_typer, msmlc_datasets, writer)
+    # testor = MultiLabelTestor(ml_typer, msmlc_datasets, writer)
     writer.set_terminated()
 
 

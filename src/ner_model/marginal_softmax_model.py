@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from .multi_label.abstract_model import MultiLabelNERModelConfig
 from .multi_label.ml_typer.abstract import MultiLabelTyperOutput
 from omegaconf.omegaconf import MISSING
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import numpy as np
 from .multi_label.abstract_model import MultiLabelNERModel
 from scipy.special import softmax
@@ -17,6 +17,7 @@ class FlattenMarginalSoftmaxNERModelConfig(NERModelConfig):
     ner_model_name: str = "FlattenMarginalSoftmaxNER"
     multi_label_ner_model: MultiLabelNERModelConfig = MISSING
     focus_cats: str = MISSING
+    negative_cats: Optional[str] = None
 
 
 class FlattenMarginalSoftmaxNERModel(NERModel):
@@ -27,14 +28,20 @@ class FlattenMarginalSoftmaxNERModel(NERModel):
         self.multi_label_ner_model: MultiLabelNERModel = multi_label_ner_model_builder(
             conf.multi_label_ner_model
         )  # 後で追加する
-        self.focus_cats = ["nc-O"] + self.conf.focus_cats.split("_")
-        self.focus_label_ids = np.array(
+        if self.conf.negative_cats:
+            self.negative_cats = self.conf.negative_cats.split("_")
+        else:
+            self.negative_cats = []
+        self.focus_and_negative_cats = (
+            ["nc-O"] + self.conf.focus_cats.split("_") + self.negative_cats
+        )
+        self.focus_and_negative_label_ids = np.array(
             [
                 label_id
                 for label_id, label in enumerate(
                     self.multi_label_ner_model.multi_label_typer.label_names
                 )
-                if label in self.focus_cats
+                if label in self.focus_and_negative_cats
             ]
         )
 
@@ -61,31 +68,37 @@ class FlattenMarginalSoftmaxNERModel(NERModel):
         starts, ends, outputs = self.multi_label_ner_model.batch_predict(tokens)
         label_names = self.multi_label_ner_model.label_names
         ner_tags = []
-        focus_cats = set(self.focus_cats)
+        focus_cats = set(self.focus_and_negative_cats)
         for snt_tokens, snt_starts, snt_ends, snt_outputs in zip(
             tokens, starts, ends, outputs
         ):
             remained_starts = []
             remained_ends = []
             remained_labels = []
-            max_logits = []
+            max_probs = []
             for s, e, o in zip(snt_starts, snt_ends, snt_outputs):
                 # focus_catsが何かしら出力されているスパンのみ残す
                 # 更に残っている場合は最大確率のものを残す
-                focus_logits = o.logits[self.focus_label_ids]
-                max_logit = focus_logits.max()
-                max_logit = max(focus_logits)
+                focus_and_negative_prob = softmax(
+                    o.logits[self.focus_and_negative_label_ids]
+                )
+                max_prob = focus_and_negative_prob.max()
+                max_prob = max(focus_and_negative_prob)
                 remained_starts.append(s)
                 remained_ends.append(e)
-                remained_labels.append(self.focus_cats[focus_logits.argmax()])
-                max_logits.append(max_logit)
+                label = self.focus_and_negative_cats[focus_and_negative_prob.argmax()]
+                if label in self.negative_cats:
+                    remained_labels.append("nc-%s" % label)
+                else:
+                    remained_labels.append(label)
+                max_probs.append(max_prob)
             labeled_chunks = sorted(
-                zip(remained_starts, remained_ends, remained_labels, max_logits),
+                zip(remained_starts, remained_ends, remained_labels, max_probs),
                 key=lambda x: x[3],
                 reverse=True,
             )
             snt_ner_tags = ["O"] * len(snt_tokens)
-            for s, e, label, max_logit in labeled_chunks:
+            for s, e, label, max_prob in labeled_chunks:
                 if not label.startswith("nc-") and all(
                     tag == "O" for tag in snt_ner_tags[s:e]
                 ):

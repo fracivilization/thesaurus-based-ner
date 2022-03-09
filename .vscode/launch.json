@@ -403,21 +403,20 @@
             "args": [
                 "ner_model=flatten_marginal_softmax_ner",
                 "ner_model.focus_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
+                "ner_model.negative_cats=T054_T055_T056_T064_T065_T066_T068_T075_T079_T080_T081_T099_T100_T101_T102_T171_T194_T200",
                 "ner_model/multi_label_ner_model=two_stage",
                 "+ner_model/multi_label_ner_model/chunker=enumerated",
                 "+ner_model/multi_label_ner_model/multi_label_typer=enumerated",
                 "++msmlc_datasets=data/gold/776996445f60149f6a6397d0106dbf8465b87eec",
                 "testor.baseline_typer.term2cat=data/term2cat/8a23fbd2bc56b5182ab677063f52af0497d1d5c6.pkl",
-                // "++ner_model.multi_label_ner_model.multi_label_typer.model_args.saved_param_path=data/pseudo/908c7fc343facc382b124373a0a28c7db6444835",
-                "++ner_model.multi_label_ner_model.multi_label_typer.train_args.do_train=True",
-                // "++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=data/gold/776996445f60149f6a6397d0106dbf8465b87eec",
-                "++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=data/pseudo/4c1983f8b55322f5d75b371a07cfe132ff4a13a3",
+                "++ner_model.multi_label_ner_model.multi_label_typer.model_args.saved_param_path=data/buffer/debug",
+                "++ner_model.multi_label_ner_model.multi_label_typer.train_args.do_train=False",
+                "++ner_model.multi_label_ner_model.multi_label_typer.train_args.num_train_epochs=3.0",
+                "++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=data/gold/776996445f60149f6a6397d0106dbf8465b87eec",
                 "++ner_model.multi_label_ner_model.multi_label_typer.model_output_path=data/buffer/debug",
-                // "++ner_model.multi_label_ner_model.multi_label_typer.model_output_path=data/buffer/30c347f526562c1c62b2ed931e13e61c00a84d8f",
                 "++ner_model.multi_label_ner_model.multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss",
-                "++ner_model.multi_label_ner_model.multi_label_typer.model_args.dynamic_pn_ratio_equivalence=True",
-                "++ner_model.multi_label_ner_model.multi_label_typer.model_args.negative_ratio_over_positive=1.0"
-                // "++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=data/pseudo/fe237f63d08d4a49a18f9e3f4a3316e16123d288",
+                // "++ner_model.multi_label_ner_model.multi_label_typer.model_args.dynamic_pn_ratio_equivalence=True",
+                // "++ner_model.multi_label_ner_model.multi_label_typer.model_args.negative_ratio_over_positive=1.0"
             ],
         },
         {

@@ -3,6 +3,7 @@ import os
 import pickle
 from typing import List, Optional
 import uuid
+from nbformat import from_dict
 import numpy as np
 from transformers.trainer_utils import set_seed
 from src.ner_model.chunker.abstract_model import Chunker
@@ -147,7 +148,7 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
         assert model_args.o_label_id >= 0
         self.model_args = model_args
         self.nc_ids = nc_ids
-        self.negative_under_sampling_ratio = negative_under_sampling_ratio
+        self.negative_sampling_ratio = negative_under_sampling_ratio
         return self
 
     def __init__(self, config):
@@ -262,13 +263,12 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
             1]``.
         """
         if self.model_args.dynamic_pn_ratio_equivalence and labels is not None:
-            self.negative_under_sampling_ratio
             # hypothesize "O" as "nc-O"
             o_labeled_spans = labels[:, :, self.model_args.o_label_id]
             non_o_spans = torch.logical_not(o_labeled_spans)
             remained_spans = (
                 torch.rand(o_labeled_spans.shape, device=o_labeled_spans.device)
-                < self.negative_under_sampling_ratio
+                < self.negative_sampling_ratio
             )
             remained_o_spans = o_labeled_spans * remained_spans
             label_masks = torch.logical_or(non_o_spans, remained_o_spans) * label_masks
@@ -520,7 +520,12 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
             }
         )
         # For Debugging
-        # msml_datasets = DatasetDict(
+        msml_datasets = DatasetDict(
+            {
+                key: Dataset.from_dict(split[:1000], features=split.features)
+                for key, split in msml_datasets.items()
+            }
+        )
         #     {
         #         "train": Dataset.from_dict(
         #             msml_datasets["train"][:10000],
@@ -546,7 +551,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                             neg_label_count += 1
                         else:
                             pos_label_count += 1
-                self.negative_under_sampling_ratio = (
+                self.negative_sampling_ratio = (
                     model_args.negative_ratio_over_positive
                     * pos_label_count
                     / neg_label_count
@@ -571,6 +576,8 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                     * self.label_count
                     / negative_count
                 )
+        else:
+            self.negative_sampling_ratio = 1.0
 
         if self.model_args.loss_func == "MarginalCrossEntropyLoss":
             features = datasets.Features(
@@ -633,7 +640,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         model = BertForEnumeratedMultiLabelTyper.from_pretrained(
             model_args,
             nc_ids=nc_ids,
-            negative_under_sampling_ratio=self.negative_under_sampling_ratio,
+            negative_under_sampling_ratio=self.negative_sampling_ratio,
             from_tf=bool(".ckpt" in model_args.model_name_or_path),
             config=config,
             cache_dir=model_args.cache_dir,
@@ -912,7 +919,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                                 span_labels = [
                                     i in span_labels for i in range(label_num)
                                 ]
-                                if random.random() < self.negative_under_sampling_ratio:
+                                if random.random() < self.negative_sampling_ratio:
                                     span_label_mask = True
                                 else:
                                     span_label_mask = False
