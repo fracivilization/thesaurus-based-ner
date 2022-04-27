@@ -410,6 +410,13 @@ tui2ST = {
 # }
 
 
+def get_parent2children():
+    STparent2children = defaultdict(list)
+    for child, parent in STchild2parent.items():
+        STparent2children[parent].append(child)
+    return dict(STparent2children)
+
+
 def get_umls_negative_cats(focus_tuis: List[str]):
     concepts = set(STchild2parent.values())
     tui_recorded_concepts = set(tui2ST.values())

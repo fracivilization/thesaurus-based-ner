@@ -10,6 +10,7 @@ from src.ner_model.typer.data_translator import (
     translate_into_msc_datasets,
     log_label_ratio,
 )
+import uuid
 
 from src.utils.hydra import (
     HydraAddaptedTrainingArguments,
@@ -45,6 +46,7 @@ from transformers.modeling_outputs import (
 from scipy.special import softmax
 import psutil
 import itertools
+from hydra.utils import get_original_cwd, to_absolute_path
 
 span_start_token = "[unused1]"
 span_end_token = "[unused2]"
@@ -84,8 +86,14 @@ class EnumeratedModelArguments:
         metadata={"help": "Fine-Tuned parameters. If there is, load this parameter."},
     )
     o_label_id: int = 0  # Update when model loading, so 0 is temporal number
-    o_sampling_ratio: float = 0.3  # O sampling in train
-    nc_sampling_ratio: float = 1.0  # O sampling in train
+    # o_sampling_ratio: float = 0.3  # O sampling in train
+    # nc_sampling_ratio: float = 1.0  # O sampling in train
+    negative_ratio_over_positive: float = field(
+        default=1.0,
+        metadata={
+            "help": "Positive Negative Ratio; if negative is twice as positive, this parameter will be 2."
+        },
+    )
 
 
 class MLP(torch.nn.Module):
@@ -122,7 +130,8 @@ class LiEtAlLogitExtractor(torch.nn.Module):
         # end_vecs[i,j,k] = hidden_states[i,ends[i,j,k],k]
         logits = self.MLP(
             torch.cat(
-                [start_vecs, end_vecs, start_vecs - end_vecs, start_vecs * end_vecs],
+                # [start_vecs, end_vecs, start_vecs - end_vecs, start_vecs * end_vecs],
+                [start_vecs, end_vecs],
                 dim=2,
             )
         )
@@ -132,22 +141,28 @@ class LiEtAlLogitExtractor(torch.nn.Module):
 class BertForEnumeratedTyper(BertForTokenClassification):
     @classmethod
     def from_pretrained(
-        cls, model_args: EnumeratedModelArguments, nc_ids: List[int], *args, **kwargs
+        cls,
+        model_args: EnumeratedModelArguments,
+        nc_ids: List[int],
+        negative_under_sampling_ratio: float,
+        *args,
+        **kwargs,
     ):
         cls.model_args = model_args
         self = super().from_pretrained(model_args.model_name_or_path, *args, **kwargs)
         self.model_args = model_args
         self.nc_ids = nc_ids
+        self.negative_under_sampling_ratio = negative_under_sampling_ratio
         return self
 
     def __init__(self, config):
         super().__init__(config)
         self.start_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
         self.end_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
-        self.li_et_al_logit_extractor = LiEtAlLogitExtractor(
-            config.hidden_size, config.num_labels
-        )
-        self.MLP = MLP(4 * config.hidden_size, config.num_labels)
+        # self.li_et_al_logit_extractor = LiEtAlLogitExtractor(
+        #     config.hidden_size, config.num_labels
+        # )
+        # self.MLP = MLP(4 * config.hidden_size, config.num_labels)
         self.config = config
 
     def get_valid_entities(self, starts, ends, labels):
@@ -168,7 +183,7 @@ class BertForEnumeratedTyper(BertForTokenClassification):
         o_label_mask = labels == self.model_args.o_label_id
         sample_mask = (
             torch.rand(labels.shape, device=labels.device)
-            >= self.model_args.o_sampling_ratio
+            >= self.negative_under_sampling_ratio
         )  # 1-sample ratio の割合で True となる mask
         sampled_labels = torch.where(o_label_mask * sample_mask, -1, labels)
         # サンプリングに合わせて、-1に当たる部分をソートして外側に出す
@@ -216,16 +231,16 @@ class BertForEnumeratedTyper(BertForTokenClassification):
         )
         hidden_states = outputs.last_hidden_state  # (BatchSize, SeqLength, EmbedDim)
         # device = starts.device
-        # droped_hidden_states = self.dropout(hidden_states)
-        # start_logits = self.start_classifier(
-        #     droped_hidden_states
-        # )  # (BatchSize, SeqLength, ClassNum)
-        # end_logits = self.end_classifier(
-        #     droped_hidden_states
-        # )  # (BatchSize, SeqLength, ClassNum)
-        logits = self.li_et_al_logit_extractor(hidden_states, starts, ends)
+        droped_hidden_states = self.dropout(hidden_states)
+        start_logits = self.start_classifier(
+            droped_hidden_states
+        )  # (BatchSize, SeqLength, ClassNum)
+        end_logits = self.end_classifier(
+            droped_hidden_states
+        )  # (BatchSize, SeqLength, ClassNum)
+        # logits = self.li_et_al_logit_extractor(hidden_states, starts, ends)
         # starts = starts  # (BatchSize, SeqLength, SpanNum)
-        # minibatch_size, max_span_num = starts.shape
+        minibatch_size, max_span_num = starts.shape
         # start_vecs = torch.gather(
         #     hidden_states,
         #     1,
@@ -248,23 +263,23 @@ class BertForEnumeratedTyper(BertForTokenClassification):
         #         dim=2,
         #     )
         # )
-        # start_logits_per_span = torch.gather(
-        #     start_logits,
-        #     1,
-        #     starts[:, :, None].expand(
-        #         minibatch_size, max_span_num, self.config.num_labels
-        #     ),
-        # )  # (BatchSize, SpanNum, ClassNum)
+        start_logits_per_span = torch.gather(
+            start_logits,
+            1,
+            starts[:, :, None].expand(
+                minibatch_size, max_span_num, self.config.num_labels
+            ),
+        )  # (BatchSize, SpanNum, ClassNum)
         # # starts_logits_per_span[i,j,k] = start_logits[i,starts[i,j,k],k]
-        # end_logits_per_span = torch.gather(
-        #     end_logits,
-        #     1,
-        #     ends[:, :, None].expand(
-        #         minibatch_size, max_span_num, self.config.num_labels
-        #     ),
-        # )  # (BatchSize, SpanNum, ClassNum)
+        end_logits_per_span = torch.gather(
+            end_logits,
+            1,
+            ends[:, :, None].expand(
+                minibatch_size, max_span_num, self.config.num_labels
+            ),
+        )  # (BatchSize, SpanNum, ClassNum)
         # # ends_logits_per_span[i,j,k] = ends_logits[i,starts[i,j,k],k]
-        # logits = start_logits_per_span + end_logits_per_span
+        logits = start_logits_per_span + end_logits_per_span
         loss = None
         if labels is not None:
             loss_fct = torch.nn.CrossEntropyLoss(ignore_index=-1)
@@ -431,15 +446,34 @@ class EnumeratedTyper(Typer):
             model_args.o_label_id = label_list.index("nc-O")
         else:
             model_args.o_label_id = -2
+
+        train_dataset = span_classification_datasets["train"]
+        label_names = train_dataset.features["labels"].feature.names
+        assert "nc-O" in label_names
+        span_num = 0
+        positive_count = 0
+        for snt in train_dataset:
+            for label in snt["labels"]:
+                span_num += 1
+                if label_names[label] != "nc-O":
+                    positive_count += 1
+        negative_count = span_num - positive_count
+        self.negative_sampling_ratio = (
+            model_args.negative_ratio_over_positive * positive_count / negative_count
+        )
+
         model = BertForEnumeratedTyper.from_pretrained(
             model_args,
             nc_ids=nc_ids,
+            negative_under_sampling_ratio=self.negative_sampling_ratio,
             from_tf=bool(".ckpt" in model_args.model_name_or_path),
             config=config,
             cache_dir=model_args.cache_dir,
         )
         if model_args.saved_param_path:
-            model.load_state_dict(torch.load(model_args.saved_param_path))
+            model.load_state_dict(
+                torch.load(to_absolute_path(model_args.saved_param_path))
+            )
         # Preprocessing the dataset
         # Padding strategy
         self.tokenizer = tokenizer
@@ -625,6 +659,16 @@ class EnumeratedTyper(Typer):
                     probs=probs,
                 )
             )
+        log_dataset = Dataset.from_dict(
+            {
+                "tokens": tokens,
+                "starts": starts,
+                "ends": ends,
+                "logits": logits,
+                "label_names": [self.label_names] * len(tokens),
+            }
+        )
+        log_dataset.save_to_disk("span_classif_log_%s" % str(uuid.uuid1()))
         return ret_list
 
     def load_model_input(

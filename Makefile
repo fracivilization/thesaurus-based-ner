@@ -14,4 +14,5 @@ check_pseudo_msmlc: $(GOLD_MSMLC_DATA) $(UMLS_TERM2CATS)
 
 # Eval flatten marginal_softmax
 eval_flatten_marginal_softmax_gold: $(EVAL_FLATTEN_MARGINAL_MSMLC_ON_GOLD_OUT)
+	@echo EVAL_FLATTEN_MARGINAL_MSMLC_ON_GOLD_OUT: $(EVAL_FLATTEN_MARGINAL_MSMLC_ON_GOLD_OUT)
 eval_flatten_marginal_softmax: $(EVAL_FLATTEN_MARGINAL_MSMLC_OUT)

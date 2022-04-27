@@ -1,7 +1,7 @@
 PSEUDO_DATA_BASE_CMD := poetry run python -m cli.preprocess.load_pseudo_ner \
 		++ner_model.typer.term2cat=$(TERM2CAT) \
         +gold_corpus=$(GOLD_DATA)
-MSC_DATA_BASE_CMD := poetry run python -m cli.preprocess.load_msc_dataset chunker=$(FIRST_STAGE_CHUNKER) ++with_o=$(WITH_O) ++o_sampling_ratio=$(MSC_O_SAMPLING_RATIO)
+MSC_DATA_BASE_CMD := poetry run python -m cli.preprocess.load_msc_dataset chunker=$(FIRST_STAGE_CHUNKER) ++with_o=$(WITH_O) 
 MSMLC_DATA_BASE_CMD := poetry run python -m cli.preprocess.load_msmlc_dataset +chunker=$(FIRST_STAGE_CHUNKER) ++under_sample=$(UNDERSAMPLE_MSLC) ++with_o=True
 MSMLC_BINARY_DATA_BASE_CMD := poetry run python -m cli.preprocess.load_msmlc_dataset +chunker=$(FIRST_STAGE_CHUNKER) ++under_sample=$(UNDERSAMPLE_MSLC) ++with_o=False
 FLATTEN_MULTILABEL_NER_BASE_CMD := poetry run python -m cli.train ner_model=flatten_ner \
@@ -33,7 +33,7 @@ TRAIN_MSMLC_BASE_CMD := poetry run python -m cli.train_msmlc +multi_label_typer=
 TRAIN_BASE_CMD := poetry run python -m cli.train \
 		++dataset.name_or_path=$(GOLD_DATA) \
 		ner_model/chunker=$(FIRST_STAGE_CHUNKER) \
-		ner_model.typer.model_args.o_sampling_ratio=$(O_SAMPLING_RATIO) \
+		ner_model.typer.model_args.negative_ratio_over_positive=$(NEGATIVE_RATIO_OVER_POSITIVE) \
 		ner_model.typer.train_args.per_device_train_batch_size=8 \
 		ner_model.typer.train_args.per_device_eval_batch_size=16 \
 		ner_model.typer.train_args.do_train=True \

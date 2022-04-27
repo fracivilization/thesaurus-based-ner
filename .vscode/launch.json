@@ -69,8 +69,9 @@
             "args": [
                 "chunker=enumerated",
                 "++with_o=True",
-                "+ner_dataset=data/gold/05c253af97e873799ba03fb645d8ee9fa5bf741c",
-                "+output_dir=data/gold/107df64cc02c35b1e4b9a85abc8e03da1727d961",
+                "++negative_ratio_over_positive=1.0",
+                "+ner_dataset=data/gold/836053d1bd47c7cf824672a17714a61a354af8e9",
+                "+output_dir=data/gold/05ed3d10975a890ce482dc087df8b8b70b53db6f",
             ],
         },
         {
@@ -149,18 +150,16 @@
             "module": "cli.train",
             "justMyCode": false,
             "args": [
-                // "ner_model/chunker=spacy_np",
-                // "ner_model/typer=random",
-                "++dataset.name_or_path=data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3",
-                "ner_model/chunker=spacy_np",
-                "ner_model.typer.model_args.o_sampling_ratio=0.02",
-                "ner_model.typer.model_args.nc_sampling_ratio=0.1",
+                "++dataset.name_or_path=data/gold/836053d1bd47c7cf824672a17714a61a354af8e9",
+                "ner_model/chunker=enumerated",
+                "ner_model.typer.model_args.negative_ratio_over_positive=1.0",
+                "ner_model.typer.model_args.saved_param_path=outputs/2022-04-03/06-32-31/pytorch_model.bin",
                 "ner_model.typer.train_args.per_device_train_batch_size=8",
-                "ner_model.typer.train_args.per_device_eval_batch_size=32",
-                "ner_model.typer.train_args.do_train=True",
+                "ner_model.typer.train_args.per_device_eval_batch_size=16",
+                "ner_model.typer.train_args.do_train=False",
                 "ner_model.typer.train_args.overwrite_output_dir=True",
-                "testor.baseline_typer.term2cat=data/term2cat/8a23fbd2bc56b5182ab677063f52af0497d1d5c6.pkl",
-                "ner_model.typer.msc_datasets=data/pseudo/c58dfd3063052797502c6e09cdfaba8d06f79926"
+                "testor.baseline_typer.term2cat=data/term2cat/4a346fc7708eff30dc3a5a0bd47df4b3cb61823a.pkl",
+                "ner_model.typer.msc_datasets=data/gold/e28f210f0623e8c9ac34e4e40c60851b4160cec2",
             ],
         },
         {
@@ -203,7 +202,8 @@
             "args": [
                 "++dataset.name_or_path=data/gold/836053d1bd47c7cf824672a17714a61a354af8e9",
                 "ner_model/chunker=enumerated",
-                "ner_model.typer.model_args.o_sampling_ratio=1.0",
+                "ner_model.typer.model_args.negative_ratio_over_positive=1.0",
+                "ner_model.typer.model_args.negative_ratio_over_positive=2.0",
                 "ner_model.typer.train_args.per_device_train_batch_size=8",
                 "ner_model.typer.train_args.per_device_eval_batch_size=16",
                 "ner_model.typer.train_args.do_train=True",
@@ -428,16 +428,17 @@
             "args": [
                 "ner_model=flatten_marginal_softmax_ner",
                 "ner_model.focus_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
+                "ner_model.negative_cats=",
                 "ner_model/multi_label_ner_model=two_stage",
                 "+ner_model/multi_label_ner_model/chunker=enumerated",
                 "+ner_model/multi_label_ner_model/multi_label_typer=enumerated",
-                "testor.baseline_typer.term2cat=data/term2cat/a7e95de1964a18bda45918ea72984fd4ef81bb53.pkl",
+                "testor.baseline_typer.term2cat=data/term2cat/e04122e7582b6bf5c6c447b6069f8be77b17620f.pkl",
                 "++ner_model.multi_label_ner_model.multi_label_typer.train_args.do_train=False",
                 "++ner_model.multi_label_ner_model.multi_label_typer.model_output_path=\"no_output\"",
-                "++msmlc_datasets=data/gold/776996445f60149f6a6397d0106dbf8465b87eec",
+                "++msmlc_datasets=data/gold/bb7f6bdfa26f7893f68b0466becf7b54d39d1496",
                 "++ner_model.multi_label_ner_model.multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss",
-                "++ner_model.multi_label_ner_model.multi_label_typer.model_args.saved_param_path=data/buffer/30c347f526562c1c62b2ed931e13e61c00a84d8f",
-                "++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=data/gold/776996445f60149f6a6397d0106dbf8465b87eec"
+                "++ner_model.multi_label_ner_model.multi_label_typer.model_args.saved_param_path=data/model/c3ba4c828cb81e0c8b9becbec840b9c784f98545",
+                "++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=data/gold/bb7f6bdfa26f7893f68b0466becf7b54d39d1496"
             ],
         },
         // {
@@ -473,6 +474,14 @@
                 "++ner_model.multi_label_ner_model.multi_label_typer.prediction_threshold=0.97",
                 "testor.baseline_typer.term2cat=data/term2cat/8a23fbd2bc56b5182ab677063f52af0497d1d5c6.pkl",
             ],
+        },
+        {
+            "name": "Error Analysis",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.error_analysis",
+            "justMyCode": false,
+            "args": [],
         },
     ]
 }

@@ -1,3 +1,4 @@
+import uuid
 from matplotlib.pyplot import axis
 from .abstract_model import NERModelConfig, NERModel
 from dataclasses import dataclass
@@ -10,6 +11,7 @@ from .multi_label.abstract_model import MultiLabelNERModel
 from scipy.special import softmax
 from hydra.core.config_store import ConfigStore
 from .multi_label import register_multi_label_ner_model, multi_label_ner_model_builder
+from datasets import Dataset
 
 
 @dataclass
@@ -37,11 +39,8 @@ class FlattenMarginalSoftmaxNERModel(NERModel):
         )
         self.focus_and_negative_label_ids = np.array(
             [
-                label_id
-                for label_id, label in enumerate(
-                    self.multi_label_ner_model.multi_label_typer.label_names
-                )
-                if label in self.focus_and_negative_cats
+                self.multi_label_ner_model.multi_label_typer.label_names.index(label)
+                for label in self.focus_and_negative_cats
             ]
         )
 
@@ -69,12 +68,15 @@ class FlattenMarginalSoftmaxNERModel(NERModel):
         label_names = self.multi_label_ner_model.label_names
         ner_tags = []
         focus_cats = set(self.focus_and_negative_cats)
+        logits = []
         for snt_tokens, snt_starts, snt_ends, snt_outputs in zip(
             tokens, starts, ends, outputs
         ):
             remained_starts = []
             remained_ends = []
             remained_labels = []
+            snt_logits = np.array([o.logits for o in snt_outputs])
+            logits.append(snt_logits)
             max_probs = []
             for s, e, o in zip(snt_starts, snt_ends, snt_outputs):
                 # focus_catsが何かしら出力されているスパンのみ残す
@@ -109,6 +111,16 @@ class FlattenMarginalSoftmaxNERModel(NERModel):
                             snt_ner_tags[i] = "I-%s" % label
             assert len(snt_tokens) == len(snt_ner_tags)
             ner_tags.append(snt_ner_tags)
+        log_dataset = Dataset.from_dict(
+            {
+                "tokens": tokens,
+                "starts": starts,
+                "ends": ends,
+                "logits": logits,
+                "label_names": [label_names] * len(tokens),
+            }
+        )
+        log_dataset.save_to_disk("span_classif_log_%s" % str(uuid.uuid1()))
         return ner_tags
 
     def train(self):

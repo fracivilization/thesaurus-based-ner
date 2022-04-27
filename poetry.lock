@@ -1748,6 +1748,14 @@ python-versions = "*"
 dill = ["dill (>=0.3.4)"]
 
 [[package]]
+name = "pptree"
+version = "3.1"
+description = "Pretty print trees"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "preshed"
 version = "3.0.5"
 description = "Cython hash table that trusts the keys are pre-hashed"
@@ -2980,7 +2988,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "3282ca8d383c1c299638480d427946e801b532845b8614c75d791c76c3c44655"
+content-hash = "3a238c21a435b4a87a56002f6196e1aa111736de369fa2518864daac4510c507"
 
 [metadata.files]
 absl-py = [
@@ -4085,6 +4093,9 @@ ppft = [
     {file = "ppft-1.6.6.4-py2-none-any.whl", hash = "sha256:cbe543bbd4a661a21fda3fed3602d01c1dcfb8f0ac46816f1b7564996c5d86df"},
     {file = "ppft-1.6.6.4-py3-none-any.whl", hash = "sha256:63d12035786dfd52e7a0fedcd75a498b68b80e6ac54720cd8a4282512608131c"},
     {file = "ppft-1.6.6.4.zip", hash = "sha256:473442cc6731856990bd25bd6b454bb98720007de4523a73c560bdd0060463d2"},
+]
+pptree = [
+    {file = "pptree-3.1.tar.gz", hash = "sha256:4dd0ba2f58000cbd29d68a5b64bac29bcb5a663642f79404877c0059668a69f6"},
 ]
 preshed = [
     {file = "preshed-3.0.5-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:572899224578d30f6a67fadecb3d62b824866b4d2b6bad73f71abf7585db1389"},

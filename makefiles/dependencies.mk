@@ -65,6 +65,8 @@ $(GOLD_DATA): $(GOLD_DIR)/MedMentions
 $(GOLD_MSC_DATA): $(GOLD_DATA)
 	@echo GOLD_MSC_DATA_ON_GOLD: $(GOLD_MSC_DATA)
 	$(MSC_DATA_BASE_CMD) \
+		++negative_sampling=True \
+		++negative_ratio_over_positive=$(NEGATIVE_RATIO_OVER_POSITIVE) \
 		+ner_dataset=$(GOLD_DATA) \
 		+output_dir=$(GOLD_MSC_DATA)
 
