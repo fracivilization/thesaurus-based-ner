@@ -1,9 +1,81 @@
+import random
 from datasets import Dataset, DatasetDict
 import numpy as np
 from scipy.special import softmax
 from seqeval.metrics.sequence_labeling import get_entities
 from src.utils.tree_visualize import Node, get_tree_str, tree_repr
 from src.dataset.utils import get_parent2children, tui2ST
+from typing import List
+from more_itertools import powerset
+
+
+def valid_label_set():
+    parent2children = get_parent2children()
+    parent2children["UMLS"] = parent2children["ROOT"]
+    parent2children["ROOT"] = ["UMLS", "nc-O"]
+    ST2tui = {val: key for key, val in tui2ST.items()}
+    ST2tui["nc-O"] = "nc-O"
+    child2parent = {
+        child: parent
+        for parent, children in parent2children.items()
+        for child in children
+    }
+    label_names = list(child2parent.keys())
+
+    def ascendant_labels(child_label) -> List[str]:
+        ascendants = [child_label]
+        while child_label != "ROOT":
+            parent = child2parent[child_label]
+            ascendants.append(parent)
+            child_label = parent
+        pass
+        return ascendants
+
+    valid_sets = set()
+    for label in label_names:
+        if label in {"UMLS", "ROOT"}:
+            continue
+        valid_labels = ascendant_labels(label)
+        if "UMLS" in valid_labels:
+            valid_labels.remove("UMLS")
+            valid_labels.append("ROOT")
+        if "ROOT" in valid_labels:
+            valid_labels.remove("ROOT")
+        valid_labels = [ST2tui[vl] for vl in valid_labels]
+        valid_sets |= set(
+            ["_".join(sorted(labels)) for labels in powerset(valid_labels) if labels]
+        )
+    return valid_sets
+
+
+valid_label_set = valid_label_set()
+
+
+def hierarchical_valid(labels: List[str]):
+    """入力されたラベル集合が階層構造として妥当であるかを判断する。
+
+    ここで、階層構造として妥当であるとは、そのラベル集合が("O"ラベルを含んだシソーラスにおける)
+    ルートノードから各ノードへのパス、あるいはその部分集合となるようなラベル集合のことである
+
+    Args:
+        labels (List[str]): 妥当性を判断するラベル集合
+    """
+    return "_".join(sorted(labels)) in valid_label_set
+
+
+def ranked_label2hierarchical_valid_labels(ranked_labels: List[str]):
+    """ランク付けされたラベルのリストから階層構造的に曖昧性のなく妥当なラベルセットを出力する
+
+    Args:
+        ranked_labels (List[str]): ラベルが出力されたランク順に並んだリスト
+    """
+    hierarchical_valid_labels = []
+    for label in ranked_labels:
+        if not hierarchical_valid(hierarchical_valid_labels + [label]):
+            break
+        else:
+            hierarchical_valid_labels.append(label)
+    return hierarchical_valid_labels
 
 
 def get_tree_from_logits(logits, label_names):
@@ -91,7 +163,14 @@ for snt_multi, snt_single, snt_gold in zip(d_multi, d_single, d_gold):
     ):
         mention = " ".join(tokens[start:end])
         multi_max_likelihood = prob_multi.max()
-        pred_multi = (["nc-O"] + FOCUS_CATS + NEGATIVE_CATS)[prob_multi.argmax()]
+        ranked_label = [(label_names_multi)[i] for i in (-logit_multi).argsort()]
+        valid_labels = ranked_label2hierarchical_valid_labels(ranked_label)
+        # pred_multi = (["nc-O"] + FOCUS_CATS + NEGATIVE_CATS)[prob_multi.argmax()]
+        focus_labels = set(valid_labels) & set(FOCUS_CATS)
+        if focus_labels:
+            pred_multi = random.choice(list(focus_labels))
+        else:
+            pred_multi = "nc-O"
         single_max_likelihood = prob_single.max()
         pred_single = (["nc-O"] + FOCUS_CATS)[prob_single.argmax()]
         # print("multi", pred_multi, multi_max_likelihood)
@@ -102,7 +181,7 @@ for snt_multi, snt_single, snt_gold in zip(d_multi, d_single, d_gold):
                     mention,
                     tui2ST[pred_multi],
                     "%.2f" % (100 * multi_max_likelihood,),
-                    get_tree_from_logits(logit_multi, label_names_multi),
+                    # get_tree_from_logits(logit_multi, label_names_multi),
                 )
             )
         if not pred_single.startswith("nc-"):
@@ -112,11 +191,11 @@ for snt_multi, snt_single, snt_gold in zip(d_multi, d_single, d_gold):
     multi_predictions = sorted(multi_predictions, key=lambda x: x[2], reverse=True)
     single_predictions = sorted(single_predictions, key=lambda x: x[2], reverse=True)
     print("\n\n")
-    print("multi: ")
-    for mult_pred in multi_predictions:
-        print(mult_pred[:3])
-        print(mult_pred[3])
-    # print("multi: ", multi_predictions)
-    print("\n\n")
+    # print("multi: ")
+    # for mult_pred in multi_predictions:
+    #     print(mult_pred[:3])
+    #     print(mult_pred[3])
+    print("multi: ", multi_predictions)
+    # print("\n\n")
     print("single: ", single_predictions)
     pass
