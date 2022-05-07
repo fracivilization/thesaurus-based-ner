@@ -12,6 +12,8 @@ from scipy.special import softmax
 from hydra.core.config_store import ConfigStore
 from .multi_label import register_multi_label_ner_model, multi_label_ner_model_builder
 from datasets import Dataset
+from src.dataset.utils import ranked_label2hierarchical_valid_labels
+import random
 
 
 @dataclass
@@ -20,6 +22,7 @@ class FlattenMarginalSoftmaxNERModelConfig(NERModelConfig):
     multi_label_ner_model: MultiLabelNERModelConfig = MISSING
     focus_cats: str = MISSING
     negative_cats: Optional[str] = None
+    hierarchical_valid: bool = False
 
 
 class FlattenMarginalSoftmaxNERModel(NERModel):
@@ -34,6 +37,7 @@ class FlattenMarginalSoftmaxNERModel(NERModel):
             self.negative_cats = self.conf.negative_cats.split("_")
         else:
             self.negative_cats = []
+        self.focus_cats = self.conf.focus_cats.split("_")
         self.focus_and_negative_cats = (
             ["nc-O"] + self.conf.focus_cats.split("_") + self.negative_cats
         )
@@ -81,18 +85,36 @@ class FlattenMarginalSoftmaxNERModel(NERModel):
             for s, e, o in zip(snt_starts, snt_ends, snt_outputs):
                 # focus_catsが何かしら出力されているスパンのみ残す
                 # 更に残っている場合は最大確率のものを残す
-                focus_and_negative_prob = softmax(
-                    o.logits[self.focus_and_negative_label_ids]
-                )
-                max_prob = focus_and_negative_prob.max()
-                max_prob = max(focus_and_negative_prob)
+                if self.conf.hierarchical_valid:
+                    ranked_labels = [label_names[i] for i in (-o.logits).argsort()]
+                    valid_labels = ranked_label2hierarchical_valid_labels(ranked_labels)
+                    focus_labels = set(valid_labels) & set(self.focus_cats)
+                    prob = softmax(o.logits)
+                    if focus_labels:
+                        assert len(focus_labels) == 1
+                        label = focus_labels.pop()
+                    else:
+                        label = "nc-O"
+                    remained_labels.append(label)
+                    focus_and_negative_prob = softmax(
+                        o.logits[self.focus_and_negative_label_ids]
+                    )
+                    max_prob = prob[label_names.index(label)]
+                else:
+                    focus_and_negative_prob = softmax(
+                        o.logits[self.focus_and_negative_label_ids]
+                    )
+                    max_prob = focus_and_negative_prob.max()
+                    max_prob = max(focus_and_negative_prob)
+                    label = self.focus_and_negative_cats[
+                        focus_and_negative_prob.argmax()
+                    ]
+                    if label in self.negative_cats:
+                        remained_labels.append("nc-%s" % label)
+                    else:
+                        remained_labels.append(label)
                 remained_starts.append(s)
                 remained_ends.append(e)
-                label = self.focus_and_negative_cats[focus_and_negative_prob.argmax()]
-                if label in self.negative_cats:
-                    remained_labels.append("nc-%s" % label)
-                else:
-                    remained_labels.append(label)
                 max_probs.append(max_prob)
             labeled_chunks = sorted(
                 zip(remained_starts, remained_ends, remained_labels, max_probs),

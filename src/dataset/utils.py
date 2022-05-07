@@ -4,6 +4,7 @@ from datasets import DatasetDict
 from datasets import load_dataset
 from dataclasses import dataclass
 from typing import List
+from more_itertools import powerset
 
 
 @dataclass
@@ -463,3 +464,72 @@ def get_tui2ascendants():
             ascendants.append(tui)
         tui2ascendants[orig_tui] = sorted(ascendants)
     return tui2ascendants
+
+
+def valid_label_set():
+    parent2children = get_parent2children()
+    parent2children["UMLS"] = parent2children["ROOT"]
+    parent2children["ROOT"] = ["UMLS", "nc-O"]
+    ST2tui = {val: key for key, val in tui2ST.items()}
+    ST2tui["nc-O"] = "nc-O"
+    child2parent = {
+        child: parent
+        for parent, children in parent2children.items()
+        for child in children
+    }
+    label_names = list(child2parent.keys())
+
+    def ascendant_labels(child_label) -> List[str]:
+        ascendants = [child_label]
+        while child_label != "ROOT":
+            parent = child2parent[child_label]
+            ascendants.append(parent)
+            child_label = parent
+        pass
+        return ascendants
+
+    valid_sets = set()
+    for label in label_names:
+        if label in {"UMLS", "ROOT"}:
+            continue
+        valid_labels = ascendant_labels(label)
+        if "UMLS" in valid_labels:
+            valid_labels.remove("UMLS")
+            valid_labels.append("ROOT")
+        if "ROOT" in valid_labels:
+            valid_labels.remove("ROOT")
+        valid_labels = [ST2tui[vl] for vl in valid_labels]
+        valid_sets |= set(
+            ["_".join(sorted(labels)) for labels in powerset(valid_labels) if labels]
+        )
+    return valid_sets
+
+
+valid_label_set = valid_label_set()
+
+
+def hierarchical_valid(labels: List[str]):
+    """入力されたラベル集合が階層構造として妥当であるかを判断する。
+
+    ここで、階層構造として妥当であるとは、そのラベル集合が("O"ラベルを含んだシソーラスにおける)
+    ルートノードから各ノードへのパス、あるいはその部分集合となるようなラベル集合のことである
+
+    Args:
+        labels (List[str]): 妥当性を判断するラベル集合
+    """
+    return "_".join(sorted(labels)) in valid_label_set
+
+
+def ranked_label2hierarchical_valid_labels(ranked_labels: List[str]):
+    """ランク付けされたラベルのリストから階層構造的に曖昧性のなく妥当なラベルセットを出力する
+
+    Args:
+        ranked_labels (List[str]): ラベルが出力されたランク順に並んだリスト
+    """
+    hierarchical_valid_labels = []
+    for label in ranked_labels:
+        if not hierarchical_valid(hierarchical_valid_labels + [label]):
+            break
+        else:
+            hierarchical_valid_labels.append(label)
+    return hierarchical_valid_labels
