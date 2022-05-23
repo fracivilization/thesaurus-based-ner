@@ -99,7 +99,9 @@ class FlattenMarginalSoftmaxNERModel(NERModel):
                     focus_and_negative_prob = softmax(
                         o.logits[self.focus_and_negative_label_ids]
                     )
-                    max_prob = prob[label_names.index(label)]
+                    max_prob = focus_and_negative_prob[
+                        self.focus_and_negative_cats.index(label)
+                    ]
                 else:
                     focus_and_negative_prob = softmax(
                         o.logits[self.focus_and_negative_label_ids]

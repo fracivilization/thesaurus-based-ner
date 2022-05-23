@@ -630,7 +630,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         self.span_classification_datasets: DatasetDict = msml_datasets.map(
             self.preprocess_function,
             batched=True,
-            load_from_cache_file=False,
+            load_from_cache_file=True,
             keep_in_memory=True,
             # cache_file_names=cache_file_names,
             num_proc=psutil.cpu_count(logical=False),

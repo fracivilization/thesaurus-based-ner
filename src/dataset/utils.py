@@ -489,6 +489,8 @@ def valid_label_set():
         return ascendants
 
     valid_sets = set()
+    valid_paths = set(["T000"])
+    label2valid_paths = {"T000": "T000"}
     for label in label_names:
         if label in {"UMLS", "ROOT"}:
             continue
@@ -499,13 +501,17 @@ def valid_label_set():
         if "ROOT" in valid_labels:
             valid_labels.remove("ROOT")
         valid_labels = [ST2tui[vl] for vl in valid_labels]
+        valid_path = "_".join(sorted(valid_labels))
+        valid_paths.add(valid_path)
+        label2valid_paths[ST2tui[label]] = valid_path
         valid_sets |= set(
             ["_".join(sorted(labels)) for labels in powerset(valid_labels) if labels]
         )
-    return valid_sets
+    return valid_sets, valid_paths, label2valid_paths
 
 
-valid_label_set = valid_label_set()
+valid_label_set, valid_paths, label2valid_paths = valid_label_set()
+label2depth = {label: len(path.split("_")) for label, path in label2valid_paths.items()}
 
 
 def hierarchical_valid(labels: List[str]):
@@ -520,6 +526,13 @@ def hierarchical_valid(labels: List[str]):
     return "_".join(sorted(labels)) in valid_label_set
 
 
+def get_complete_path(labels: List[str]):
+    # 最も深いレベルに存在するラベルを取得する
+    depths = [label2depth[l] for l in labels]
+    # そのラベルへのパスとなるラベル集合を取得する
+    return label2valid_paths[labels[depths.index(max(depths))]].split("_")
+
+
 def ranked_label2hierarchical_valid_labels(ranked_labels: List[str]):
     """ランク付けされたラベルのリストから階層構造的に曖昧性のなく妥当なラベルセットを出力する
 
@@ -532,4 +545,6 @@ def ranked_label2hierarchical_valid_labels(ranked_labels: List[str]):
             break
         else:
             hierarchical_valid_labels.append(label)
+    if "_".join(sorted(hierarchical_valid_labels)) not in valid_paths:
+        hierarchical_valid_labels = get_complete_path(hierarchical_valid_labels)
     return hierarchical_valid_labels
