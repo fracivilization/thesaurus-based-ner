@@ -1,16 +1,8 @@
 from os import write
-from omegaconf import DictConfig
 import hydra
 from hydra.core.config_store import ConfigStore
 from dataclasses import dataclass
 from src.ner_model.abstract_model import NERModel, NERModelConfig, NERModel
-from src.ner_model.matcher_model import register_ner_matcher_configs
-from src.ner_model.multi_label import register_multi_label_ner_model
-
-# from src.ner_model.two_stage import (
-#     TwoStageModel,
-#     register_multi_label_two_stage_configs,
-# )
 from src.dataset.utils import DatasetConfig
 from omegaconf import MISSING, OmegaConf, DictConfig
 from src.dataset import dataset_builder
