@@ -1042,7 +1042,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         logits = outputs.predictions
         ret_list = []
         assert all(len(s) == len(e) for s, e in zip(starts, ends))
-        for snt_logit, span_num in zip(logits, map(len, starts)):
+        for snt_logit, span_num in tqdm(zip(logits, map(len, starts))):
             snt_logit = snt_logit[:span_num]
             labels = [[]] * span_num
             for span_id, label_id in zip(
