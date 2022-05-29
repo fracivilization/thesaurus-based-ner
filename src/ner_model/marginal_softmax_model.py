@@ -24,7 +24,7 @@ class FlattenMarginalSoftmaxNERModelConfig(NERModelConfig):
     multi_label_ner_model: MultiLabelNERModelConfig = MISSING
     focus_cats: str = MISSING
     negative_cats: Optional[str] = None
-    hierarchical_valid: bool = False
+    hierarchical_valid: bool = True
 
 
 def postprocess_for_output(example):
