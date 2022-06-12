@@ -564,8 +564,8 @@ class MultiLabelEnumeratedTyperPreprocessor:
                 ret_snt_labels = []
                 ret_snt_label_mask = []
                 for span_labels in snt_labels:
-                    if self.conf.model_args.pn_ratio_equivalence:
-                        if self.conf.model_args.loss_func == "MarginalCrossEntropyLoss":
+                    if self.model_args.pn_ratio_equivalence:
+                        if self.model_args.loss_func == "MarginalCrossEntropyLoss":
                             if -1 in span_labels:
                                 span_labels = padded_labels
                                 span_label_mask = False
@@ -584,7 +584,7 @@ class MultiLabelEnumeratedTyperPreprocessor:
                                 span_label_mask = True
                             ret_snt_labels.append(span_labels)
                             ret_snt_label_mask.append(span_label_mask)
-                        elif self.conf.model_args.loss_func == "BCEWithLogitLoss":
+                        elif self.model_args.loss_func == "BCEWithLogitLoss":
                             if -1 in span_labels:
                                 span_labels = padded_labels
                                 span_label_mask = no_span_mask

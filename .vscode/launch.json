@@ -96,11 +96,12 @@
             "justMyCode": false,
             "args": [
                 "--focus-cats",
-                "T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
+                // "T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
+                "T000",
                 "--output",
-                "data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3",
+                "data/gold/T000",
                 "--input-dir",
-                "data/gold/MedMentions/st21pv/data",
+                "data/gold/MedMentions/full/data",
             ],
         },
         {
@@ -484,5 +485,13 @@
             "justMyCode": false,
             "args": [],
         },
+        {
+            "name": "Python: Test File",
+            "type": "python",
+            "request": "launch",
+            "program": "tests/error_analysis/test_data_statistics.py",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
     ]
 }

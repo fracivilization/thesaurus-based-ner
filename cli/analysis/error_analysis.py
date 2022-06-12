@@ -3,7 +3,7 @@ from datasets import Dataset, DatasetDict
 import numpy as np
 from scipy.special import softmax
 from seqeval.metrics.sequence_labeling import get_entities
-from src.utils.tree_visualize import Node, get_tree_str, tree_repr
+from src.utils.tree_visualize import Node, get_tree_str_for_current_node, tree_repr
 from src.dataset.utils import get_parent2children, tui2ST
 from typing import List
 from more_itertools import powerset
@@ -98,7 +98,7 @@ def get_tree_from_logits(logits, label_names):
                 descendant_nodes(child_node, child_name)
 
     descendant_nodes()
-    return get_tree_str(ROOT)
+    return get_tree_str_for_current_node(ROOT)
     # return tree_repr(ROOT)
     pass
 
