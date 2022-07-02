@@ -4,7 +4,9 @@ Clement Michard (c) 2015
 Ettore Forigo (c) 2020
 """
 
+from collections import defaultdict
 from pptree.utils import *
+from typing import Dict
 
 
 class Node:
@@ -16,8 +18,14 @@ class Node:
         if parent:
             self.parent.children.append(self)
 
+    def add_child(self, child):
+        child.parent = self
+        self.children.append(child)
 
-def get_tree_str(current_node, childattr="children", nameattr="name", horizontal=True):
+
+def get_tree_str_for_current_node(
+    current_node, childattr="children", nameattr="name", horizontal=True
+):
     if hasattr(current_node, nameattr):
         name = lambda node: getattr(node, nameattr)
     else:
@@ -132,3 +140,47 @@ def tree_repr(current_node, balanced_branches, name, children):
 
 def get_tree_vertically(*args):
     tree_repr(*args)[0]
+
+
+def get_tree_str(child2parent: Dict, node2count: Dict):
+    """treeをcountとともに出力する
+
+    Args:
+        child2parent (Dict): 階層構造を示す。子ノードから親ノードへのdict。ただしルートノードは"0"のvalをもつ
+        node2count (Dict): ノードの各カウントを示す。比率を表示する場合はルートノードの頻度に対する比率を同時に表示する。
+    """
+    pass
+    root = [c for c, p in child2parent.items() if p == 0]
+    assert len(root) == 1
+    root = root[0]
+    root_count = node2count[root]
+    name2node = {root: Node("%.2f %%,  %d, %s" % (100, root_count, root))}
+    for node, count in node2count.items():
+        pass
+        name2node[node] = Node(
+            "%.2f %%,  %d, %s" % (100 * count / root_count, count, node)
+        )
+    for child, parent in child2parent.items():
+        if parent != 0:
+            name2node[parent].add_child(name2node[child])
+    return get_tree_str_for_current_node(name2node[root])
+
+
+def make_node2count_consistently_with_child2parent(
+    child2parent: Dict, node2count: Dict
+):
+    parent2children = defaultdict(set)
+    for child, parent in child2parent.items():
+        parent2children[parent].add(child)
+
+    def top_node_to_sum_count(top_node: str):
+        node_to_sum_count = dict()
+        root_sum_count = node2count[top_node]
+        for child in parent2children[top_node]:
+            node_to_sum_count.update(top_node_to_sum_count(child))
+            root_sum_count += node_to_sum_count[child]
+        node_to_sum_count[top_node] = root_sum_count
+        return node_to_sum_count
+
+    root_node = [child for child, parent in child2parent.items() if parent == 0][0]
+    return top_node_to_sum_count(root_node)

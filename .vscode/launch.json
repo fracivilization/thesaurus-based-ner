@@ -492,6 +492,14 @@
             "program": "tests/error_analysis/test_data_statistics.py",
             "console": "integratedTerminal",
             "justMyCode": false
-        }
+        },
+        {
+            "name": "Print UMLS Term Count",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.analysis.print_umls_term_count",
+            "justMyCode": false,
+            "args": [],
+        },
     ]
 }
