@@ -501,5 +501,13 @@
             "justMyCode": false,
             "args": [],
         },
+        {
+            "name": "Print Label Statistics For Dataset",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.analysis.print_label_statistics_for_dataset",
+            "justMyCode": false,
+            "args": [],
+        },
     ]
 }
