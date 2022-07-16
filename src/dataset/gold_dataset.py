@@ -23,7 +23,7 @@ def remain_only_focus_cats(
     pubtator_datasets: List[str], focus_cats: List[str]
 ) -> List[str]:
     dec2root = {dec: tui for tui in focus_cats for dec in get_descendants_TUIs(tui)}
-    remained_cats = set(list(dec2root.values()))
+    remained_cats = set(list(dec2root.keys()))
 
     # remain only remained cats
     screened_docs = []
@@ -45,7 +45,7 @@ def remain_only_focus_cats(
                         start,
                         end,
                         name,
-                        ",".join(dec2root[l] for l in remained_labels),
+                        ",".join(set(dec2root[l] for l in remained_labels)),
                         cui,
                     )
                 )
