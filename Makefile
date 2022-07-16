@@ -7,7 +7,12 @@ make_gold_multi_label_ner: $(GOLD_MULTI_LABEL_NER_DATA)
 make_gold_ner_data: $(GOLD_DATA)
 	@echo $(GOLD_DATA)
 make_pseudo_data_on_gold: $(PSEUDO_DATA_ON_GOLD)
+	@echo $(NEGATIVE_CATS)
+	@echo $(TERM2CAT)
+	@echo $(PSEUDO_DATA_ARGS)
 	@echo $(PSEUDO_DATA_ON_GOLD)
+make_pseudo_multi_label_ner_on_gold: $(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD)
+	@echo $(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD)
 
 # Train Main (Flat NER) Model
 train: $(TRAIN_OUT)
