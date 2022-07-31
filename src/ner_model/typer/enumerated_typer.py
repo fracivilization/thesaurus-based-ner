@@ -679,95 +679,78 @@ class EnumeratedTyper(Typer):
         labels: List[List[int]] = None,
         max_span_num=10000,
     ):
-        args = (
-            tokens,
-            snt_starts,
-            snt_ends,
-            labels,
-            self.data_args,
-            max_span_num,
+        example = self.padding_spans(
+            {
+                "tokens": tokens,
+                "starts": snt_starts,
+                "ends": snt_ends,
+                "labels": labels,
+            },
+            max_span_num=max_span_num,
         )
-        buffer_file = os.path.join(
-            get_original_cwd(), "data/buffer", md5(str(args).encode()).hexdigest()
-        )
-        if not os.path.exists(buffer_file):
-
-            example = self.padding_spans(
-                {
-                    "tokens": tokens,
-                    "starts": snt_starts,
-                    "ends": snt_ends,
-                    "labels": labels,
-                },
-                max_span_num=max_span_num,
+        all_padded_subwords = []
+        all_attention_mask = []
+        all_starts = []
+        all_ends = []
+        starts = np.array(example["starts"])
+        ends = np.array(example["ends"])
+        snt_lens = [len(snt) for snt in example["tokens"]]
+        snt_split = list(itertools.accumulate(snt_lens))
+        all_words = [w for snt in example["tokens"] for w in snt]
+        tokenized_tokens = self.tokenizer.batch_encode_plus(
+            all_words, add_special_tokens=False
+        )["input_ids"]
+        snt_split = list(zip([0] + snt_split, snt_split))
+        pad_token_id = self.tokenizer.pad_token_id
+        for snt_id in tqdm(list(range(len(example["tokens"])))):
+            snt_starts = starts[snt_id]
+            snt_ends = ends[snt_id]
+            s, e = snt_split[snt_id]
+            tokens = tokenized_tokens[s:e]
+            subwords = [w for li in tokens for w in li]
+            # subword2token = list(
+            #     itertools.chain(*[[i] * len(li) for i, li in enumerate(tokens)])
+            # )
+            # token2subword = np.array([0] + list(
+            #     itertools.accumulate(len(li) for li in tokens)
+            # ))
+            token2subword = [0] + list(
+                itertools.accumulate(len(li) for li in tokens)
             )
-            all_padded_subwords = []
-            all_attention_mask = []
-            all_starts = []
-            all_ends = []
-            starts = np.array(example["starts"])
-            ends = np.array(example["ends"])
-            snt_lens = [len(snt) for snt in example["tokens"]]
-            snt_split = list(itertools.accumulate(snt_lens))
-            all_words = [w for snt in example["tokens"] for w in snt]
-            tokenized_tokens = self.tokenizer.batch_encode_plus(
-                all_words, add_special_tokens=False
-            )["input_ids"]
-            snt_split = list(zip([0] + snt_split, snt_split))
-            pad_token_id = self.tokenizer.pad_token_id
-            for snt_id in tqdm(list(range(len(example["tokens"])))):
-                snt_starts = starts[snt_id]
-                snt_ends = ends[snt_id]
-                s, e = snt_split[snt_id]
-                tokens = tokenized_tokens[s:e]
-                subwords = [w for li in tokens for w in li]
-                # subword2token = list(
-                #     itertools.chain(*[[i] * len(li) for i, li in enumerate(tokens)])
-                # )
-                # token2subword = np.array([0] + list(
-                #     itertools.accumulate(len(li) for li in tokens)
-                # ))
-                token2subword = [0] + list(
-                    itertools.accumulate(len(li) for li in tokens)
-                )
-                # new_starts = token2subword[snt_starts]
-                # new_ends = token2subword@snt_ends]
-                new_starts = [token2subword[s] for s in snt_starts]
-                new_ends = [token2subword[e] for e in snt_ends]
-                for i, (s, e) in enumerate(zip(new_starts, new_ends)):
-                    if s > self.data_args.max_length or e > self.data_args.max_length:
-                        pass
-                        new_starts[i] = 0
-                        new_ends[i] = 0
-                assert all(s <= self.data_args.max_length for s in new_starts)
-                assert all(e <= self.data_args.max_length for e in new_ends)
-                all_starts.append(new_starts)
-                all_ends.append(new_ends)
-                # token_ids = [sw for word in subwords for sw in word]
-                padded_subwords = (
-                    [self.tokenizer.cls_token_id]
-                    + subwords[: self.data_args.max_length - 2]
-                    + [self.tokenizer.sep_token_id]
-                )
-                all_attention_mask.append(
-                    [1] * len(padded_subwords)
-                    + [0] * (self.data_args.max_length - len(padded_subwords))
-                )
-                padded_subwords = padded_subwords + [pad_token_id] * (
-                    self.data_args.max_length - len(padded_subwords)
-                )
-                all_padded_subwords.append(padded_subwords)
-                ret_dict = {
-                    "input_ids": all_padded_subwords,
-                    "attention_mask": all_attention_mask,
-                    "starts": all_starts,
-                    "ends": all_ends,
-                    "labels": example["labels"],
-                }
-            with open(buffer_file, "wb") as f:
-                pickle.dump(ret_dict, f)
-        with open(buffer_file, "rb") as f:
-            ret_dict = pickle.load(f)
+            # new_starts = token2subword[snt_starts]
+            # new_ends = token2subword@snt_ends]
+            new_starts = [token2subword[s] for s in snt_starts]
+            new_ends = [token2subword[e] for e in snt_ends]
+            for i, (s, e) in enumerate(zip(new_starts, new_ends)):
+                if s > self.data_args.max_length or e > self.data_args.max_length:
+                    pass
+                    new_starts[i] = 0
+                    new_ends[i] = 0
+            assert all(s <= self.data_args.max_length for s in new_starts)
+            assert all(e <= self.data_args.max_length for e in new_ends)
+            all_starts.append(new_starts)
+            all_ends.append(new_ends)
+            # token_ids = [sw for word in subwords for sw in word]
+            padded_subwords = (
+                [self.tokenizer.cls_token_id]
+                + subwords[: self.data_args.max_length - 2]
+                + [self.tokenizer.sep_token_id]
+            )
+            all_attention_mask.append(
+                [1] * len(padded_subwords)
+                + [0] * (self.data_args.max_length - len(padded_subwords))
+            )
+            padded_subwords = padded_subwords + [pad_token_id] * (
+                self.data_args.max_length - len(padded_subwords)
+            )
+            all_padded_subwords.append(padded_subwords)
+            ret_dict = {
+                "input_ids": all_padded_subwords,
+                "attention_mask": all_attention_mask,
+                "starts": all_starts,
+                "ends": all_ends,
+                "labels": example["labels"],
+            }
         return ret_dict
 
     def preprocess_function(self, example: Dict) -> Dict:

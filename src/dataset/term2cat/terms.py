@@ -134,61 +134,13 @@ def load_TUI_terms(tui="T025"):
     return terms
 
 
-def load_tui2count():
-    output_path = "data/dict/tui2count.pkl"
-    if not os.path.exists(output_path):
-        cui2tui = dict()
-        with open(mrsty) as f:
-            for line in f:
-                line = line.strip().split("|")
-                cui2tui[line[0]] = line[1]
-        tui2terms = defaultdict(set)
-        with open(mrconso) as f:
-            for line in tqdm(f, total=16132274):
-                (
-                    cui,
-                    lang,
-                    _,
-                    _,
-                    _,
-                    _,
-                    _,
-                    _,
-                    _,
-                    _,
-                    _,
-                    src,
-                    _,
-                    _,
-                    term,
-                    _,
-                    _,
-                    _,
-                    _,
-                ) = line.strip().split("|")
-                if lang == "ENG" and src in ST21pvSrc:
-                    tui2terms[cui2tui[cui]].add(term)
-            tui2count = {tui: len(terms) for tui, terms in tui2terms.items()}
-        with open(output_path, "wb") as f:
-            pickle.dump(dict(tui2count), f)
-    with open(output_path, "rb") as f:
-        tui2count = pickle.load(f)
-    return tui2count
-
-
 def load_tui2cui_count():
-    output_path = "data/dict/tui2cui_count.pkl"
-    if not os.path.exists(output_path):
-        tui2cuis = defaultdict(set)
-        with open(mrsty) as f:
-            for line in f:
-                line = line.strip().split("|")
-                tui2cuis[line[1]].add(line[0])
-            tui2cui_count = {tui: len(cuis) for tui, cuis in tui2cuis.items()}
-        with open(output_path, "wb") as f:
-            pickle.dump(dict(tui2cui_count), f)
-    with open(output_path, "rb") as f:
-        tui2cui_count = pickle.load(f)
+    tui2cuis = defaultdict(set)
+    with open(mrsty) as f:
+        for line in f:
+            line = line.strip().split("|")
+            tui2cuis[line[1]].add(line[0])
+        tui2cui_count = {tui: len(cuis) for tui, cuis in tui2cuis.items()}
     return tui2cui_count
 
 
@@ -196,31 +148,26 @@ def get_article2names():
     import pickle
 
     output = os.path.join(DBPedia_dir, "article2names.pkl")
-    if not os.path.exists(output):
-        article2names = defaultdict(set)
-        label_predicates = {
-            "<http://www.w3.org/2000/01/rdf-schema#label>",
-            "<http://xmlns.com/foaf/0.1/name>",
-            "<http://dbpedia.org/property/name>",
-            "<http://dbpedia.org/property/alias>",
-            "<http://dbpedia.org/ontology/alias>",
-        }
-        pattern = "(<[^>]+>) " + "(%s)" % "|".join(label_predicates) + ' "([^"]+)"@en .'
-        pattern = re.compile(pattern)
-        with open(DBPedia_mapping_literals) as f:
-            for line in tqdm(f):
-                if pattern.match(line):
-                    article, p, label = pattern.findall(line)[0]
-                    article2names[article] |= {label}
-        with open(DBPedia_infobox) as f:
-            for line in tqdm(f):
-                if pattern.match(line):
-                    article, p, label = pattern.findall(line)[0]
-                    article2names[article] |= {label}
-        with open(output, "wb") as f:
-            pickle.dump(article2names, f)
-    with open(output, "rb") as f:
-        article2names = pickle.load(f)
+    article2names = defaultdict(set)
+    label_predicates = {
+        "<http://www.w3.org/2000/01/rdf-schema#label>",
+        "<http://xmlns.com/foaf/0.1/name>",
+        "<http://dbpedia.org/property/name>",
+        "<http://dbpedia.org/property/alias>",
+        "<http://dbpedia.org/ontology/alias>",
+    }
+    pattern = "(<[^>]+>) " + "(%s)" % "|".join(label_predicates) + ' "([^"]+)"@en .'
+    pattern = re.compile(pattern)
+    with open(DBPedia_mapping_literals) as f:
+        for line in tqdm(f):
+            if pattern.match(line):
+                article, p, label = pattern.findall(line)[0]
+                article2names[article] |= {label}
+    with open(DBPedia_infobox) as f:
+        for line in tqdm(f):
+            if pattern.match(line):
+                article, p, label = pattern.findall(line)[0]
+                article2names[article] |= {label}
     return article2names
 
 
@@ -362,39 +309,33 @@ def terms_from_Wikipedia_for_cats(cats: List[str]) -> List[str]:
 
 def get_entity2names():
     logger.info("loading entity2names")
-    output_dir = "data/buffer/entity2names.pkl"
-    if not os.path.exists(output_dir):
-        # Translate DBPedia Entities into string by
-        # DBPedia_WD_labels
-        # DBPedia_WD_alias
-        entity2names = defaultdict(set)
-        pattern = (
-            "(<[^>]+>) "
-            + "<http://www.w3.org/2000/01/rdf-schema#label>"
-            + ' "([^"]+)"@en .'
-        )
-        pattern = re.compile(pattern)
-        with open(DBPedia_WD_labels) as f:
-            for line in tqdm(f):
-                if pattern.match(line):
-                    entity, label = pattern.findall(line)[0]
-                    entity2names[entity] |= {label}
+    # Translate DBPedia Entities into string by
+    # DBPedia_WD_labels
+    # DBPedia_WD_alias
+    entity2names = defaultdict(set)
+    pattern = (
+        "(<[^>]+>) "
+        + "<http://www.w3.org/2000/01/rdf-schema#label>"
+        + ' "([^"]+)"@en .'
+    )
+    pattern = re.compile(pattern)
+    with open(DBPedia_WD_labels) as f:
+        for line in tqdm(f):
+            if pattern.match(line):
+                entity, label = pattern.findall(line)[0]
+                entity2names[entity] |= {label}
 
-        pattern = (
-            "(<[^>]+>) " + "<http://dbpedia.org/ontology/alias>" + ' "([^"]+)"@en .'
-        )
-        pattern = re.compile(pattern)
-        with open(DBPedia_WD_alias) as f:
-            for line in tqdm(f):
-                if pattern.match(line):
-                    entity, label = pattern.findall(line)[0]
-                    entity2names[entity] |= {label}
-        # DBPedia_WD_labels
-        # DBPedia_WD_alias
-        with open(output_dir, "wb") as f:
-            pickle.dump(entity2names, f)
-    with open(output_dir, "rb") as f:
-        entity2names = pickle.load(f)
+    pattern = (
+        "(<[^>]+>) " + "<http://dbpedia.org/ontology/alias>" + ' "([^"]+)"@en .'
+    )
+    pattern = re.compile(pattern)
+    with open(DBPedia_WD_alias) as f:
+        for line in tqdm(f):
+            if pattern.match(line):
+                entity, label = pattern.findall(line)[0]
+                entity2names[entity] |= {label}
+    # DBPedia_WD_labels
+    # DBPedia_WD_alias
     return entity2names
 
 

@@ -17,7 +17,7 @@ import os
 from src.ner_model.multi_label.ml_typer.data_translator import (
     multi_label_ner_datasets_to_multi_span_multi_label_classification_datasets,
     log_label_ratio,
-    MSMLCConfig
+    MSMLCConfig,
 )
 from hydra.utils import get_original_cwd, to_absolute_path
 from dataclasses import dataclass
@@ -52,17 +52,17 @@ from hydra.utils import get_original_cwd, to_absolute_path
 @hydra.main(config_path="../../conf", config_name="load_msmlc")
 def main(cfg: MSMLCConfig) -> None:
     output_dir = to_absolute_path(cfg.output_dir)
-    if not os.path.exists(output_dir):
-        chunker = chunker_builder(cfg.chunker)
-        ner_dataset = DatasetDict.load_from_disk(
-            to_absolute_path(cfg.multi_label_ner_dataset)
+    chunker = chunker_builder(cfg.chunker)
+    ner_dataset = DatasetDict.load_from_disk(
+        to_absolute_path(cfg.multi_label_ner_dataset)
+    )
+    msmlc_dataset = (
+        multi_label_ner_datasets_to_multi_span_multi_label_classification_datasets(
+            ner_dataset, cfg, chunker
         )
-        msmlc_dataset = (
-            multi_label_ner_datasets_to_multi_span_multi_label_classification_datasets(
-                ner_dataset, cfg, chunker
-            )
-        )
-        msmlc_dataset.save_to_disk(output_dir)
+    )
+    msmlc_dataset.save_to_disk(output_dir)
+
     msmlc_dataset = DatasetDict.load_from_disk(output_dir)
     log_label_ratio(msmlc_dataset)
 

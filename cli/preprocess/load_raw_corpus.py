@@ -22,10 +22,10 @@ def cmd(raw_sentence_num: int, output_dir: str, source_txt_dir: str):
         output_dir (str): [description]
         source_txt_dir (str): [description]
     """
-    if not os.path.exists(output_dir):
-        raw_corpus = RawCorpusDataset(source_txt_dir, raw_sentence_num)
-        tokens = raw_corpus.load_tokens()
-        tokens.save_to_disk(output_dir)
+    raw_corpus = RawCorpusDataset(source_txt_dir, raw_sentence_num)
+    tokens = raw_corpus.load_tokens()
+    tokens.save_to_disk(output_dir)
+
     tokens = Dataset.load_from_disk(output_dir)
     logger.info(tokens.info.description)
 

@@ -1,4 +1,4 @@
-from src.dataset.term2cat.terms import load_tui2count, load_tui2cui_count
+from src.dataset.term2cat.terms import load_tui2cui_count
 from src.utils.tree_visualize import (
     get_tree_str,
     make_node2count_consistently_with_child2parent,

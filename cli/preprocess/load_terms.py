@@ -72,23 +72,20 @@ def singularize(word: str) -> str:
 @click.option("--output", type=str, default="data/dict/T116")
 def cmd(category: str, output: str):
     pattern = "T\d{3}"
-    if not os.path.exists(output):
-        if re.match(pattern, category):
-            terms = load_TUI_terms(category)
-        elif category in DBPedia_categories:
-            terms = load_DBPedia_terms(category)
-        elif category == "PubChem":
-            terms = load_PubChem_terms()
-        else:
-            raise NotImplementedError
-        with open(output, "w") as f:
-            for term in tqdm(terms):
-                singular = singularize(term)
-                plural = pluralize(term)
-                f.write("%s\n" % singular)
-                f.write("%s\n" % plural)
+    if re.match(pattern, category):
+        terms = load_TUI_terms(category)
+    elif category in DBPedia_categories:
+        terms = load_DBPedia_terms(category)
+    elif category == "PubChem":
+        terms = load_PubChem_terms()
     else:
-        pass
+        raise NotImplementedError
+    with open(output, "w") as f:
+        for term in tqdm(terms):
+            singular = singularize(term)
+            plural = pluralize(term)
+            f.write("%s\n" % singular)
+            f.write("%s\n" % plural)
 
 
 def main():
