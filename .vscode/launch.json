@@ -308,6 +308,23 @@
             ],
         },
         {
+            "name": "Get Gold NER Dataset",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.preprocess.load_gold_ner",
+            "justMyCode": false,
+            "args": [
+                "--focus-cats",
+                "T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
+                "--output",
+                "data/gold/836053d1bd47c7cf824672a17714a61a354af8e9",
+                "--input-dir",
+                "data/gold/multi_label_ner",
+                "--train-snt-num",
+                "9223372036854775807"
+            ],
+        },
+        {
             "name": "Get Pseudo MultiLabelNER Dataset",
             "type": "python",
             "request": "launch",
