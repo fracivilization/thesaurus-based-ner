@@ -183,11 +183,8 @@ def translate_pubtator_into_conll(
         start = int(start)
         end = int(end)
         spans.append(set(range(start, end)))
-        try:
-            assert len(labels.split(",")) == 1
-        except AssertionError:
-            logger.info("span: %s is removed because the label is duplicated." % name)
-            continue
+        # TODO: MultiLabelで過剰にスパンを除去してしまっているのでこの処理を除く、
+        # ただしSingle Labelでラベルが重複しないようにする後処理をどこかで追加する
         if end <= len(title):
             title_spans.append(
                 {"start": start, "end": end, "labels": labels, "name": name}
@@ -331,14 +328,14 @@ def translate_conll_into_msmlc_dataset(
     for snt in conll_snt:
         ret_dataset["tokens"].append(snt["tokens"])
         starts, ends, labels = [], [], []
-        for l, s, e in get_entities(snt["tags"]):
-            if l == "UnknownType":
+        for ls, s, e in get_entities(snt["tags"]):
+            if ls == "UnknownType":
                 continue
             starts.append(s), ends.append(e + 1)
-            ascendant_labels = tui2ascendants[l]
-            labels.append(ascendant_labels)
-        labeled_spans = set(zip(starts, ends))
-
+            ascendant_labels = []
+            for l in ls.split(","):
+                ascendant_labels += tui2ascendants[l]
+            labels.append(sorted(ascendant_labels))
         ret_dataset["starts"].append(starts)
         ret_dataset["ends"].append(ends)
         ret_dataset["labels"].append(labels)
