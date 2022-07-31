@@ -57,11 +57,11 @@ $(GOLD_DIR)/MedMentions: $(GOLD_DIR)
 	# cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_trng.txt data/gold/MedMentions/st21pv/data/
 	# cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_dev.txt data/gold/MedMentions/st21pv/data/
 	# cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_test.txt data/gold/MedMentions/st21pv/data/
-$(GOLD_DATA): $(GOLD_DIR)/MedMentions
+$(GOLD_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	@echo "Gold Data"
-	@echo GOLD_NER_DATA_DIR: $(GOLD_DATA)
-	@poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_DIR)/MedMentions/st21pv/data --train-snt-num $(TRAIN_SNT_NUM)
-	poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_DIR)/MedMentions/st21pv/data --train-snt-num $(TRAIN_SNT_NUM)
+	@echo GOLD_MULTI_LABEL_NER_DATA: $(GOLD_MULTI_LABEL_NER_DATA)
+	@poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
 $(GOLD_MSC_DATA): $(GOLD_DATA)
 	@echo GOLD_MSC_DATA_ON_GOLD: $(GOLD_MSC_DATA)
 	$(MSC_DATA_BASE_CMD) \

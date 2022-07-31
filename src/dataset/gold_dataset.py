@@ -19,38 +19,77 @@ logger = getLogger(__name__)
 nlp = spacy.load("en_core_sci_sm")
 
 
-def remain_only_focus_cats(
-    pubtator_datasets: List[str], focus_cats: List[str]
-) -> List[str]:
-    dec2root = {dec: tui for tui in focus_cats for dec in get_descendants_TUIs(tui)}
-    remained_cats = set(list(dec2root.keys()))
+def singularize_by_focus_cats(
+    multi_label_ner_dataset: Dataset, focus_cats: List[str]
+) -> List[Dict]:
+    """着目クラスに応じてマルチクラスデータセットをシングルクラスに変換する
+    返り値はconll形式の辞書のリストで返す
+    e.g.
+    入力
+    multi_label_ner_dataset
+    {
+        "tokens": ["Dave", "eat", "an", "apple", "."],
+        "starts": [0, 3],
+        "ends": [1, 4],
+        "labels": [["PER", "lawyer], ["Fruit"]]
 
-    # remain only remained cats
-    screened_docs = []
-    for doc in pubtator_datasets:
-        doc = doc.split("\n")
-        title = doc[0]
-        abstract = doc[1]
-        spans = doc[2:]
-        remained_spans = []
-        for span in spans:
-            pmid, start, end, name, labels, cui = span.split("\t")
-            labels = set(labels.split(","))
-            remained_labels = labels & remained_cats
-            if remained_labels:
-                remained_spans.append(
-                    "%s\t%s\t%s\t%s\t%s\t%s"
-                    % (
-                        pmid,
-                        start,
-                        end,
-                        name,
-                        ",".join(set(dec2root[l] for l in remained_labels)),
-                        cui,
-                    )
-                )
-        screened_docs.append("\n".join([title, abstract] + remained_spans))
-    return screened_docs
+    }
+    focus_cats: ["PER"]
+
+    出力
+    {
+        "tokens": ["Dave", "eat", "an", "apple", "."],
+        "tags": ["B-PER", "O", "O", O", "O"]
+    }
+    """
+    ret_conll = []
+    focus_cats = set(focus_cats)
+    label_names = multi_label_ner_dataset.features["labels"].feature.feature.names
+    for snt in multi_label_ner_dataset:
+        ner_tags = ["O"] * len(snt["tokens"])
+        for ls, s, e in zip(snt["labels"], snt["starts"], snt["ends"]):
+            ls = set([label_names[l] for l in ls])
+            remained_label = ls & focus_cats
+            if len(remained_label) == 1:
+                remained_label = remained_label.pop()
+                for i in range(s, e):
+                    if i == s:
+                        ner_tags[i] = "B-%s" % remained_label
+                    else:
+                        ner_tags[i] = "I-%s" % remained_label
+
+        ret_conll.append({"tokens": snt["tokens"], "tags": ner_tags})
+    return ret_conll
+
+    # dec2root = {dec: tui for tui in focus_cats for dec in get_descendants_TUIs(tui)}
+    # remained_cats = set(list(dec2root.keys()))
+
+    # # remain only remained cats
+    # screened_docs = []
+    # for doc in pubtator_datasets:
+    #     doc = doc.split("\n")
+    #     title = doc[0]
+    #     abstract = doc[1]
+    #     spans = doc[2:]
+    #     remained_spans = []
+    #     for span in spans:
+    #         pmid, start, end, name, labels, cui = span.split("\t")
+    #         labels = set(labels.split(","))
+    #         remained_labels = labels & remained_cats
+    #         if remained_labels:
+    #             remained_spans.append(
+    #                 "%s\t%s\t%s\t%s\t%s\t%s"
+    #                 % (
+    #                     pmid,
+    #                     start,
+    #                     end,
+    #                     name,
+    #                     ",".join(set(dec2root[l] for l in remained_labels)),
+    #                     cui,
+    #                 )
+    #             )
+    #     screened_docs.append("\n".join([title, abstract] + remained_spans))
+    # return screened_docs
 
 
 def snt_split_conll(
@@ -183,11 +222,8 @@ def translate_pubtator_into_conll(
         start = int(start)
         end = int(end)
         spans.append(set(range(start, end)))
-        try:
-            assert len(labels.split(",")) == 1
-        except AssertionError:
-            logger.info("span: %s is removed because the label is duplicated." % name)
-            continue
+        # TODO: MultiLabelで過剰にスパンを除去してしまっているのでこの処理を除く、
+        # ただしSingle Labelでラベルが重複しないようにする後処理をどこかで追加する
         if end <= len(title):
             title_spans.append(
                 {"start": start, "end": end, "labels": labels, "name": name}
@@ -213,13 +249,13 @@ def translate_pubtator_into_conll(
 
 
 def translate_conll_into_dataset(
-    conll_snt: Dict, ner_tag_names: List[str], desc: Dict = dict()
+    conll_snts: Dict, ner_tag_names: List[str], desc: Dict = dict()
 ) -> Dataset:
     desc = json.dumps(desc)
     ret_dataset = Dataset.from_dict(
         {
-            "tokens": [snt["tokens"] for snt in conll_snt],
-            "ner_tags": [snt["tags"] for snt in conll_snt],
+            "tokens": [snt["tokens"] for snt in conll_snts],
+            "ner_tags": [snt["tags"] for snt in conll_snts],
         },
         info=DatasetInfo(
             description=desc, features=get_ner_dataset_features(ner_tag_names)
@@ -269,53 +305,33 @@ def load_gold_datasets(
     focus_cats = focus_cats.split("_")
 
     # load dataset
-    pubtator = os.path.join(input_dir, "corpus_pubtator.txt")
-    with open(pubtator) as f:
-        all_dataset = f.read().split("\n\n")
+    multi_label_ner = DatasetDict.load_from_disk(input_dir)
 
-    screened_docs = remain_only_focus_cats(
-        all_dataset[:-1], focus_cats
-    )  # remove no nontent dataset by [:-1]
-    screened_docs = remove_span_duplication(screened_docs)
-    pmid2conll = dict()
-    for doc in screened_docs:
-        pmid, conll = translate_pubtator_into_conll(doc)
-        pmid2conll[pmid] = conll
-
-    # Split Dataset
-    train_pmids = os.path.join(input_dir, "corpus_pubtator_pmids_trng.txt")
-    dev_pmids = os.path.join(input_dir, "corpus_pubtator_pmids_dev.txt")
-    test_pmids = os.path.join(input_dir, "corpus_pubtator_pmids_test.txt")
-    with open(train_pmids) as f:
-        train_pmids = [int(line.strip()) for line in f]
-    with open(dev_pmids) as f:
-        dev_pmids = [int(line.strip()) for line in f]
-    with open(test_pmids) as f:
-        test_pmids = [int(line.strip()) for line in f]
-    train_conll = [snt for pmid in train_pmids for snt in pmid2conll[pmid]]
-    train_conll = train_conll[:train_snt_num]
-    dev_conll = [snt for pmid in dev_pmids for snt in pmid2conll[pmid]]
-    test_conll = [snt for pmid in test_pmids for snt in pmid2conll[pmid]]
+    singularized_ner = {
+        key: singularize_by_focus_cats(split, focus_cats)
+        for key, split in multi_label_ner.items()
+    }
     c = Counter(
-        [tag for doc in pmid2conll.values() for snt in doc for tag in snt["tags"]]
+        [
+            tag
+            for split in singularized_ner.values()
+            for snt in split
+            for tag in snt["tags"]
+        ]
     )
     ner_tag_names = [tag for tag, _ in c.most_common()]
-    desc = {
-        "desc": "MedMentions Dataset focus on %s" % str(focus_cats),
-        "focus_cats": focus_cats,
+    dataset_dict = {
+        key: translate_conll_into_dataset(
+            split,
+            ner_tag_names,
+            desc={
+                "desc": "MedMentions Dataset focus on %s" % str(focus_cats),
+                "focus_cats": focus_cats,
+                "split": key,
+            },
+        )
+        for key, split in singularized_ner.items()
     }
-    dataset_dict = dict()
-    desc["split"] = "train"
-    dataset_dict["train"] = translate_conll_into_dataset(
-        train_conll, ner_tag_names, desc
-    )
-    desc["split"] = "validation"
-    dataset_dict["validation"] = translate_conll_into_dataset(
-        dev_conll, ner_tag_names, desc
-    )
-    desc["split"] = "test"
-    dataset_dict["test"] = translate_conll_into_dataset(test_conll, ner_tag_names, desc)
-    # describe focus_cat into datasetdict or dataset (describing into dataset dict is better)
     return DatasetDict(dataset_dict)
 
 
@@ -331,14 +347,14 @@ def translate_conll_into_msmlc_dataset(
     for snt in conll_snt:
         ret_dataset["tokens"].append(snt["tokens"])
         starts, ends, labels = [], [], []
-        for l, s, e in get_entities(snt["tags"]):
-            if l == "UnknownType":
+        for ls, s, e in get_entities(snt["tags"]):
+            if ls == "UnknownType":
                 continue
             starts.append(s), ends.append(e + 1)
-            ascendant_labels = tui2ascendants[l]
-            labels.append(ascendant_labels)
-        labeled_spans = set(zip(starts, ends))
-
+            ascendant_labels = []
+            for l in ls.split(","):
+                ascendant_labels += tui2ascendants[l]
+            labels.append(sorted(ascendant_labels))
         ret_dataset["starts"].append(starts)
         ret_dataset["ends"].append(ends)
         ret_dataset["labels"].append(labels)
