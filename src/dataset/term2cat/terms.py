@@ -134,48 +134,6 @@ def load_TUI_terms(tui="T025"):
     return terms
 
 
-def load_tui2count():
-    output_path = "data/dict/tui2count.pkl"
-    if not os.path.exists(output_path):
-        cui2tui = dict()
-        with open(mrsty) as f:
-            for line in f:
-                line = line.strip().split("|")
-                cui2tui[line[0]] = line[1]
-        tui2terms = defaultdict(set)
-        with open(mrconso) as f:
-            for line in tqdm(f, total=16132274):
-                (
-                    cui,
-                    lang,
-                    _,
-                    _,
-                    _,
-                    _,
-                    _,
-                    _,
-                    _,
-                    _,
-                    _,
-                    src,
-                    _,
-                    _,
-                    term,
-                    _,
-                    _,
-                    _,
-                    _,
-                ) = line.strip().split("|")
-                if lang == "ENG" and src in ST21pvSrc:
-                    tui2terms[cui2tui[cui]].add(term)
-            tui2count = {tui: len(terms) for tui, terms in tui2terms.items()}
-        with open(output_path, "wb") as f:
-            pickle.dump(dict(tui2count), f)
-    with open(output_path, "rb") as f:
-        tui2count = pickle.load(f)
-    return tui2count
-
-
 def load_tui2cui_count():
     output_path = "data/dict/tui2cui_count.pkl"
     if not os.path.exists(output_path):
