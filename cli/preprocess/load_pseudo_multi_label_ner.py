@@ -33,27 +33,25 @@ register_multi_label_ner_model(group="multi_label_ner_model")
 
 @hydra.main(config_path="../../conf", config_name="pseudo_anno_msmlc")
 def main(cfg: PseudoMSMLCAnnoConfig):
-    if not os.path.exists(os.path.join(get_original_cwd(), cfg.output_dir)):
-        if cfg.raw_corpus.startswith("data/gold"):
-            raw_corpus = DatasetDict.load_from_disk(
-                os.path.join(get_original_cwd(), cfg.raw_corpus)
-            )["train"]
-        elif cfg.raw_corpus.startswith("data/raw"):
-            raw_corpus = Dataset.load_from_disk(
-                os.path.join(get_original_cwd(), cfg.raw_corpus)
-            )
-            assert not cfg.remove_fp_instance
-        multi_label_ner_model: MultiLabelNERModel = multi_label_ner_model_builder(
-            cfg.multi_label_ner_model
+    if cfg.raw_corpus.startswith("data/gold"):
+        raw_corpus = DatasetDict.load_from_disk(
+            os.path.join(get_original_cwd(), cfg.raw_corpus)
+        )["train"]
+    elif cfg.raw_corpus.startswith("data/raw"):
+        raw_corpus = Dataset.load_from_disk(
+            os.path.join(get_original_cwd(), cfg.raw_corpus)
         )
-        pseudo_dataset = load_msml_pseudo_dataset(
-            raw_corpus, multi_label_ner_model, cfg
-        )
-        gold_corpus = DatasetDict.load_from_disk(
-            os.path.join(get_original_cwd(), cfg.gold_corpus)
-        )
-        ret_datasets = join_pseudo_and_gold_dataset(pseudo_dataset, gold_corpus)
-        ret_datasets.save_to_disk(os.path.join(get_original_cwd(), cfg.output_dir))
+        assert not cfg.remove_fp_instance
+    multi_label_ner_model: MultiLabelNERModel = multi_label_ner_model_builder(
+        cfg.multi_label_ner_model
+    )
+    pseudo_dataset = load_msml_pseudo_dataset(raw_corpus, multi_label_ner_model, cfg)
+    gold_corpus = DatasetDict.load_from_disk(
+        os.path.join(get_original_cwd(), cfg.gold_corpus)
+    )
+    ret_datasets = join_pseudo_and_gold_dataset(pseudo_dataset, gold_corpus)
+    ret_datasets.save_to_disk(os.path.join(get_original_cwd(), cfg.output_dir))
+
     ret_datasets = DatasetDict.load_from_disk(
         os.path.join(get_original_cwd(), cfg.output_dir)
     )

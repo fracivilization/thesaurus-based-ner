@@ -98,44 +98,39 @@ def get_descendants(category: str = "dbo:Person"):
 def get_descendants_for_wiki_cat(
     category: str = "http://dbpedia.org/resource/Category:Products",
 ):
-    categories_buffer = "data/buffer/%s.json" % category.split("/")[-1]
-    if not os.path.exists(categories_buffer):
-        skos_broader_query = (
-            prefixes
-            + """SELECT distinct * WHERE {
-                ?item skos:broader <%s>
-                }"""
+    skos_broader_query = (
+        prefixes
+        + """SELECT distinct * WHERE {
+            ?item skos:broader <%s>
+            }"""
+    )
+    categories = set()
+    current_unchecked_categories = set([category])
+    new_unchecked_categories = set()
+    while current_unchecked_categories:
+        logger.info(
+            "# categories: %d, # unchecked_categories: %d"
+            % (len(categories), len(current_unchecked_categories))
         )
-        categories = set()
-        current_unchecked_categories = set([category])
-        new_unchecked_categories = set()
-        while current_unchecked_categories:
-            logger.info(
-                "# categories: %d, # unchecked_categories: %d"
-                % (len(categories), len(current_unchecked_categories))
-            )
-            resultss = p_map(
-                get_results,
-                [endpoint_url] * len(current_unchecked_categories),
-                [skos_broader_query % cat for cat in current_unchecked_categories],
-                num_cpus=96,
-            )
-            results = [
-                item for result in resultss for item in result["results"]["bindings"]
-            ]
-            # for cat in tqdm(current_unchecked_categories):
-            #     results = get_results(endpoint_url, query % cat)
-            for result in results:
-                if result["item"]["type"] == "uri":
-                    new_cat = result["item"]["value"]
-                    if new_cat not in categories:
-                        new_unchecked_categories.add(new_cat)
-            categories |= set(current_unchecked_categories)
-            current_unchecked_categories = new_unchecked_categories - categories
-        with open(categories_buffer, "w") as f:
-            json.dump(list(categories), f)
-    with open(categories_buffer) as f:
-        categories = set(json.load(f))
+        resultss = p_map(
+            get_results,
+            [endpoint_url] * len(current_unchecked_categories),
+            [skos_broader_query % cat for cat in current_unchecked_categories],
+            num_cpus=96,
+        )
+        results = [
+            item for result in resultss for item in result["results"]["bindings"]
+        ]
+        # for cat in tqdm(current_unchecked_categories):
+        #     results = get_results(endpoint_url, query % cat)
+        for result in results:
+            if result["item"]["type"] == "uri":
+                new_cat = result["item"]["value"]
+                if new_cat not in categories:
+                    new_unchecked_categories.add(new_cat)
+        categories |= set(current_unchecked_categories)
+        current_unchecked_categories = new_unchecked_categories - categories
+
     dc_subject_query = (
         prefixes
         + """SELECT distinct ?item WHERE {
@@ -155,62 +150,52 @@ def get_descendants_for_wiki_cat(
 
 
 def load_product():
-    if not os.path.exists("data/buffer/products.json"):
-        terms = get_descendants_for_wiki_cat(
-            "http://dbpedia.org/resource/Category:Products"
-        )
-        with open("data/buffer/products.json", "w") as f:
-            json.dump(terms, f)
-    with open("data/buffer/products.json") as f:
-        terms = json.load(f)
+    terms = get_descendants_for_wiki_cat(
+        "http://dbpedia.org/resource/Category:Products"
+    )
     logger.info("product are loaded")
     return terms
 
 
 def load_twitter_main_dictionary():
     buffer_path = "data/buffer/twitter_main_dict.json"
-    if not os.path.exists(buffer_path):
-        product = set(load_product())
-        company = set(get_descendants("dbo:Company"))
-        sportsteam = set(get_descendants("dbo:SportsTeam"))
-        person = set(get_descendants("dbo:Person"))
-        musicartist = set(get_descendants("dbo:Musician"))
-        person -= musicartist
-        tvshow = set(get_descendants("dbo:TelevisionShow"))
-        movies = set(get_descendants("dbo:Film"))
-        geo_loc = set(get_descendants("dbo:Place"))
-        facility = set(get_descendants("dbo:ArchitecturalStructure"))
-        geo_loc -= facility
-        # productだけデカすぎる (というかWikidata使ってるので汚い...)
-        product -= tvshow
-        product -= movies
-        product -= facility
-        product -= sportsteam
-        product -= company
-        product -= person
-        product -= geo_loc
-        cat2terms = {
-            "company": company,
-            "sportsteam": sportsteam,
-            "person": person,
-            "musicartist": musicartist,
-            "tvshow": tvshow,
-            "movies": movies,
-            "geo_loc": geo_loc,
-            "facility": facility,
-            "product": product,
-        }
-        duplicated_terms = set()
-        for c1, t1 in cat2terms.items():
-            for c2, t2 in cat2terms.items():
-                if c1 != c2:
-                    duplicated_terms |= t1 & t2
-        cat2terms = {cat: terms - duplicated_terms for cat, terms in cat2terms.items()}
-        term2cat = {term: cat for cat, terms in cat2terms.items() for term in terms}
-        with open(buffer_path, "w") as f:
-            json.dump(term2cat, f, indent=4)
-    with open(buffer_path) as f:
-        term2cat = json.load(f)
+    product = set(load_product())
+    company = set(get_descendants("dbo:Company"))
+    sportsteam = set(get_descendants("dbo:SportsTeam"))
+    person = set(get_descendants("dbo:Person"))
+    musicartist = set(get_descendants("dbo:Musician"))
+    person -= musicartist
+    tvshow = set(get_descendants("dbo:TelevisionShow"))
+    movies = set(get_descendants("dbo:Film"))
+    geo_loc = set(get_descendants("dbo:Place"))
+    facility = set(get_descendants("dbo:ArchitecturalStructure"))
+    geo_loc -= facility
+    # productだけデカすぎる (というかWikidata使ってるので汚い...)
+    product -= tvshow
+    product -= movies
+    product -= facility
+    product -= sportsteam
+    product -= company
+    product -= person
+    product -= geo_loc
+    cat2terms = {
+        "company": company,
+        "sportsteam": sportsteam,
+        "person": person,
+        "musicartist": musicartist,
+        "tvshow": tvshow,
+        "movies": movies,
+        "geo_loc": geo_loc,
+        "facility": facility,
+        "product": product,
+    }
+    duplicated_terms = set()
+    for c1, t1 in cat2terms.items():
+        for c2, t2 in cat2terms.items():
+            if c1 != c2:
+                duplicated_terms |= t1 & t2
+    cat2terms = {cat: terms - duplicated_terms for cat, terms in cat2terms.items()}
+    term2cat = {term: cat for cat, terms in cat2terms.items() for term in terms}
     return term2cat
 
 

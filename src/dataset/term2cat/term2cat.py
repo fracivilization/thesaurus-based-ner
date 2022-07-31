@@ -66,26 +66,19 @@ def get_anomaly_suffixes(term2cat):
         "data/buffer/%s"
         % md5(("anomaly_suffixes" + str(term2cat)).encode()).hexdigest(),
     )
-    if not os.path.exists(buffer_file):
-        anomaly_suffixes = set()
-        complex_typer = ComplexKeywordTyper(term2cat)
-        lowered2orig = defaultdict(list)
-        for term in term2cat:
-            lowered2orig[term.lower()].append(term)
-        for term, cat in term2cat.items():
-            confirmed_common_suffixes = complex_typer.get_confirmed_common_suffixes(
-                term
-            )
-            for pred_cat, start in confirmed_common_suffixes:
-                if pred_cat != cat and start != 0:
-                    anomaly_suffix = term[start:]
-                    lowered2orig[anomaly_suffix]
-                    for orig_term in lowered2orig[anomaly_suffix]:
-                        anomaly_suffixes.add(orig_term)
-        with open(buffer_file, "w") as f:
-            f.write("\n".join(anomaly_suffixes))
-    with open(buffer_file, "r") as f:
-        anomaly_suffixes = f.read().split("\n")
+    anomaly_suffixes = set()
+    complex_typer = ComplexKeywordTyper(term2cat)
+    lowered2orig = defaultdict(list)
+    for term in term2cat:
+        lowered2orig[term.lower()].append(term)
+    for term, cat in term2cat.items():
+        confirmed_common_suffixes = complex_typer.get_confirmed_common_suffixes(term)
+        for pred_cat, start in confirmed_common_suffixes:
+            if pred_cat != cat and start != 0:
+                anomaly_suffix = term[start:]
+                lowered2orig[anomaly_suffix]
+                for orig_term in lowered2orig[anomaly_suffix]:
+                    anomaly_suffixes.add(orig_term)
     return anomaly_suffixes
 
 
@@ -221,26 +214,20 @@ def load_twitter_dictionary(
     only_fake: bool = True,
 ):
     args = str(with_sibilling) + str(sibling_compression) + str(only_fake)
-    buffer_file = "data/buffer/%s" % md5(args.encode()).hexdigest()
-    if not os.path.exists(buffer_file):
-        term2cat = dict()
-        main_dictionary = load_twitter_main_dictionary()
-        term2cat.update({k: v for k, v in main_dictionary.items() if v != "product"})
-        if with_sibilling:
-            sibling_dict = load_twitter_sibling_dictionary(sibling_compression)
-            for k, v in sibling_dict.items():
-                if k not in term2cat:
-                    term2cat[k] = v
-        if only_fake:
-            term2cat = {k: v for k, v in term2cat.items() if v.startswith("fake_")}
-        else:
-            for k, v in main_dictionary.items():
-                if v == "product" and k not in term2cat:
-                    term2cat[k] = "product"
-        with open(buffer_file, "w") as f:
-            json.dump(term2cat, f)
-    with open(buffer_file) as f:
-        term2cat = json.load(f)
+    term2cat = dict()
+    main_dictionary = load_twitter_main_dictionary()
+    term2cat.update({k: v for k, v in main_dictionary.items() if v != "product"})
+    if with_sibilling:
+        sibling_dict = load_twitter_sibling_dictionary(sibling_compression)
+        for k, v in sibling_dict.items():
+            if k not in term2cat:
+                term2cat[k] = v
+    if only_fake:
+        term2cat = {k: v for k, v in term2cat.items() if v.startswith("fake_")}
+    else:
+        for k, v in main_dictionary.items():
+            if v == "product" and k not in term2cat:
+                term2cat[k] = "product"
     return term2cat
 
 
@@ -253,24 +240,14 @@ class Term2Cat:
         only_fake: bool = False,
     ) -> None:
         assert sibilling_compression in {"all", "sibilling", "none"}
-        args = " ".join(
-            map(str, [task, with_sibling, sibilling_compression, only_fake])
-        )
-        buffer_file = os.path.join("data/buffer", md5(args.encode()).hexdigest())
-        if not os.path.exists(buffer_file):
-            if task == "JNLPBA":
-                term2cat = genia_load_term2cat(
-                    with_sibling, sibilling_compression, only_fake
-                )
-            elif task == "Twitter":
-                term2cat = load_twitter_dictionary(
-                    with_sibling, sibilling_compression, only_fake
-                )
-            pass
-            with open(buffer_file, "w") as f:
-                json.dump(term2cat, f)
-        with open(buffer_file, "r") as f:
-            term2cat = json.load(f)
+        if task == "JNLPBA":
+            term2cat = genia_load_term2cat(
+                with_sibling, sibilling_compression, only_fake
+            )
+        elif task == "Twitter":
+            term2cat = load_twitter_dictionary(
+                with_sibling, sibilling_compression, only_fake
+            )
         self.term2cat = term2cat
 
 

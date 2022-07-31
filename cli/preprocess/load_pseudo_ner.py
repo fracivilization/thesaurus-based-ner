@@ -35,23 +35,23 @@ register_two_stage_configs()
 
 @hydra.main(config_path="../../conf", config_name="pseudo_anno")
 def main(cfg: PseudoAnnoConfig):
-    if not os.path.exists(os.path.join(get_original_cwd(), cfg.output_dir)):
-        if cfg.raw_corpus.startswith("data/gold"):
-            raw_corpus = DatasetDict.load_from_disk(
-                os.path.join(get_original_cwd(), cfg.raw_corpus)
-            )["train"]
-        elif cfg.raw_corpus.startswith("data/raw"):
-            raw_corpus = Dataset.load_from_disk(
-                os.path.join(get_original_cwd(), cfg.raw_corpus)
-            )
-            assert not cfg.remove_fp_instance
-        ner_model: NERModel = ner_model_builder(cfg.ner_model)
-        pseudo_dataset = load_pseudo_dataset(raw_corpus, ner_model, cfg)
-        gold_corpus = DatasetDict.load_from_disk(
-            os.path.join(get_original_cwd(), cfg.gold_corpus)
+    if cfg.raw_corpus.startswith("data/gold"):
+        raw_corpus = DatasetDict.load_from_disk(
+            os.path.join(get_original_cwd(), cfg.raw_corpus)
+        )["train"]
+    elif cfg.raw_corpus.startswith("data/raw"):
+        raw_corpus = Dataset.load_from_disk(
+            os.path.join(get_original_cwd(), cfg.raw_corpus)
         )
-        ret_datasets = join_pseudo_and_gold_dataset(pseudo_dataset, gold_corpus)
-        ret_datasets.save_to_disk(os.path.join(get_original_cwd(), cfg.output_dir))
+        assert not cfg.remove_fp_instance
+    ner_model: NERModel = ner_model_builder(cfg.ner_model)
+    pseudo_dataset = load_pseudo_dataset(raw_corpus, ner_model, cfg)
+    gold_corpus = DatasetDict.load_from_disk(
+        os.path.join(get_original_cwd(), cfg.gold_corpus)
+    )
+    ret_datasets = join_pseudo_and_gold_dataset(pseudo_dataset, gold_corpus)
+    ret_datasets.save_to_disk(os.path.join(get_original_cwd(), cfg.output_dir))
+
     ret_datasets = DatasetDict.load_from_disk(
         os.path.join(get_original_cwd(), cfg.output_dir)
     )
