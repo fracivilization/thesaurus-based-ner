@@ -11,7 +11,7 @@ Two Stage Distant NER (Using NP Chunker)
     1. Press "Install UMLS"
     2. Set Install Settings
        1. Source: data/2021AA-full
-       2. Destination: data/2021AA-full/data
+       2. Destination: data
     3. Select New configuration
     4. License Agreement Notice: Accept
     5. Select Default Subset Configuration: Active Subset

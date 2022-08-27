@@ -2,7 +2,7 @@
 DATA_DIR := data
 TERM2CAT_DIR := $(DATA_DIR)/term2cat
 DICT_DIR := $(DATA_DIR)/dict
-UMLS_DIR := $(DATA_DIR)/2021AA-full
+UMLS_DIR := $(DATA_DIR)/2021AA
 DBPEDIA_DIR := $(DATA_DIR)/DBPedia
 PubChem_DIR := $(DATA_DIR)/PubChem
 RAW_CORPUS_DIR := $(DATA_DIR)/raw
