@@ -1,5 +1,8 @@
 include ./makefiles/__init__.mk
 
+make_dict: $(DICT_FILES) $(UMLS_DICT_FILES)
+	@echo DICT_FILES: $(DICT_FILES)
+	@echo UMLS_DICT_FILES: $(UMLS_DICT_FILES)
 make_gold_msmlc: $(GOLD_MSMLC_DATA)
 	@echo GOLD_MSMLC_DATA: $(GOLD_MSMLC_DATA)
 make_gold_multi_label_ner: $(GOLD_MULTI_LABEL_NER_DATA)
