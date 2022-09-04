@@ -426,6 +426,7 @@ class MultiLabelEnumeratedTyperPreprocessor:
         model_args: MultiLabelEnumeratedModelArguments,
         data_args: MultiLabelEnumeratedDataTrainingArguments,
         label_names: List[str],
+        negative_sampling_ratio: float,
     ) -> None:
         self.model_args = model_args
         self.data_args = data_args
@@ -438,6 +439,7 @@ class MultiLabelEnumeratedTyperPreprocessor:
             additional_special_tokens=[span_start_token, span_end_token],
         )
         self.label_names = label_names
+        self.negative_sampling_ratio = negative_sampling_ratio
 
     def padding_spans(self, example: Dict, max_span_num=10000) -> Dict:
         """add padding for example
@@ -738,9 +740,6 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
             cache_dir=model_args.cache_dir,
             model_args=model_args,
         )
-        self.preprocessor = MultiLabelEnumeratedTyperPreprocessor(
-            model_args, data_args, label_names=self.label_names
-        )
         if "nc-O" in label_list:
             model_args.o_label_id = label_list.index("nc-O")
         else:
@@ -859,6 +858,13 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                     "tokens": datasets.Sequence(datasets.Value("string")),
                 }
             )
+
+        self.preprocessor = MultiLabelEnumeratedTyperPreprocessor(
+            model_args,
+            data_args,
+            label_names=self.label_names,
+            negative_sampling_ratio=self.negative_sampling_ratio,
+        )
         if train_args.do_train:
             self.span_classification_datasets: DatasetDict = msml_datasets.map(
                 self.preprocessor.preprocess_function,
