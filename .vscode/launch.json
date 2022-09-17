@@ -526,5 +526,13 @@
             "justMyCode": false,
             "args": [],
         },
+        {
+            "name": "Check Umbiguous Terms in Gold Dataset",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.analysis.check_ambiguous_terms_in_gold",
+            "justMyCode": false,
+            "args": [],
+        },
     ]
 }
