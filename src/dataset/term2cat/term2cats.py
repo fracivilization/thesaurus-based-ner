@@ -73,9 +73,7 @@ def get_anomaly_suffixes(term2cat):
     for term in term2cat:
         lowered2orig[term.lower()].append(term)
     for term, cat in term2cat.items():
-        confirmed_common_suffixes = complex_typer.get_confirmed_common_suffixes(
-            term
-        )
+        confirmed_common_suffixes = complex_typer.get_confirmed_common_suffixes(term)
         for pred_cat, start in confirmed_common_suffixes:
             if pred_cat != cat and start != 0:
                 anomaly_suffix = term[start:]
@@ -248,10 +246,10 @@ class Term2Cat:
         self.term2cat = term2cat
 
 
-def log_term2cat(term2cat: Dict):
+def log_term2cats(term2cats: Dict):
     print("log term2cat count")
     tbl = PrettyTable(["cat", "count"])
-    counter = Counter(term2cat.values())
+    counter = Counter(term2cats.values())
     for cat, count in sorted(list(counter.items()), key=lambda x: x[0]):
         tbl.add_row([cat, count])
     print(tbl.get_string())
