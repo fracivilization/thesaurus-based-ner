@@ -10,7 +10,7 @@ from hydra.utils import to_absolute_path
 
 logger = getLogger(__name__)
 
-umls_dir = "data/2021AA-full/data/2021AA"
+umls_dir = "data/2021AA"
 mrsty = os.path.join(umls_dir, "META", "MRSTY.RRF")
 mrconso = os.path.join(umls_dir, "META", "MRCONSO.RRF")
 srdef = os.path.join(umls_dir, "NET", "SRDEF")

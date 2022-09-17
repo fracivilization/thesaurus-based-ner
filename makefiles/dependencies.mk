@@ -5,7 +5,6 @@ $(DICT_DIR): $(DATA_DIR)
 $(UMLS_DIR): $(DATA_DIR)
 	@echo "Please Download UMLS2021AA full from https://www.nlm.nih.gov/research/umls/licensedcontent/umlsknowledgesources.html"
 	@echo "You need UMLS Account, so please acces by web browser and mv the file into $(UMLS_DIR)"
-	# unzip $(UMLS_DIR)/mmsys.zip
 	@echo "Plaese refer to README.md"
 $(DBPEDIA_DIR): $(DATA_DIR)
 	mkdir -p $(DBPEDIA_DIR)
@@ -51,12 +50,12 @@ $(PSEUDO_DATA_DIR): $(DATA_DIR)
 $(GOLD_DIR): $(DATA_DIR)
 	mkdir -p $(GOLD_DIR)
 $(GOLD_DIR)/MedMentions: $(GOLD_DIR)
-	# git clone https://github.com/chanzuckerberg/MedMentions
-	# for f in `find MedMentions/ | grep gz`; do gunzip $$f; done
-	# mv MedMentions $(GOLD_DIR)/MedMentions
-	# cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_trng.txt data/gold/MedMentions/st21pv/data/
-	# cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_dev.txt data/gold/MedMentions/st21pv/data/
-	# cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_test.txt data/gold/MedMentions/st21pv/data/
+	git clone https://github.com/chanzuckerberg/MedMentions
+	for f in `find MedMentions/ | grep gz`; do gunzip $$f; done
+	mv MedMentions $(GOLD_DIR)/MedMentions
+	cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_trng.txt data/gold/MedMentions/st21pv/data/
+	cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_dev.txt data/gold/MedMentions/st21pv/data/
+	cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_test.txt data/gold/MedMentions/st21pv/data/
 $(GOLD_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	@echo "Gold Data"
 	@echo GOLD_MULTI_LABEL_NER_DATA: $(GOLD_MULTI_LABEL_NER_DATA)
