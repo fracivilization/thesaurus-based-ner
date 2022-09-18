@@ -35,6 +35,8 @@ $(PubChem_DIR): $(DATA_DIR)
 
 $(TERM2CAT_DIR): $(DATA_DIR)
 	mkdir -p $(TERM2CAT_DIR)
+$(TERM2CATS_DIR): $(DATA_DIR)
+	mkdir -p $(TERM2CATS_DIR)
 $(TERM2CAT): $(TERM2CAT_DIR) $(DICT_FILES)
 	@echo TERM2CAT: $(TERM2CAT)
 	poetry run python -m cli.preprocess.load_term2cat \
@@ -170,7 +172,7 @@ $(PSEUDO_MSMLC_DATA_ON_GOLD): $(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD)
 	+multi_label_ner_dataset=$(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD) \
 	+output_dir=$(PSEUDO_MSMLC_DATA_ON_GOLD)
 
-$(UMLS_TERM2CATS): $(UMLS_DICT_FILES)
+$(UMLS_TERM2CATS): $(UMLS_DICT_FILES) $(TERM2CATS_DIR)
 	@echo TERM2CAT: $(UMLS_TERM2CATS)
 	poetry run python -m cli.preprocess.load_term2cats \
 		output=$(UMLS_TERM2CATS) \
