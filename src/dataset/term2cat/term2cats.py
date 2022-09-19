@@ -248,9 +248,22 @@ class Term2Cat:
 
 def log_term2cats(term2cats: Dict):
     print("log term2cat count")
-    tbl = PrettyTable(["cat", "count"])
+    tbl = PrettyTable(["cats", "count"])
     counter = Counter(term2cats.values())
-    for cat, count in sorted(list(counter.items()), key=lambda x: x[0]):
-        tbl.add_row([cat, count])
+    for cats, count in sorted(list(counter.items()), key=lambda x: x[0]):
+        tbl.add_row([cats, count])
+    print(tbl.get_string())
+    print("category num: ", len(counter))
+
+
+    counter = Counter(term2cats.values())
+    cat2count = defaultdict(lambda: 0)
+    for cats, count in sorted(list(counter.items()), key=lambda x: x[0]):
+        for cat in cats.split('_'):
+            cat2count[cat] += count
+
+    tbl = PrettyTable(["cat", "Semantic Type", "count"])
+    for cat, count in cat2count.items():
+        tbl.add_row([cat, tui2ST[cat], count])
     print(tbl.get_string())
     print("category num: ", len(counter))
