@@ -176,7 +176,6 @@ $(UMLS_TERM2CATS): $(UMLS_DICT_FILES) $(TERM2CATS_DIR)
 	@echo TERM2CAT: $(UMLS_TERM2CATS)
 	poetry run python -m cli.preprocess.load_term2cats \
 		output=$(UMLS_TERM2CATS) \
-		focus_cats=$(subst $() ,_,$(UMLS_CATS)) \
 		++remove_ambiguate_terms=$(TERM2CATS_REMOVE_AMBIGUATE)
 
 
