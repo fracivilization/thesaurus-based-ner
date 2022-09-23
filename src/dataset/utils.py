@@ -1,10 +1,74 @@
 from collections import defaultdict
 from dataclasses import dataclass
+from functools import cache
 from datasets import DatasetDict
 from datasets import load_dataset
 from dataclasses import dataclass
 from typing import List
 from more_itertools import powerset
+import os
+import re
+from inflection import UNCOUNTABLES, PLURALS, SINGULARS
+
+PLURAL_RULES = [(re.compile(rule), replacement) for rule, replacement in PLURALS]
+SINGULAR_RULES = [(re.compile(rule), replacement) for rule, replacement in SINGULARS]
+
+def pluralize(word: str) -> str:
+    """
+    Return the plural form of a word.
+
+    Examples::
+
+        >>> pluralize("posts")
+        'posts'
+        >>> pluralize("octopus")
+        'octopi'
+        >>> pluralize("sheep")
+        'sheep'
+        >>> pluralize("CamelOctopus")
+        'CamelOctopi'
+
+    """
+    if not word or word.lower() in UNCOUNTABLES:
+        return word
+    else:
+        for rule, replacement in PLURAL_RULES:
+            if rule.search(word):
+                return rule.sub(replacement, word)
+        return word
+
+
+def singularize(word: str) -> str:
+    """
+    Return the singular form of a word, the reverse of :func:`pluralize`.
+
+    Examples::
+
+        >>> singularize("posts")
+        'post'
+        >>> singularize("octopi")
+        'octopus'
+        >>> singularize("sheep")
+        'sheep'
+        >>> singularize("word")
+        'word'
+        >>> singularize("CamelOctopi")
+        'CamelOctopus'
+
+    """
+    for inflection in UNCOUNTABLES:
+        if re.search(r"(?i)\b(%s)\Z" % inflection, word):
+            return word
+
+    for rule, replacement in SINGULAR_RULES:
+        if re.search(rule, word):
+            return re.sub(rule, replacement, word)
+    return word
+
+
+umls_dir = "data/2021AA"
+MRSTY = os.path.join(umls_dir, "META", "MRSTY.RRF")
+MRCONSO = os.path.join(umls_dir, "META", "MRCONSO.RRF")
 
 
 @dataclass
@@ -448,10 +512,8 @@ def get_umls_negative_cats(focus_tuis: List[str]):
     return negative_cats
 
 
-def get_ascendants(tui: str = "T204"):
-    pass
 
-
+@cache
 def get_tui2ascendants():
     ST2tui = {v: k for k, v in tui2ST.items()}
     tui2ascendants = dict()
@@ -465,6 +527,9 @@ def get_tui2ascendants():
         tui2ascendants[orig_tui] = sorted(ascendants)
     return tui2ascendants
 
+def get_ascendant_tuis(tui: str = "T204") -> List[str]:
+    tui2ascendants = get_tui2ascendants()
+    return tui2ascendants[tui]
 
 def valid_label_set():
     parent2children = get_parent2children()
@@ -548,3 +613,27 @@ def ranked_label2hierarchical_valid_labels(ranked_labels: List[str]):
     if "_".join(sorted(hierarchical_valid_labels)) not in valid_paths:
         hierarchical_valid_labels = get_complete_path(hierarchical_valid_labels)
     return hierarchical_valid_labels
+
+
+ST21pvSrc = {
+    "CPT",
+    "FMA",
+    "GO",
+    "HGNC",
+    "HPO",
+    "ICD10",
+    "ICD10CM",
+    "ICD9CM",
+    "MDR",
+    "MSH",
+    "MTH",
+    "NCBI",
+    "NCI",
+    "NDDF",
+    "NDFRT",
+    "OMIM",
+    "RXNORM",
+    "SNOMEDCT_US",
+}
+
+
