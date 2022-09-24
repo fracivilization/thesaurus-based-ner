@@ -16,6 +16,8 @@ make_pseudo_data_on_gold: $(PSEUDO_DATA_ON_GOLD)
 	@echo $(PSEUDO_DATA_ON_GOLD)
 make_pseudo_multi_label_ner_on_gold: $(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD)
 	@echo $(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD)
+make_umls_term2cats: $(UMLS_TERM2CATS)
+	@echo $(UMLS_TERM2CATS)
 
 # Train Main (Flat NER) Model
 train: $(TRAIN_OUT)

@@ -1,8 +1,9 @@
-from typing import Dict, List
+from typing import Dict, List, Set
 from seqeval.metrics.sequence_labeling import get_entities
 from src.dataset import gold_dataset
 from .genia import load_term2cat as genia_load_term2cat
 from .twitter import load_twitter_main_dictionary, load_twitter_sibling_dictionary
+from hydra.utils import get_original_cwd
 from hashlib import md5
 import os
 import json
@@ -18,8 +19,9 @@ from hydra.core.config_store import ConfigStore
 from datasets import DatasetDict
 from collections import Counter
 from prettytable import PrettyTable
-from src.dataset.utils import STchild2parent, tui2ST
-from .terms import get_ascendants_TUIs
+from src.dataset.utils import STchild2parent, tui2ST, MRCONSO, MRSTY, get_ascendant_tuis
+from src.dataset.utils import ST21pvSrc
+from functools import cache
 
 
 @dataclass
@@ -31,13 +33,8 @@ class Term2CatsConfig:
 @dataclass
 class DictTerm2CatsConfig(Term2CatsConfig):
     name: str = "dict"
-    focus_cats: str = MISSING
-    # duplicate_cats: str = MISSING
-    # negative_cats: str = MISSING
     dict_dir: str = os.path.join(os.getcwd(), "data/dict")
-    # with_nc: bool = False
     output: str = MISSING
-    remove_ambiguate_terms: bool = False
 
 
 @dataclass
@@ -73,9 +70,7 @@ def get_anomaly_suffixes(term2cat):
     for term in term2cat:
         lowered2orig[term.lower()].append(term)
     for term, cat in term2cat.items():
-        confirmed_common_suffixes = complex_typer.get_confirmed_common_suffixes(
-            term
-        )
+        confirmed_common_suffixes = complex_typer.get_confirmed_common_suffixes(term)
         for pred_cat, start in confirmed_common_suffixes:
             if pred_cat != cat and start != 0:
                 anomaly_suffix = term[start:]
@@ -108,41 +103,82 @@ def log_duplication_between_positive_and_negative_cats(
     return negative_cat2positive_ratio
 
 
+def load_term2cuis():
+    term2cuis = defaultdict(set)
+    # 相対パスではうまくとれないのでプロジェクトルートから取れるようにする
+    with open(os.path.join(get_original_cwd(), MRCONSO)) as f:
+        for line in tqdm(f, total=16132274):
+            (
+                cui,
+                lang,
+                _,
+                _,
+                _,
+                _,
+                _,
+                _,
+                _,
+                _,
+                _,
+                src,
+                _,
+                _,
+                term,
+                _,
+                _,
+                _,
+                _,
+            ) = line.strip().split("|")
+            if lang == "ENG" and src in ST21pvSrc:
+                term2cuis[term].add(cui)
+    return term2cuis
+
+
+@cache
+def load_cui2tuis() -> Dict:
+    cui2tuis = defaultdict(set)
+    cui_loc = 0
+    tui_loc = 1
+    with open(os.path.join(get_original_cwd(), MRSTY)) as f:
+        for line in f:
+            line = line.strip().split("|")
+            cui = line[cui_loc]
+            tui = line[tui_loc]
+            cui2tuis[cui].add(tui)
+    return cui2tuis
+
+
+def expand_tuis(tuis: Set[str]) -> Set:
+    # 1. シソーラスの構造に応じてラベル集合L={l_i}_iをパスに展開
+    #    各ラベルまでのパス上にあるノードをすべて集める
+    #    PATHS = {l \in PATH(l_i)}_{i in L}
+    expanded_tuis = set()
+    for tui in tuis:
+        expanded_tuis |= set(get_ascendant_tuis(tui))
+    return expanded_tuis
+
+
+def cuis2labels(cuis: List[str]):
+    cui2tuis = load_cui2tuis()
+    labels = tui2ST.keys()
+    # 各CUI:j は複数のラベルからなるラベル集合L_j={l_{ij}}を持つとしたときに
+    # すべてのCUIのPATHSに含まれるラベル集合を取得する
+    for cui in cuis:
+        tuis = cui2tuis[cui]
+        labels &= expand_tuis(tuis)
+    return labels
+
+
 def load_dict_term2cats(conf: DictTerm2CatsConfig):
-    focus_cats = sorted(set(conf.focus_cats.split("_")))
     term2cats = dict()
-    for cat in tqdm(focus_cats):
-        print("Start loading: ", cat)
-        buffer_file = os.path.join(get_original_cwd(), conf.dict_dir, cat)
-        with open(buffer_file) as f:
-            # wc = 0
-            for line in tqdm(f):
-                # for debug
-                # wc += 1
-                # if wc == 100:
-                #     break
-                term = line.strip()
-                if term:
-                    if term not in term2cats:
-                        term2cats[term] = cat
-                    else:
-                        if cat not in term2cats[term]:
-                            term2cats[term] += "_%s" % cat
-    # 階層構造的にあり得るカテゴリの組み合わせを列挙する
-    print(Counter(term2cats.values()).most_common())
-    print("term2cats length: ", len(term2cats))
-    if conf.remove_ambiguate_terms:
-        acceptable_cat_combination = {
-            "_".join(sorted(get_ascendants_TUIs(tui))) for tui in focus_cats
-        }
-        remove_terms = []
-        for term, cats in term2cats.items():
-            if cats not in acceptable_cat_combination:
-                remove_terms.append(term)
-        for term in remove_terms:
-            del term2cats[term]
-        print("term2cats length after removing ambiguate terms: ", len(term2cats))
-        print(Counter(term2cats.values()).most_common())
+
+    # 1. 表層形からCUIへのマップを構築し
+    print("load term2cuis")
+    term2cuis = load_term2cuis()
+    # 2. CUI(の集合)からそれらの共通成分をとる
+    print("load intersection labels (tuis) for each cuis")
+    for term, cuis in tqdm(term2cuis.items()):
+        term2cats[term] = "_".join(sorted(cuis2labels(cuis)))
     return term2cats
 
 
@@ -248,11 +284,22 @@ class Term2Cat:
         self.term2cat = term2cat
 
 
-def log_term2cat(term2cat: Dict):
+def log_term2cats(term2cats: Dict):
     print("log term2cat count")
-    tbl = PrettyTable(["cat", "count"])
-    counter = Counter(term2cat.values())
-    for cat, count in sorted(list(counter.items()), key=lambda x: x[0]):
-        tbl.add_row([cat, count])
+    tbl = PrettyTable(["cats", "count"])
+    counter = Counter(term2cats.values())
+    for cats, count in sorted(list(counter.items()), key=lambda x: x[0]):
+        tbl.add_row([cats, count])
     print(tbl.get_string())
     print("category num: ", len(counter))
+
+    cat2count = defaultdict(lambda: 0)
+    for cats, count in sorted(list(counter.items()), key=lambda x: x[0]):
+        for cat in cats.split("_"):
+            cat2count[cat] += count
+
+    tbl = PrettyTable(["cat", "Semantic Type", "count"])
+    for cat, count in cat2count.items():
+        tbl.add_row([cat, tui2ST[cat], count])
+    print(tbl.get_string())
+    print("category num: ", len(cat2count.keys()))

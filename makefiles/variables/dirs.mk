@@ -1,6 +1,7 @@
 # Dirs
 DATA_DIR := data
 TERM2CAT_DIR := $(DATA_DIR)/term2cat
+TERM2CATS_DIR := $(DATA_DIR)/term2cats
 DICT_DIR := $(DATA_DIR)/dict
 UMLS_DIR := $(DATA_DIR)/2021AA
 DBPEDIA_DIR := $(DATA_DIR)/DBPedia
