@@ -4,14 +4,16 @@ from functools import cache
 from datasets import DatasetDict
 from datasets import load_dataset
 from dataclasses import dataclass
-from typing import List
+from typing import Dict, List
 from more_itertools import powerset
 import os
 import re
 from inflection import UNCOUNTABLES, PLURALS, SINGULARS
+from hydra.utils import get_original_cwd
 
 PLURAL_RULES = [(re.compile(rule), replacement) for rule, replacement in PLURALS]
 SINGULAR_RULES = [(re.compile(rule), replacement) for rule, replacement in SINGULARS]
+
 
 def pluralize(word: str) -> str:
     """
@@ -69,6 +71,7 @@ def singularize(word: str) -> str:
 umls_dir = "data/2021AA"
 MRSTY = os.path.join(umls_dir, "META", "MRSTY.RRF")
 MRCONSO = os.path.join(umls_dir, "META", "MRCONSO.RRF")
+SRDEF_PATH = os.path.join(umls_dir, "NET", "SRDEF")
 
 
 @dataclass
@@ -76,403 +79,32 @@ class DatasetConfig:
     name_or_path: str = "conll2003"
 
 
-def load_dataset(config: DatasetConfig) -> DatasetDict:
-    if config.name_or_path in {"conll2003"}:
-        dataset = load_dataset(config.name_or_path)
-    pass
-
-
-STchild2parent = {
-    "Entity": "ROOT",
-    "Physical Object": "Entity",
-    "Organism": "Physical Object",
-    "Plant": "Organism",
-    "Fungus": "Organism",
-    "Virus": "Organism",
-    "Bacterium": "Organism",
-    "Archaeon": "Organism",
-    "Eukaryote": "Organism",
-    "Animal": "Eukaryote",
-    "Vertebrate": "Animal",
-    "Amphibian": "Vertebrate",
-    "Bird": "Vertebrate",
-    "Fish": "Vertebrate",
-    "Reptile": "Vertebrate",
-    "Mammal": "Vertebrate",
-    "Human": "Mammal",
-    "Anatomical Structure": "Physical Object",
-    "Embryonic Structure": "Anatomical Structure",
-    "Anatomical Abnormality": "Embryonic Structure",
-    "Congenital Abnormality": "Anatomical Abnormality",
-    "Acquired Abnormality": "Anatomical Abnormality",
-    "Fully Formed Anatomical Structure": "Embryonic Structure",
-    "Body Part, Organ, or Organ Component": "Fully Formed Anatomical Structure",
-    "Tissue": "Fully Formed Anatomical Structure",
-    "Cell": "Fully Formed Anatomical Structure",
-    "Cell Component": "Fully Formed Anatomical Structure",
-    "Gene or Genome": "Fully Formed Anatomical Structure",
-    "Manufactured Object": "Physical Object",
-    "Medical Device": "Manufactured Object",
-    "Drug Delivery Device": "Medical Device",
-    "Research Device": "Manufactured Object",
-    "Clinical Drug": "Manufactured Object",
-    "Substance": "Physical Object",
-    "Chemical": "Substance",
-    "Chemical Viewed Functionally": "Chemical",
-    "Pharmacologic Substance": "Chemical Viewed Functionally",
-    "Antibiotic": "Pharmacologic Substance",
-    "Biomedical or Dental Material": "Chemical Viewed Functionally",
-    "Biologically Active Substance": "Chemical Viewed Functionally",
-    "Hormone": "Biologically Active Substance",
-    "Enzyme": "Biologically Active Substance",
-    "Vitamin": "Biologically Active Substance",
-    "Immunologic Factor": "Biologically Active Substance",
-    "Receptor": "Biologically Active Substance",
-    "Indicator, Reagent, or Diagnostic Aid": "Chemical Viewed Functionally",
-    "Hazardous or Poisonous Substance": "Chemical Viewed Functionally",
-    "Chemical Viewed Structurally": "Chemical",
-    "Organic Chemical": "Chemical Viewed Structurally",
-    "Nucleic Acid, Nucleoside, or Nucleotide": "Organic Chemical",
-    "Amino Acid, Peptide, or Protein": "Organic Chemical",
-    "Inorganic Chemical": "Chemical Viewed Structurally",
-    "Element, Ion, or Isotope": "Chemical Viewed Structurally",
-    "Body Substance": "Substance",
-    "Food": "Substance",
-    "Conceptual Entity": "Entity",
-    "Idea or Concept": "Conceptual Entity",
-    "Temporal Concept": "Idea or Concept",
-    "Qualitative Concept": "Idea or Concept",
-    "Quantitative Concept": "Idea or Concept",
-    "Functional Concept": "Idea or Concept",
-    "Body System": "Functional Concept",
-    "Spatial Concept": "Idea or Concept",
-    "Body Space or Junction": "Spatial Concept",
-    "Body Location or Region": "Spatial Concept",
-    "Molecular Sequence": "Spatial Concept",
-    "Nucleotide Sequence": "Molecular Sequence",
-    "Amino Acid Sequence": "Molecular Sequence",
-    "Carbohydrate Sequence": "Molecular Sequence",
-    "Geographic Area": "Spatial Concept",
-    "Finding": "Conceptual Entity",
-    "Laboratory or Test Result": "Finding",
-    "Sign or Symptom": "Finding",
-    "Organism Attribute": "Conceptual Entity",
-    "Clinical Attribute": "Organism Attribute",
-    "Intellectual Product": "Conceptual Entity",
-    "Classification": "Intellectual Product",
-    "Regulation or Law": "Intellectual Product",
-    "Language": "Conceptual Entity",
-    "Occupation or Discipline": "Conceptual Entity",
-    "Biomedical Occupation or Discipline": "Occupation or Discipline",
-    "Organization": "Conceptual Entity",
-    "Health Care Related Organization": "Organization",
-    "Professional Society": "Organization",
-    "Self-help or Relief Organization": "Organization",
-    "Group Attribute": "Conceptual Entity",
-    "Group": "Conceptual Entity",
-    "Professional or Occupational Group": "Group",
-    "Population Group": "Group",
-    "Family Group": "Group",
-    "Age Group": "Group",
-    "Patient or Disabled Group": "Group",
-    "Event": "ROOT",
-    "Activity": "Event",
-    "Behavior": "Activity",
-    "Social Behavior": "Behavior",
-    "Individual Behavior": "Behavior",
-    "Daily or Recreational Activity": "Activity",
-    "Occupational Activity": "Activity",
-    "Health Care Activity": "Occupational Activity",
-    "Laboratory Procedure": "Health Care Activity",
-    "Diagnostic Procedure": "Health Care Activity",
-    "Therapeutic or Preventive Procedure": "Health Care Activity",
-    "Research Activity": "Occupational Activity",
-    "Molecular Biology Research Technique": "Research Activity",
-    "Governmental or Regulatory Activity": "Occupational Activity",
-    "Educational Activity": "Occupational Activity",
-    "Machine Activity": "Activity",
-    "Phenomenon or Process": "Event",
-    "Human-caused Phenomenon or Process": "Phenomenon or Process",
-    "Environmental Effect of Humans": "Human-caused Phenomenon or Process",
-    "Natural Phenomenon or Process": "Phenomenon or Process",
-    "Biologic Function": "Natural Phenomenon or Process",
-    "Physiologic Function": "Biologic Function",
-    "Organism Function": "Physiologic Function",
-    "Mental Process": "Organism Function",
-    "Organ or Tissue Function": "Physiologic Function",
-    "Cell Function": "Physiologic Function",
-    "Molecular Function": "Physiologic Function",
-    "Genetic Function": "Molecular Function",
-    "Pathologic Function": "Biologic Function",
-    "Disease or Syndrome": "Pathologic Function",
-    "Mental or Behavioral Dysfunction": "Disease or Syndrome",
-    "Neoplastic Process": "Disease or Syndrome",
-    "Cell or Molecular Dysfunction": "Pathologic Function",
-    "Experimental Model of Disease": "Pathologic Function",
-    "Injury or Poisoning": "Phenomenon or Process",
-}
-tui2ST = {
-    "T000": "ROOT",  # Additional Dummy Semantic Type
-    "T116": "Amino Acid, Peptide, or Protein",
-    "T020": "Acquired Abnormality",
-    "T052": "Activity",
-    "T100": "Age Group",
-    "T087": "Amino Acid Sequence",
-    "T011": "Amphibian",
-    "T190": "Anatomical Abnormality",
-    "T008": "Animal",
-    "T017": "Anatomical Structure",
-    "T195": "Antibiotic",
-    "T194": "Archaeon",
-    "T123": "Biologically Active Substance",
-    "T007": "Bacterium",
-    "T031": "Body Substance",
-    "T022": "Body System",
-    "T053": "Behavior",
-    "T038": "Biologic Function",
-    "T012": "Bird",
-    "T029": "Body Location or Region",
-    "T091": "Biomedical Occupation or Discipline",
-    "T122": "Biomedical or Dental Material",
-    "T023": "Body Part, Organ, or Organ Component",
-    "T030": "Body Space or Junction",
-    "T026": "Cell Component",
-    "T043": "Cell Function",
-    "T025": "Cell",
-    "T019": "Congenital Abnormality",
-    "T103": "Chemical",
-    "T120": "Chemical Viewed Functionally",
-    "T104": "Chemical Viewed Structurally",
-    "T185": "Classification",
-    "T201": "Clinical Attribute",
-    "T200": "Clinical Drug",
-    "T077": "Conceptual Entity",
-    "T049": "Cell or Molecular Dysfunction",
-    "T088": "Carbohydrate Sequence",
-    "T060": "Diagnostic Procedure",
-    "T056": "Daily or Recreational Activity",
-    "T203": "Drug Delivery Device",
-    "T047": "Disease or Syndrome",
-    "T065": "Educational Activity",
-    "T069": "Environmental Effect of Humans",
-    "T196": "Element, Ion, or Isotope",
-    "T050": "Experimental Model of Disease",
-    "T018": "Embryonic Structure",
-    "T071": "Entity",
-    "T126": "Enzyme",
-    "T204": "Eukaryote",
-    "T051": "Event",
-    "T099": "Family Group",
-    "T021": "Fully Formed Anatomical Structure",
-    "T013": "Fish",
-    "T033": "Finding",
-    "T004": "Fungus",
-    "T168": "Food",
-    "T169": "Functional Concept",
-    "T045": "Genetic Function",
-    "T083": "Geographic Area",
-    "T028": "Gene or Genome",
-    "T064": "Governmental or Regulatory Activity",
-    "T102": "Group Attribute",
-    "T096": "Group",
-    "T068": "Human-caused Phenomenon or Process",
-    "T093": "Health Care Related Organization",
-    "T058": "Health Care Activity",
-    "T131": "Hazardous or Poisonous Substance",
-    "T125": "Hormone",
-    "T016": "Human",
-    "T078": "Idea or Concept",
-    "T129": "Immunologic Factor",
-    "T055": "Individual Behavior",
-    "T197": "Inorganic Chemical",
-    "T037": "Injury or Poisoning",
-    "T170": "Intellectual Product",
-    "T130": "Indicator, Reagent, or Diagnostic Aid",
-    "T171": "Language",
-    "T059": "Laboratory Procedure",
-    "T034": "Laboratory or Test Result",
-    "T015": "Mammal",
-    "T063": "Molecular Biology Research Technique",
-    "T066": "Machine Activity",
-    "T074": "Medical Device",
-    "T041": "Mental Process",
-    "T073": "Manufactured Object",
-    "T048": "Mental or Behavioral Dysfunction",
-    "T044": "Molecular Function",
-    "T085": "Molecular Sequence",
-    "T191": "Neoplastic Process",
-    "T114": "Nucleic Acid, Nucleoside, or Nucleotide",
-    "T070": "Natural Phenomenon or Process",
-    "T086": "Nucleotide Sequence",
-    "T057": "Occupational Activity",
-    "T090": "Occupation or Discipline",
-    "T109": "Organic Chemical",
-    "T032": "Organism Attribute",
-    "T040": "Organism Function",
-    "T001": "Organism",
-    "T092": "Organization",
-    "T042": "Organ or Tissue Function",
-    "T046": "Pathologic Function",
-    "T072": "Physical Object",
-    "T067": "Phenomenon or Process",
-    "T039": "Physiologic Function",
-    "T121": "Pharmacologic Substance",
-    "T002": "Plant",
-    "T101": "Patient or Disabled Group",
-    "T098": "Population Group",
-    "T097": "Professional or Occupational Group",
-    "T094": "Professional Society",
-    "T080": "Qualitative Concept",
-    "T081": "Quantitative Concept",
-    "T192": "Receptor",
-    "T014": "Reptile",
-    "T062": "Research Activity",
-    "T075": "Research Device",
-    "T089": "Regulation or Law",
-    "T167": "Substance",
-    "T095": "Self-help or Relief Organization",
-    "T054": "Social Behavior",
-    "T184": "Sign or Symptom",
-    "T082": "Spatial Concept",
-    "T024": "Tissue",
-    "T079": "Temporal Concept",
-    "T061": "Therapeutic or Preventive Procedure",
-    "T005": "Virus",
-    "T127": "Vitamin",
-    "T010": "Vertebrate",
-}
-
-
-# tui2ST = {
-#     "T000": "ROOT",  # Additional Dummy Semantic Type
-#     "T001": "Organism",
-#     "T002": "Plant",
-#     "T004": "Fungus",
-#     "T005": "Virus",
-#     "T007": "Bacterium",
-#     "T008": "Animal",
-#     "T010": "Vertebrate",
-#     "T011": "Amphibian",
-#     "T012": "Bird",
-#     "T013": "Fish",
-#     "T014": "Reptile",
-#     "T015": "Mammal",
-#     "T016": "Human",
-#     "T017": "Anatomical Structure",
-#     "T018": "Embryonic Structure",
-#     "T019": "Congenital Abnormality",
-#     "T020": "Acquired Abnormality",
-#     "T021": "Fully Formed Anatomical Structure",
-#     "T022": "Body System",
-#     "T023": "Body Part, Organ, or Organ Component",
-#     "T024": "Tissue",
-#     "T025": "Cell",
-#     "T026": "Cell Component",
-#     "T028": "Gene or Genome",
-#     "T029": "Body Location or Region",
-#     "T030": "Body Space or Junction",
-#     "T031": "Body Substance",
-#     "T032": "Organism Attribute",
-#     "T033": "Finding",
-#     "T034": "Laboratory or Test Result",
-#     "T037": "Injury or Poisoning",
-#     "T038": "Biologic Function",
-#     "T039": "Physiologic Function",
-#     "T040": "Organism Function",
-#     "T041": "Mental Process",
-#     "T042": "Organ or Tissue Function",
-#     "T043": "Cell Function",
-#     "T044": "Molecular Function",
-#     "T045": "Genetic Function",
-#     "T046": "Pathologic Function",
-#     "T047": "Disease or Syndrome",
-#     "T048": "Mental or Behavioral Dysfunction",
-#     "T049": "Cell or Molecular Dysfunction",
-#     "T050": "Experimental Model of Disease",
-#     "T051": "Event",
-#     "T052": "Activity",
-#     "T053": "Behavior",
-#     "T054": "Social Behavior",
-#     "T055": "Individual Behavior",
-#     "T056": "Daily or Recreational Activity",
-#     "T057": "Occupational Activity",
-#     "T058": "Health Care Activity",
-#     "T059": "Laboratory Procedure",
-#     "T060": "Diagnostic Procedure",
-#     "T061": "Therapeutic or Preventive Procedure",
-#     "T062": "Research Activity",
-#     "T063": "Molecular Biology Research Technique",
-#     "T064": "Governmental or Regulatory Activity",
-#     "T065": "Educational Activity",
-#     "T066": "Machine Activity",
-#     "T067": "Phenomenon or Process",
-#     "T068": "Human-caused Phenomenon or Process",
-#     "T069": "Environmental Effect of Humans",
-#     "T070": "Natural Phenomenon or Process",
-#     "T071": "Entity",
-#     "T072": "Physical Object",
-#     "T073": "Manufactured Object",
-#     "T074": "Medical Device",
-#     "T075": "Research Device",
-#     "T077": "Conceptual Entity",
-#     "T078": "Idea or Concept",
-#     "T079": "Temporal Concept",
-#     "T080": "Qualitative Concept",
-#     "T081": "Quantitative Concept",
-#     "T082": "Spatial Concept",
-#     "T083": "Geographic Area",
-#     "T085": "Molecular Sequence",
-#     "T086": "Nucleotide Sequence",
-#     "T087": "Amino Acid Sequence",
-#     "T088": "Carbohydrate Sequence",
-#     "T089": "Regulation or Law",
-#     "T090": "Occupation or Discipline",
-#     "T091": "Biomedical Occupation or Discipline",
-#     "T092": "Organization",
-#     "T093": "Health Care Related Organization",
-#     "T094": "Professional Society",
-#     "T095": "Self-help or Relief Organization",
-#     "T096": "Group",
-#     "T097": "Professional or Occupational Group",
-#     "T098": "Population Group",
-#     "T099": "Family Group",
-#     "T100": "Age Group",
-#     "T101": "Patient or Disabled Group",
-#     "T102": "Group Attribute",
-#     "T103": "Chemical",
-#     "T104": "Chemical Viewed Structurally",
-#     "T109": "Organic Chemical",
-#     "T114": "Nucleic Acid, Nucleoside, or Nucleotide",
-#     "T116": "Amino Acid, Peptide, or Protein",
-#     "T120": "Chemical Viewed Functionally",
-#     "T121": "Pharmacologic Substance",
-#     "T122": "Biomedical or Dental Material",
-#     "T123": "Biologically Active Substance",
-#     "T125": "Hormone",
-#     "T126": "Enzyme",
-#     "T127": "Vitamin",
-#     "T129": "Immunologic Factor",
-#     "T130": "Indicator, Reagent, or Diagnostic Aid",
-#     "T131": "Hazardous or Poisonous Substance",
-#     "T167": "Substance",
-#     "T168": "Food",
-#     "T169": "Functional Concept",
-#     "T170": "Intellectual Product",
-#     "T171": "Language",
-#     "T184": "Sign or Symptom",
-#     "T185": "Classification",
-#     "T190": "Anatomical Abnormality",
-#     "T191": "Neoplastic Process",
-#     "T192": "Receptor",
-#     "T194": "Archaeon",
-#     "T195": "Antibiotic",
-#     "T196": "Element, Ion, or Isotope",
-#     "T197": "Inorganic Chemical",
-#     "T200": "Clinical Drug",
-#     "T201": "Clinical Attribute",
-#     "T203": "Drug Delivery Device",
-#     "T204": "Eukaryote",
-# }
+tui2hier = dict()
+tui2ST = dict()
+with open(SRDEF_PATH) as f:
+    for line in f:
+        line = line.strip().split("|")
+        tui = line[1]
+        semantic_type = line[2]
+        hier = line[3]
+        if hier.startswith("A") or hier.startswith("B"):
+            tui2hier[tui] = hier
+            tui2ST[tui] = semantic_type
+STchild2parent = dict()
+hier2tui = {hier: tui for tui, hier in tui2hier.items()}
+for tui in tui2ST.keys():
+    child_hier = tui2hier[tui]
+    if child_hier in {"A", "B"}:
+        STchild2parent[tui2ST[tui]] = "ROOT"
+    elif child_hier in {"A1", "A2"}:
+        STchild2parent[tui2ST[tui]] = tui2ST[hier2tui["A"]]
+    elif child_hier in {"B1", "B2"}:
+        STchild2parent[tui2ST[tui]] = tui2ST[hier2tui["B"]]
+    else:
+        parent_hier = ".".join(child_hier.split(".")[:-1])
+        parent_tui = hier2tui[parent_hier]
+        STchild2parent[tui2ST[tui]] = tui2ST[parent_tui]
+tui2ST["T000"] = "ROOT"
 
 
 def get_parent2children():
@@ -512,7 +144,6 @@ def get_umls_negative_cats(focus_tuis: List[str]):
     return negative_cats
 
 
-
 @cache
 def get_tui2ascendants():
     ST2tui = {v: k for k, v in tui2ST.items()}
@@ -527,9 +158,11 @@ def get_tui2ascendants():
         tui2ascendants[orig_tui] = sorted(ascendants)
     return tui2ascendants
 
+
 def get_ascendant_tuis(tui: str = "T204") -> List[str]:
     tui2ascendants = get_tui2ascendants()
     return tui2ascendants[tui]
+
 
 def valid_label_set():
     parent2children = get_parent2children()
@@ -635,5 +268,3 @@ ST21pvSrc = {
     "RXNORM",
     "SNOMEDCT_US",
 }
-
-
