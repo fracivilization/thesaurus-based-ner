@@ -11,6 +11,7 @@ import re
 from inflection import UNCOUNTABLES, PLURALS, SINGULARS
 from hydra.utils import get_original_cwd, to_absolute_path
 
+CATEGORY_SEPARATOR = "_"
 PLURAL_RULES = [(re.compile(rule), replacement) for rule, replacement in PLURALS]
 SINGULAR_RULES = [(re.compile(rule), replacement) for rule, replacement in SINGULARS]
 
@@ -110,6 +111,7 @@ def load_umls_thesaurus() -> UMLSNode:
             tui = line[1]
             semantic_type = line[2]
             hier = line[3]
+            assert CATEGORY_SEPARATOR not in tui
             if hier.startswith("A") or hier.startswith("B"):
                 tui2hier[tui] = hier
                 tui2ST[tui] = semantic_type
