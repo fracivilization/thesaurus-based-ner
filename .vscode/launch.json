@@ -96,12 +96,15 @@
             "justMyCode": false,
             "args": [
                 "--focus-cats",
-                // "T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
-                "T000",
+                "T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
+                "--negative-cats",
+                "T053_T056_T064_T065_T066_T068_T075_T079_T080_T081_T099_T100_T101_T102_T171_T194_T200",
                 "--output",
-                "data/gold/T000",
+                "data/gold/f41936e3cb0d944d1b2fbc94f8f95dd18ff94567",
                 "--input-dir",
-                "data/gold/MedMentions/full/data",
+                "data/gold/multi_label_ner",
+                "--train-snt-num",
+                "9223372036854775807"
             ],
         },
         {

@@ -12,6 +12,8 @@ from inflection import UNCOUNTABLES, PLURALS, SINGULARS
 from hydra.utils import get_original_cwd, to_absolute_path
 
 CATEGORY_SEPARATOR = "_"
+NEGATIVE_CATEGORY_PREFIX = "nc"
+NEGATIVE_CATEGORY_TEMPLATE = f"{NEGATIVE_CATEGORY_PREFIX}-%s"
 PLURAL_RULES = [(re.compile(rule), replacement) for rule, replacement in PLURALS]
 SINGULAR_RULES = [(re.compile(rule), replacement) for rule, replacement in SINGULARS]
 

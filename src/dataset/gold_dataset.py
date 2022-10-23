@@ -12,15 +12,20 @@ from collections import Counter, defaultdict
 import os
 from seqeval.metrics.sequence_labeling import get_entities
 import json
-from src.dataset.utils import tui2ST, get_tui2ascendants
+from src.dataset.utils import (
+    tui2ST,
+    get_tui2ascendants,
+    CATEGORY_SEPARATOR,
+    NEGATIVE_CATEGORY_TEMPLATE,
+)
 import datasets
 
 logger = getLogger(__name__)
 nlp = spacy.load("en_core_sci_sm")
 
 
-def singularize_by_focus_cats(
-    multi_label_ner_dataset: Dataset, focus_cats: List[str]
+def singularize_by_target_cats(
+    multi_label_ner_dataset: Dataset, focus_cats: List[str], negative_cats: List[str]
 ) -> List[Dict]:
     """着目クラスに応じてマルチクラスデータセットをシングルクラスに変換する
     返り値はconll形式の辞書のリストで返す
@@ -43,21 +48,22 @@ def singularize_by_focus_cats(
     }
     """
     ret_conll = []
-    focus_cats = set(focus_cats)
+    target_cats = set(focus_cats + negative_cats)
     label_names = multi_label_ner_dataset.features["labels"].feature.feature.names
     for snt in multi_label_ner_dataset:
         ner_tags = ["O"] * len(snt["tokens"])
-        for ls, s, e in zip(snt["labels"], snt["starts"], snt["ends"]):
-            ls = set([label_names[l] for l in ls])
-            remained_label = ls & focus_cats
+        for span_labels, s, e in zip(snt["labels"], snt["starts"], snt["ends"]):
+            span_labels = set([label_names[l] for l in span_labels])
+            remained_label = span_labels & target_cats
             if len(remained_label) == 1:
                 remained_label = remained_label.pop()
+                if remained_label in negative_cats:
+                    remained_label = NEGATIVE_CATEGORY_TEMPLATE % remained_label
                 for i in range(s, e):
                     if i == s:
                         ner_tags[i] = "B-%s" % remained_label
                     else:
                         ner_tags[i] = "I-%s" % remained_label
-
         ret_conll.append({"tokens": snt["tokens"], "tags": ner_tags})
     return ret_conll
 
@@ -299,16 +305,17 @@ def remove_span_duplication(docs: List[str]):
 
 
 def load_gold_datasets(
-    focus_cats: str, input_dir: str, train_snt_num: int
+    focus_cats: str, negative_cats: str, input_dir: str, train_snt_num: int
 ) -> DatasetDict:
     # load remained cats
-    focus_cats = focus_cats.split("_")
+    focus_cats = focus_cats.split(CATEGORY_SEPARATOR)
+    negative_cats = negative_cats.split(CATEGORY_SEPARATOR)
 
     # load dataset
     multi_label_ner = DatasetDict.load_from_disk(input_dir)
 
     singularized_ner = {
-        key: singularize_by_focus_cats(split, focus_cats)
+        key: singularize_by_target_cats(split, focus_cats, negative_cats)
         for key, split in multi_label_ner.items()
     }
     c = Counter(
