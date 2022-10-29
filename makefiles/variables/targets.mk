@@ -13,8 +13,9 @@ PSEUDO_NER_DATA_DIR := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo $(PSEUDO_DATA
 PSEUDO_MSC_NER_DATA_DIR := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MSC DATASET" $(PSEUDO_NER_DATA_DIR) $(WITH_O) $(FIRST_STAGE_CHUNKER) | sha1sum)) 
 PSEUDO_OUT := outputs/$(firstword $(shell echo "PSEUDO_OUT" $(PSEUDO_DATA_ARGS) | sha1sum))
 
-GOLD_DATA := $(GOLD_DIR)/$(firstword $(shell echo "MedMentions" $(FOCUS_CATS) $(TRAIN_SNT_NUM) | sha1sum))
-GOLD_MSC_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSC DATA" $(GOLD_DATA) $(MSC_ARGS) | sha1sum)) 
+GOLD_DATA := $(GOLD_DIR)/$(firstword $(shell echo "MedMentions" $(FOCUS_CATS) | sha1sum))
+GOLD_TRAIN_DATA := $(GOLD_DIR)/$(firstword $(shell echo "MedMentions" $(FOCUS_CATS) $(NEGATIVE_CATS) $(TRAIN_SNT_NUM) | sha1sum))
+GOLD_TRAIN_MSC_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSC DATA" $(GOLD_DATA) $(MSC_ARGS) | sha1sum)) 
 GOLD_MULTI_LABEL_NER_DATA := $(GOLD_DIR)/multi_label_ner
 GOLD_MSMLC_BINARY_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSMLC BINARY DATA" $(GOLD_DATA) $(MSMLC_ARGS) | sha1sum)) 
 GOLD_MSMLC_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSMLC DATA" $(GOLD_DATA) $(MSMLC_ARGS) | sha1sum)) 
@@ -33,7 +34,7 @@ FP_REMOVED_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "FP_REMOVE
 EROSION_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "EROSION_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
 MISGUIDANCE_PSEUDO_DATA := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MISGUIDANCE_PSEUDO_DATA" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum))
 
-TRAIN_ON_GOLD_OUT := outputs/$(firstword $(shell echo "TRAIN_ON_GOLD_LOCK" $(GOLD_MSC_DATA) $(RUN_ARGS) | sha1sum))
+TRAIN_ON_GOLD_OUT := outputs/$(firstword $(shell echo "TRAIN_ON_GOLD_LOCK" $(GOLD_TRAIN_MSC_DATA) $(RUN_ARGS) | sha1sum))
 TRAIN_OUT := outputs/$(firstword $(shell echo "TRAIN_LOCK" $(PSEUDO_MSC_DATA_ON_GOLD) $(RUN_ARGS) | sha1sum))
 TRAIN_AND_EVAL_MSMLC_OUT := outputs/$(firstword $(shell echo "TRAIN_AND_EVAL_MSMLC_OUT" $(PSEUDO_MSMLC_DATA_ON_GOLD) $(MSMLC_ARGS) | sha1sum))
 EVAL_FLATTEN_MARGINAL_MSMLC_OUT := outputs/$(firstword $(shell echo "TRAIN_AND_EVAL_MSMLC_OUT" $(PSEUDO_MSMLC_DATA_ON_GOLD) $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL) $(FOCUS_CATS) $(NEGATIVE_CATS) | sha1sum))

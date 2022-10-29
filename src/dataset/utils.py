@@ -4,13 +4,16 @@ from functools import cache
 from datasets import DatasetDict
 from datasets import load_dataset
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Any, Dict, List, Callable
 from more_itertools import powerset
 import os
 import re
 from inflection import UNCOUNTABLES, PLURALS, SINGULARS
-from hydra.utils import get_original_cwd
+from hydra.utils import get_original_cwd, to_absolute_path
 
+CATEGORY_SEPARATOR = "_"
+NEGATIVE_CATEGORY_PREFIX = "nc"
+NEGATIVE_CATEGORY_TEMPLATE = f"{NEGATIVE_CATEGORY_PREFIX}-%s"
 PLURAL_RULES = [(re.compile(rule), replacement) for rule, replacement in PLURALS]
 SINGULAR_RULES = [(re.compile(rule), replacement) for rule, replacement in SINGULARS]
 
@@ -72,6 +75,71 @@ umls_dir = "data/2021AA"
 MRSTY = os.path.join(umls_dir, "META", "MRSTY.RRF")
 MRCONSO = os.path.join(umls_dir, "META", "MRCONSO.RRF")
 SRDEF_PATH = os.path.join(umls_dir, "NET", "SRDEF")
+
+
+UMLS_ROOT_TUI = "T000"
+UMLS_ROOT_SEMANTIC_TYPE = "ROOT"
+
+
+from anytree import Node
+
+
+class Node(Node):
+    def breadth_first_search(
+        self, is_target: Callable[[Node], bool], is_terminal: Callable[[Node], bool]
+    ) -> List[Node]:
+        search_result = [self] if is_target(self) else []
+        if is_terminal(self) or self.is_leaf:
+            return search_result
+        else:
+            for child in self.children:
+                search_result += child.breadth_first_search(is_target, is_terminal)
+            return search_result
+
+
+class UMLSNode(Node):
+    def __init__(self, tui, semantic_type, parent_node=None, children=None, **kwargs):
+        super().__init__(tui, parent_node, children, **kwargs)
+        self.tui = tui
+        self.semantic_type = semantic_type
+
+
+def load_umls_thesaurus() -> UMLSNode:
+    tui2hier = dict()
+    tui2ST = dict()
+    with open(to_absolute_path(SRDEF_PATH)) as f:
+        for line in f:
+            line = line.strip().split("|")
+            tui = line[1]
+            semantic_type = line[2]
+            hier = line[3]
+            assert CATEGORY_SEPARATOR not in tui
+            if hier.startswith("A") or hier.startswith("B"):
+                tui2hier[tui] = hier
+                tui2ST[tui] = semantic_type
+    parent_tui2children_tui = defaultdict(set)
+    hier2tui = {hier: tui for tui, hier in tui2hier.items()}
+    for tui in tui2ST.keys():
+        child_hier = tui2hier[tui]
+        if child_hier in {"A", "B"}:
+            parent_tui2children_tui[UMLS_ROOT_TUI].add(tui)
+        elif child_hier in {"A1", "A2"}:
+            parent_tui2children_tui[hier2tui["A"]].add(tui)
+        elif child_hier in {"B1", "B2"}:
+            parent_tui2children_tui[hier2tui["B"]].add(tui)
+        else:
+            parent_hier = ".".join(child_hier.split(".")[:-1])
+            parent_tui = hier2tui[parent_hier]
+            parent_tui2children_tui[parent_tui].add(tui)
+    tui2ST[UMLS_ROOT_TUI] = UMLS_ROOT_SEMANTIC_TYPE
+
+    def make_subtree(root_tui: str, parent_node: UMLSNode):
+        subtree_root_node = UMLSNode(root_tui, tui2ST[root_tui], parent_node)
+        for child_tui in parent_tui2children_tui[root_tui]:
+            make_subtree(child_tui, subtree_root_node)
+        return subtree_root_node
+
+    return make_subtree(UMLS_ROOT_TUI, None)
 
 
 @dataclass
@@ -246,6 +314,28 @@ def ranked_label2hierarchical_valid_labels(ranked_labels: List[str]):
     if "_".join(sorted(hierarchical_valid_labels)) not in valid_paths:
         hierarchical_valid_labels = get_complete_path(hierarchical_valid_labels)
     return hierarchical_valid_labels
+
+
+def get_umls_negative_cats_from_focus_cats(umls_focus_cat_tuis: List[str]):
+    umls_thesaurus = load_umls_thesaurus()
+    umls_focus_cat_tuis = set(umls_focus_cat_tuis)
+
+    def is_focus_cats(node: UMLSNode):
+        return node.tui in umls_focus_cat_tuis
+
+    def is_negative_cats(node: UMLSNode):
+        return not bool(
+            set([descendant.tui for descendant in node.descendants])
+            & umls_focus_cat_tuis
+        ) and not is_focus_cats(node)
+
+    negative_cat_nodes = umls_thesaurus.breadth_first_search(
+        is_negative_cats, lambda node: is_focus_cats(node) or is_negative_cats(node)
+    )
+    umls_negative_cat_tuis = [node.tui for node in negative_cat_nodes]
+    umls_negative_cat_tuis.sort()
+    assert not umls_focus_cat_tuis & set(umls_negative_cat_tuis)
+    return umls_negative_cat_tuis
 
 
 ST21pvSrc = {

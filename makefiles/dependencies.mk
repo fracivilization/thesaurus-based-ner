@@ -63,13 +63,18 @@ $(GOLD_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	@echo GOLD_MULTI_LABEL_NER_DATA: $(GOLD_MULTI_LABEL_NER_DATA)
 	@poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
 	poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
-$(GOLD_MSC_DATA): $(GOLD_DATA)
-	@echo GOLD_MSC_DATA_ON_GOLD: $(GOLD_MSC_DATA)
+$(GOLD_TRAIN_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
+	@echo "Gold Data"
+	@echo GOLD_MULTI_LABEL_NER_DATA: $(GOLD_MULTI_LABEL_NER_DATA)
+	@poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+$(GOLD_TRAIN_MSC_DATA): $(GOLD_TRAIN_DATA)
+	@echo GOLD_TRAIN_MSC_DATA_ON_GOLD: $(GOLD_TRAIN_MSC_DATA)
 	$(MSC_DATA_BASE_CMD) \
 		++negative_sampling=True \
 		++negative_ratio_over_positive=$(NEGATIVE_RATIO_OVER_POSITIVE) \
-		+ner_dataset=$(GOLD_DATA) \
-		+output_dir=$(GOLD_MSC_DATA)
+		+ner_dataset=$(GOLD_TRAIN_DATA) \
+		+output_dir=$(GOLD_TRAIN_MSC_DATA)
 
 
 
@@ -136,9 +141,9 @@ $(TRAIN_OUT): $(PSEUDO_MSC_DATA_ON_GOLD) $(TERM2CAT) $(GOLD_DATA)
 	$(TRAIN_BASE_CMD) \
 		ner_model.typer.msc_datasets=$(PSEUDO_MSC_DATA_ON_GOLD) 2>&1 | tee $(TRAIN_OUT)
 
-$(TRAIN_ON_GOLD_OUT): $(GOLD_MSC_DATA) $(GOLD_DATA)
+$(TRAIN_ON_GOLD_OUT): $(GOLD_TRAIN_MSC_DATA) $(GOLD_DATA)
 	$(TRAIN_BASE_CMD) \
-		ner_model.typer.msc_datasets=$(GOLD_MSC_DATA) 2>&1 | tee $(TRAIN_ON_GOLD_OUT)
+		ner_model.typer.msc_datasets=$(GOLD_TRAIN_MSC_DATA) 2>&1 | tee $(TRAIN_ON_GOLD_OUT)
 
 
 $(PSEUDO_OUT): $(GOLD_DATA) $(TERM2CAT)
