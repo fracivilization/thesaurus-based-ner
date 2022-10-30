@@ -1,6 +1,5 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from functools import cache
 from datasets import DatasetDict
 from datasets import load_dataset
 from dataclasses import dataclass
@@ -212,7 +211,6 @@ def get_umls_negative_cats(focus_tuis: List[str]):
     return negative_cats
 
 
-@cache
 def get_tui2ascendants():
     ST2tui = {v: k for k, v in tui2ST.items()}
     tui2ascendants = dict()
