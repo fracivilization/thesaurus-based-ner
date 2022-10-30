@@ -4,7 +4,7 @@
 #$ -jc gpu-container_g4
 #$ -ac d=nvcr-pytorch-2205
 dir=`dirname $0`
-OUTPUT_DIR=outputs/search_params/negative_positive_ratio_on_gold
+OUTPUT_DIR=outputs/gold/multi
 mkdir -p ${OUTPUT_DIR}
 pwd >> ${OUTPUT_DIR}/cout
 ls -la >> ${OUTPUT_DIR}/cout

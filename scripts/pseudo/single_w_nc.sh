@@ -3,7 +3,7 @@
 #$ -jc gpu-container_g4
 #$ -ac d=nvcr-pytorch-2205
 dir=`dirname $0`
-OUTPUT_DIR=outputs/search_params/pseudo/single_w_nc
+OUTPUT_DIR=outputs/pseudo/single_w_nc
 mkdir -p ${OUTPUT_DIR}
 pwd >> ${OUTPUT_DIR}/cout
 ls -la >> ${OUTPUT_DIR}/cout
