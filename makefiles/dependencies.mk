@@ -39,7 +39,7 @@ $(TERM2CATS_DIR): $(DATA_DIR)
 	mkdir -p $(TERM2CATS_DIR)
 $(TERM2CAT): $(TERM2CAT_DIR) $(DICT_FILES)
 	@echo TERM2CAT: $(TERM2CAT)
-	poetry run python -m cli.preprocess.load_term2cat \
+	${PYTHON} -m cli.preprocess.load_term2cat \
 		output=$(TERM2CAT) \
 		focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
 		negative_cats=$(subst $() ,_,$(NEGATIVE_CATS)) \
@@ -61,13 +61,13 @@ $(GOLD_DIR)/MedMentions: $(GOLD_DIR)
 $(GOLD_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	@echo "Gold Data"
 	@echo GOLD_MULTI_LABEL_NER_DATA: $(GOLD_MULTI_LABEL_NER_DATA)
-	@poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
-	poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	@PYTHON -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	${PYTHON} -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
 $(GOLD_TRAIN_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	@echo "Gold Data"
 	@echo GOLD_MULTI_LABEL_NER_DATA: $(GOLD_MULTI_LABEL_NER_DATA)
-	@poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
-	poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	@PYTHON -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	${PYTHON} -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
 $(GOLD_TRAIN_MSC_DATA): $(GOLD_TRAIN_DATA)
 	@echo GOLD_TRAIN_MSC_DATA_ON_GOLD: $(GOLD_TRAIN_MSC_DATA)
 	$(MSC_DATA_BASE_CMD) \
@@ -80,7 +80,7 @@ $(GOLD_TRAIN_MSC_DATA): $(GOLD_TRAIN_DATA)
 
 $(DICT_FILES) $(UMLS_DICT_FILES): $(DICT_DIR) $(UMLS_DIR) $(DBPEDIA_DIR)
 	@echo make dict files $@
-	poetry run python -m cli.preprocess.load_terms --category $(notdir $@) --output $@
+	${PYTHON} -m cli.preprocess.load_terms --category $(notdir $@) --output $@
 
 $(RAW_CORPUS_DIR):
 	mkdir -p $(RAW_CORPUS_DIR)
@@ -88,13 +88,13 @@ $(PUBMED): $(RAW_CORPUS_DIR)
 	# mkdir -p $(PUBMED)
 	# for f in `seq -w 1062`; do wget https://ftp.ncbi.nlm.nih.gov/pubmed/baseline/pubmed21n$$f.xml.gz ; gunzip pubmed21n$$f.xml.gz & done
 	# mv pubmed21n*.xml $(PUBMED)
-	# for f in `ls $(PUBMED)/pubmed21n*.xml`; do poetry run python -m cli.preprocess.load_pubmed_txt $$f & done
+	# for f in `ls $(PUBMED)/pubmed21n*.xml`; do ${PYTHON} -m cli.preprocess.load_pubmed_txt $$f & done
 	
 
 $(RAW_CORPUS_OUT): $(SOURCE_TXT_DIR)
 	@echo raw sentence num: $(RAW_SENTENCE_NUM)
 	@echo raw corpus out dir: $(RAW_CORPUS_OUT)
-	poetry run python -m cli.preprocess.load_raw_corpus --raw-sentence-num $(RAW_SENTENCE_NUM) --source-txt-dir $(SOURCE_TXT_DIR) --output-dir $(RAW_CORPUS_OUT)
+	${PYTHON} -m cli.preprocess.load_raw_corpus --raw-sentence-num $(RAW_SENTENCE_NUM) --source-txt-dir $(SOURCE_TXT_DIR) --output-dir $(RAW_CORPUS_OUT)
 
 $(PSEUDO_NER_DATA_DIR): $(DICT_FILES) $(PSEUDO_DATA_DIR) $(GOLD_DATA) $(RAW_CORPUS_OUT) $(TERM2CAT)
 	@echo make pseudo ner data from $(DICT_FILES)
@@ -147,14 +147,14 @@ $(TRAIN_ON_GOLD_OUT): $(GOLD_TRAIN_MSC_DATA) $(GOLD_DATA)
 
 
 $(PSEUDO_OUT): $(GOLD_DATA) $(TERM2CAT)
-	poetry run python -m cli.train \
+	${PYTHON} -m cli.train \
 		ner_model=PseudoTwoStage \
 		++dataset.name_or_path=$(GOLD_DATA) \
 		+ner_model.typer.term2cat=$(TERM2CAT) \
 		+testor.baseline_typer.term2cat=$(TERM2CAT) 2>&1 | tee ${PSEUDO_OUT}
 
 $(GOLD_MULTI_LABEL_NER_DATA):
-	poetry run python -m cli.preprocess.load_gold_multi_label_ner --output-dir $(GOLD_MULTI_LABEL_NER_DATA)
+	${PYTHON} -m cli.preprocess.load_gold_multi_label_ner --output-dir $(GOLD_MULTI_LABEL_NER_DATA)
 $(GOLD_MSMLC_BINARY_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	$(MSMLC_BINARY_DATA_BASE_CMD) \
 	+multi_label_ner_dataset=$(GOLD_MULTI_LABEL_NER_DATA) \
@@ -167,7 +167,7 @@ $(GOLD_MSMLC_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	+output_dir=$(GOLD_MSMLC_DATA)
 
 $(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD): $(UMLS_TERM2CATS) $(GOLD_MULTI_LABEL_NER_DATA)
-	poetry run python -m cli.preprocess.load_pseudo_multi_label_ner \
+	${PYTHON} -m cli.preprocess.load_pseudo_multi_label_ner \
 		++multi_label_ner_model.multi_label_typer.term2cats=$(UMLS_TERM2CATS) \
 		+gold_corpus=$(GOLD_MULTI_LABEL_NER_DATA) \
 		+raw_corpus=$(GOLD_MULTI_LABEL_NER_DATA) \
@@ -179,7 +179,7 @@ $(PSEUDO_MSMLC_DATA_ON_GOLD): $(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD)
 
 $(UMLS_TERM2CATS): $(TERM2CATS_DIR)
 	@echo TERM2CAT: $(UMLS_TERM2CATS)
-	poetry run python -m cli.preprocess.load_term2cats \
+	${PYTHON} -m cli.preprocess.load_term2cats \
 		output=$(UMLS_TERM2CATS)
 
 $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL): $(PSEUDO_MSMLC_DATA_ON_GOLD) $(GOLD_MSMLC_DATA)
