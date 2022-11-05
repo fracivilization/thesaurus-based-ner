@@ -32,6 +32,8 @@ $(PubChem_DIR): $(DATA_DIR)
 	done
 	gunzip *.gz
 	mv *.xml $(PubChem_DIR)/
+$(BUFFER_DIR):
+	mkdir -p $(BUFFER_DIR)
 
 $(TERM2CAT_DIR): $(DATA_DIR)
 	mkdir -p $(TERM2CAT_DIR)
@@ -96,7 +98,7 @@ $(RAW_CORPUS_OUT): $(SOURCE_TXT_DIR)
 	@echo raw corpus out dir: $(RAW_CORPUS_OUT)
 	${PYTHON} -m cli.preprocess.load_raw_corpus --raw-sentence-num $(RAW_SENTENCE_NUM) --source-txt-dir $(SOURCE_TXT_DIR) --output-dir $(RAW_CORPUS_OUT)
 
-$(PSEUDO_NER_DATA_DIR): $(DICT_FILES) $(PSEUDO_DATA_DIR) $(GOLD_DATA) $(RAW_CORPUS_OUT) $(TERM2CAT)
+$(PSEUDO_NER_DATA_DIR): $(DICT_FILES) $(PSEUDO_DATA_DIR) $(GOLD_DATA) $(RAW_CORPUS_OUT) $(TERM2CAT) $(BUFFER_DIR)
 	@echo make pseudo ner data from $(DICT_FILES)
 	@echo focused categories: $(FOCUS_CATS)
 	@echo negative categories: $(NEGATIVE_CATS)
@@ -111,7 +113,7 @@ $(PSEUDO_MSC_NER_DATA_DIR): $(PSEUDO_NER_DATA_DIR)
 		+output_dir=$(PSEUDO_MSC_NER_DATA_DIR)
 
         
-$(FP_REMOVED_PSEUDO_DATA): $(DICT_FILES) $(GOLD_DATA) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR) $(TERM2CAT)
+$(FP_REMOVED_PSEUDO_DATA): $(DICT_FILES) $(GOLD_DATA) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR) $(TERM2CAT) $(BUFFER_DIR)
 	@echo make pseudo data whose FP is removed according to Gold dataset
 	@echo make from Gold: $(GOLD_DATA)
 	@echo focused categories: $(FOCUS_CATS)
@@ -122,7 +124,7 @@ $(FP_REMOVED_PSEUDO_DATA): $(DICT_FILES) $(GOLD_DATA) $(PSEUDO_DATA_DIR) $(PSEUD
 		+output_dir=$(FP_REMOVED_PSEUDO_DATA) \
 		++remove_fp_instance=True
 
-$(PSEUDO_DATA_ON_GOLD): $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR) $(TERM2CAT)
+$(PSEUDO_DATA_ON_GOLD): $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR) $(TERM2CAT) $(BUFFER_DIR)
 	@echo make pseudo data on Gold dataset for comparison
 	@echo make from Gold: $(GOLD_DATA)
 	@echo focused categories: $(FOCUS_CATS)
