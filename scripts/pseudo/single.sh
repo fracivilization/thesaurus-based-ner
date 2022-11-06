@@ -16,7 +16,7 @@ export http_proxy=$MY_PROXY_URL
 export https_proxy=$MY_PROXY_URL
 export ftp_proxy=$MY_PROXY_URL
 
-negative_ratios=(0.02 0.03 0.04 0.05)
+negative_ratios=(0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0)
 for negative_ratio in ${negative_ratios[@]}; do
     echo "negative_ratio: ${negative_ratio}" >>${OUTPUT_DIR}/cout
     MAKE="NEGATIVE_RATIO_OVER_POSITIVE=${negative_ratio} WITH_O=True FIRST_STAGE_CHUNKER=\"enumerated\" POSITIVE_RATIO_THR_OF_NEGATIVE_CAT=1.0 make"
