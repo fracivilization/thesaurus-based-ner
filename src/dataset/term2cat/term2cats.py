@@ -21,6 +21,7 @@ from collections import Counter
 from prettytable import PrettyTable
 from src.dataset.utils import STchild2parent, tui2ST, MRCONSO, MRSTY, get_ascendant_tuis
 from src.dataset.utils import ST21pvSrc
+from functools import lru_cache
 
 
 @dataclass
@@ -133,6 +134,7 @@ def load_term2cuis():
     return term2cuis
 
 
+@lru_cache(maxsize=None)
 def load_cui2tuis() -> Dict:
     cui2tuis = defaultdict(set)
     cui_loc = 0
