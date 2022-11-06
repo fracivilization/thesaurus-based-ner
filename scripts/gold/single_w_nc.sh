@@ -16,7 +16,7 @@ export http_proxy=$MY_PROXY_URL
 export https_proxy=$MY_PROXY_URL
 export ftp_proxy=$MY_PROXY_URL
 
-negative_ratios=(6.0 8.0 10.0 12.0 14.0)
+negative_ratios=(5.0 6.0 7.0 8.0 9.0)
 
 
 for negative_ratio in ${negative_ratios[@]}; do
