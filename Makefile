@@ -3,8 +3,8 @@ include ./makefiles/__init__.mk
 make_dict: $(DICT_FILES) $(UMLS_DICT_FILES)
 	@echo DICT_FILES: $(DICT_FILES)
 	@echo UMLS_DICT_FILES: $(UMLS_DICT_FILES)
-make_gold_msmlc: $(GOLD_MSMLC_DATA)
-	@echo GOLD_MSMLC_DATA: $(GOLD_MSMLC_DATA)
+make_gold_msmlc: $(GOLD_TRAIN_MSMLC_DATA)
+	@echo GOLD_TRAIN_MSMLC_DATA: $(GOLD_TRAIN_MSMLC_DATA)
 make_gold_multi_label_ner: $(GOLD_MULTI_LABEL_NER_DATA)
 	@echo $(GOLD_MULTI_LABEL_NER_DATA)
 make_gold_ner_data: $(GOLD_DATA)
@@ -30,8 +30,8 @@ train_msmlc: $(GOLD_TRAINED_MSMLC_MODEL)
 	@echo $(GOLD_TRAINED_MSMLC_MODEL)
 
 # Check Pseudo MSMLC
-check_pseudo_msmlc: $(GOLD_MSMLC_DATA) $(UMLS_TERM2CATS)
-	poetry run python -m cli.train_msmlc +multi_label_typer=MultiLabelDictMatchTyper ++msmlc_datasets=$(GOLD_MSMLC_DATA) multi_label_typer.term2cats=$(UMLS_TERM2CATS)
+check_pseudo_msmlc: $(GOLD_TRAIN_MSMLC_DATA) $(UMLS_TERM2CATS)
+	poetry run python -m cli.train_msmlc +multi_label_typer=MultiLabelDictMatchTyper ++msmlc_datasets=$(GOLD_TRAIN_MSMLC_DATA) multi_label_typer.term2cats=$(UMLS_TERM2CATS)
 
 # Eval flatten marginal_softmax
 eval_flatten_marginal_softmax_gold: $(EVAL_FLATTEN_MARGINAL_MSMLC_ON_GOLD_OUT)
