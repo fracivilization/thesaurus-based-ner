@@ -32,6 +32,8 @@ $(PubChem_DIR): $(DATA_DIR)
 	done
 	gunzip *.gz
 	mv *.xml $(PubChem_DIR)/
+$(BUFFER_DIR):
+	mkdir -p $(BUFFER_DIR)
 
 $(TERM2CAT_DIR): $(DATA_DIR)
 	mkdir -p $(TERM2CAT_DIR)
@@ -39,7 +41,7 @@ $(TERM2CATS_DIR): $(DATA_DIR)
 	mkdir -p $(TERM2CATS_DIR)
 $(TERM2CAT): $(TERM2CAT_DIR) $(DICT_FILES)
 	@echo TERM2CAT: $(TERM2CAT)
-	poetry run python -m cli.preprocess.load_term2cat \
+	${PYTHON} -m cli.preprocess.load_term2cat \
 		output=$(TERM2CAT) \
 		focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
 		negative_cats=$(subst $() ,_,$(NEGATIVE_CATS)) \
@@ -61,13 +63,13 @@ $(GOLD_DIR)/MedMentions: $(GOLD_DIR)
 $(GOLD_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	@echo "Gold Data"
 	@echo GOLD_MULTI_LABEL_NER_DATA: $(GOLD_MULTI_LABEL_NER_DATA)
-	@poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
-	poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	@echo PYTHON -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	${PYTHON} -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
 $(GOLD_TRAIN_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	@echo "Gold Data"
 	@echo GOLD_MULTI_LABEL_NER_DATA: $(GOLD_MULTI_LABEL_NER_DATA)
-	@poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
-	poetry run python -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	@echo PYTHON -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	${PYTHON} -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
 $(GOLD_TRAIN_MSC_DATA): $(GOLD_TRAIN_DATA)
 	@echo GOLD_TRAIN_MSC_DATA_ON_GOLD: $(GOLD_TRAIN_MSC_DATA)
 	$(MSC_DATA_BASE_CMD) \
@@ -80,7 +82,7 @@ $(GOLD_TRAIN_MSC_DATA): $(GOLD_TRAIN_DATA)
 
 $(DICT_FILES) $(UMLS_DICT_FILES): $(DICT_DIR) $(UMLS_DIR) $(DBPEDIA_DIR)
 	@echo make dict files $@
-	poetry run python -m cli.preprocess.load_terms --category $(notdir $@) --output $@
+	${PYTHON} -m cli.preprocess.load_terms --category $(notdir $@) --output $@
 
 $(RAW_CORPUS_DIR):
 	mkdir -p $(RAW_CORPUS_DIR)
@@ -88,15 +90,15 @@ $(PUBMED): $(RAW_CORPUS_DIR)
 	# mkdir -p $(PUBMED)
 	# for f in `seq -w 1062`; do wget https://ftp.ncbi.nlm.nih.gov/pubmed/baseline/pubmed21n$$f.xml.gz ; gunzip pubmed21n$$f.xml.gz & done
 	# mv pubmed21n*.xml $(PUBMED)
-	# for f in `ls $(PUBMED)/pubmed21n*.xml`; do poetry run python -m cli.preprocess.load_pubmed_txt $$f & done
+	# for f in `ls $(PUBMED)/pubmed21n*.xml`; do ${PYTHON} -m cli.preprocess.load_pubmed_txt $$f & done
 	
 
 $(RAW_CORPUS_OUT): $(SOURCE_TXT_DIR)
 	@echo raw sentence num: $(RAW_SENTENCE_NUM)
 	@echo raw corpus out dir: $(RAW_CORPUS_OUT)
-	poetry run python -m cli.preprocess.load_raw_corpus --raw-sentence-num $(RAW_SENTENCE_NUM) --source-txt-dir $(SOURCE_TXT_DIR) --output-dir $(RAW_CORPUS_OUT)
+	${PYTHON} -m cli.preprocess.load_raw_corpus --raw-sentence-num $(RAW_SENTENCE_NUM) --source-txt-dir $(SOURCE_TXT_DIR) --output-dir $(RAW_CORPUS_OUT)
 
-$(PSEUDO_NER_DATA_DIR): $(DICT_FILES) $(PSEUDO_DATA_DIR) $(GOLD_DATA) $(RAW_CORPUS_OUT) $(TERM2CAT)
+$(PSEUDO_NER_DATA_DIR): $(DICT_FILES) $(PSEUDO_DATA_DIR) $(GOLD_DATA) $(RAW_CORPUS_OUT) $(TERM2CAT) $(BUFFER_DIR)
 	@echo make pseudo ner data from $(DICT_FILES)
 	@echo focused categories: $(FOCUS_CATS)
 	@echo negative categories: $(NEGATIVE_CATS)
@@ -111,7 +113,7 @@ $(PSEUDO_MSC_NER_DATA_DIR): $(PSEUDO_NER_DATA_DIR)
 		+output_dir=$(PSEUDO_MSC_NER_DATA_DIR)
 
         
-$(FP_REMOVED_PSEUDO_DATA): $(DICT_FILES) $(GOLD_DATA) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR) $(TERM2CAT)
+$(FP_REMOVED_PSEUDO_DATA): $(DICT_FILES) $(GOLD_DATA) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR) $(TERM2CAT) $(BUFFER_DIR)
 	@echo make pseudo data whose FP is removed according to Gold dataset
 	@echo make from Gold: $(GOLD_DATA)
 	@echo focused categories: $(FOCUS_CATS)
@@ -122,7 +124,7 @@ $(FP_REMOVED_PSEUDO_DATA): $(DICT_FILES) $(GOLD_DATA) $(PSEUDO_DATA_DIR) $(PSEUD
 		+output_dir=$(FP_REMOVED_PSEUDO_DATA) \
 		++remove_fp_instance=True
 
-$(PSEUDO_DATA_ON_GOLD): $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR) $(TERM2CAT)
+$(PSEUDO_DATA_ON_GOLD): $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR) $(TERM2CAT) $(BUFFER_DIR)
 	@echo make pseudo data on Gold dataset for comparison
 	@echo make from Gold: $(GOLD_DATA)
 	@echo focused categories: $(FOCUS_CATS)
@@ -147,27 +149,27 @@ $(TRAIN_ON_GOLD_OUT): $(GOLD_TRAIN_MSC_DATA) $(GOLD_DATA)
 
 
 $(PSEUDO_OUT): $(GOLD_DATA) $(TERM2CAT)
-	poetry run python -m cli.train \
+	${PYTHON} -m cli.train \
 		ner_model=PseudoTwoStage \
 		++dataset.name_or_path=$(GOLD_DATA) \
 		+ner_model.typer.term2cat=$(TERM2CAT) \
 		+testor.baseline_typer.term2cat=$(TERM2CAT) 2>&1 | tee ${PSEUDO_OUT}
 
 $(GOLD_MULTI_LABEL_NER_DATA):
-	poetry run python -m cli.preprocess.load_gold_multi_label_ner --output-dir $(GOLD_MULTI_LABEL_NER_DATA)
+	${PYTHON} -m cli.preprocess.load_gold_multi_label_ner --output-dir $(GOLD_MULTI_LABEL_NER_DATA)
 $(GOLD_MSMLC_BINARY_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	$(MSMLC_BINARY_DATA_BASE_CMD) \
 	+multi_label_ner_dataset=$(GOLD_MULTI_LABEL_NER_DATA) \
-	+output_dir=$(GOLD_MSMLC_DATA)
+	+output_dir=$(GOLD_TRAIN_MSMLC_DATA)
 
 
-$(GOLD_MSMLC_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
+$(GOLD_TRAIN_MSMLC_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	$(MSMLC_DATA_BASE_CMD) \
 	+multi_label_ner_dataset=$(GOLD_MULTI_LABEL_NER_DATA) \
-	+output_dir=$(GOLD_MSMLC_DATA)
+	+output_dir=$(GOLD_TRAIN_MSMLC_DATA)
 
 $(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD): $(UMLS_TERM2CATS) $(GOLD_MULTI_LABEL_NER_DATA)
-	poetry run python -m cli.preprocess.load_pseudo_multi_label_ner \
+	${PYTHON} -m cli.preprocess.load_pseudo_multi_label_ner \
 		++multi_label_ner_model.multi_label_typer.term2cats=$(UMLS_TERM2CATS) \
 		+gold_corpus=$(GOLD_MULTI_LABEL_NER_DATA) \
 		+raw_corpus=$(GOLD_MULTI_LABEL_NER_DATA) \
@@ -179,17 +181,17 @@ $(PSEUDO_MSMLC_DATA_ON_GOLD): $(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD)
 
 $(UMLS_TERM2CATS): $(TERM2CATS_DIR)
 	@echo TERM2CAT: $(UMLS_TERM2CATS)
-	poetry run python -m cli.preprocess.load_term2cats \
+	${PYTHON} -m cli.preprocess.load_term2cats \
 		output=$(UMLS_TERM2CATS)
 
-$(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL): $(PSEUDO_MSMLC_DATA_ON_GOLD) $(GOLD_MSMLC_DATA)
+$(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL): $(PSEUDO_MSMLC_DATA_ON_GOLD) $(GOLD_TRAIN_MSMLC_DATA)
 	$(TRAIN_MSMLC_BASE_CMD) \
 		++multi_label_typer.train_datasets=$(PSEUDO_MSMLC_DATA_ON_GOLD) \
 		++multi_label_typer.model_output_path=$(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL)
 
-$(GOLD_TRAINED_MSMLC_MODEL): $(GOLD_MSMLC_DATA)
+$(GOLD_TRAINED_MSMLC_MODEL): $(GOLD_TRAIN_MSMLC_DATA)
 	$(TRAIN_MSMLC_BASE_CMD) \
-		++multi_label_typer.train_datasets=$(GOLD_MSMLC_DATA) \
+		++multi_label_typer.train_datasets=$(GOLD_TRAIN_MSMLC_DATA) \
 		++multi_label_typer.model_output_path=$(GOLD_TRAINED_MSMLC_MODEL)
 
 $(PSEUDO_ON_GOLD_FLATTEN_MULTILABEL_NER_OUTPUT): $(PSEUDO_MSMLC_DATA_ON_GOLD) $(GOLD_DATA)
@@ -198,10 +200,10 @@ $(PSEUDO_ON_GOLD_FLATTEN_MULTILABEL_NER_OUTPUT): $(PSEUDO_MSMLC_DATA_ON_GOLD) $(
 		++multi_label_typer.model_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE) \
 		++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=$(PSEUDO_MSMLC_DATA_ON_GOLD)
 
-$(EVAL_FLATTEN_MARGINAL_MSMLC_ON_GOLD_OUT): $(GOLD_TRAINED_MSMLC_MODEL) $(TERM2CAT) $(GOLD_MSMLC_DATA) $(GOLD_DATA)
+$(EVAL_FLATTEN_MARGINAL_MSMLC_ON_GOLD_OUT): $(GOLD_TRAINED_MSMLC_MODEL) $(TERM2CAT) $(GOLD_TRAIN_MSMLC_DATA) $(GOLD_DATA)
 	$(FLATTEN_MARGINAL_SOFTMAX_NER_BASE_CMD) \
 		++ner_model.multi_label_ner_model.multi_label_typer.model_args.saved_param_path=$(GOLD_TRAINED_MSMLC_MODEL) \
-		++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=$(GOLD_MSMLC_DATA) \
+		++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=$(GOLD_TRAIN_MSMLC_DATA) \
 		2>&1 | tee $(EVAL_FLATTEN_MARGINAL_MSMLC_ON_GOLD_OUT)
 
 $(EVAL_FLATTEN_MARGINAL_MSMLC_OUT): $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL) $(TERM2CAT) $(PSEUDO_MSMLC_DATA_ON_GOLD) $(GOLD_DATA)

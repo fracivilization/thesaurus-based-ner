@@ -1,6 +1,5 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from functools import cache
 from datasets import DatasetDict
 from datasets import load_dataset
 from dataclasses import dataclass
@@ -10,6 +9,7 @@ import os
 import re
 from inflection import UNCOUNTABLES, PLURALS, SINGULARS
 from hydra.utils import get_original_cwd, to_absolute_path
+from functools import lru_cache
 
 CATEGORY_SEPARATOR = "_"
 NEGATIVE_CATEGORY_PREFIX = "nc"
@@ -212,7 +212,7 @@ def get_umls_negative_cats(focus_tuis: List[str]):
     return negative_cats
 
 
-@cache
+@lru_cache(maxsize=None)
 def get_tui2ascendants():
     ST2tui = {v: k for k, v in tui2ST.items()}
     tui2ascendants = dict()

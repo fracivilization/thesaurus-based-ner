@@ -1,6 +1,5 @@
 import os
 import pickle
-from turtle import forward
 from typing import List, Optional
 import numpy as np
 from transformers.trainer_utils import set_seed

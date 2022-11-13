@@ -15,13 +15,13 @@ PSEUDO_OUT := outputs/$(firstword $(shell echo "PSEUDO_OUT" $(PSEUDO_DATA_ARGS) 
 
 GOLD_DATA := $(GOLD_DIR)/$(firstword $(shell echo "MedMentions" $(FOCUS_CATS) | sha1sum))
 GOLD_TRAIN_DATA := $(GOLD_DIR)/$(firstword $(shell echo "MedMentions" $(FOCUS_CATS) $(NEGATIVE_CATS) $(TRAIN_SNT_NUM) | sha1sum))
-GOLD_TRAIN_MSC_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSC DATA" $(GOLD_DATA) $(MSC_ARGS) | sha1sum)) 
+GOLD_TRAIN_MSC_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSC DATA" $(GOLD_TRAIN_DATA) $(MSC_ARGS) | sha1sum)) 
 GOLD_MULTI_LABEL_NER_DATA := $(GOLD_DIR)/multi_label_ner
 GOLD_MSMLC_BINARY_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSMLC BINARY DATA" $(GOLD_DATA) $(MSMLC_ARGS) | sha1sum)) 
-GOLD_MSMLC_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSMLC DATA" $(GOLD_DATA) $(MSMLC_ARGS) | sha1sum)) 
-GOLD_TRAINED_MSMLC_BINARY_MODEL := $(MODEL_DIR)/$(firstword $(shell echo "GOLD TRAINED MSMLC MODEL" $(GOLD_MSMLC_DATA) | sha1sum)) 
-GOLD_TRAINED_MSMLC_MODEL := $(MODEL_DIR)/$(firstword $(shell echo "GOLD TRAINED MSMLC MODEL" $(GOLD_MSMLC_DATA) $(MSMLC_ARGS) | sha1sum)) 
-GOLD_FLATTEN_MULTILABEL_NER_OUTPUT := $(DATA_DIR)/outputs/$(firstword $(shell echo "OUTPUTS Multi Label NER" $(GOLD_MSMLC_DATA) $(FOCUS_CATS) $(FLATTEN_NER_THRESHOLD) | sha1sum)) 
+GOLD_TRAIN_MSMLC_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSMLC DATA" $(GOLD_MULTI_LABEL_NER_DATA) $(MSMLC_ARGS) | sha1sum)) 
+GOLD_TRAINED_MSMLC_BINARY_MODEL := $(MODEL_DIR)/$(firstword $(shell echo "GOLD TRAINED MSMLC MODEL" $(GOLD_TRAIN_MSMLC_DATA) | sha1sum)) 
+GOLD_TRAINED_MSMLC_MODEL := $(MODEL_DIR)/$(firstword $(shell echo "GOLD TRAINED MSMLC MODEL" $(GOLD_TRAIN_MSMLC_DATA) $(MSMLC_ARGS) | sha1sum)) 
+GOLD_FLATTEN_MULTILABEL_NER_OUTPUT := $(DATA_DIR)/outputs/$(firstword $(shell echo "OUTPUTS Multi Label NER" $(GOLD_TRAIN_MSMLC_DATA) $(FOCUS_CATS) $(FLATTEN_NER_THRESHOLD) | sha1sum)) 
 
 
 PSEUDO_DATA_ON_GOLD := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "PSEUDO_DATA_ON_GOLD" $(PSEUDO_DATA_ARGS) $(GOLD_DATA) | sha1sum)) 
@@ -38,4 +38,4 @@ TRAIN_ON_GOLD_OUT := outputs/$(firstword $(shell echo "TRAIN_ON_GOLD_LOCK" $(GOL
 TRAIN_OUT := outputs/$(firstword $(shell echo "TRAIN_LOCK" $(PSEUDO_MSC_DATA_ON_GOLD) $(RUN_ARGS) | sha1sum))
 TRAIN_AND_EVAL_MSMLC_OUT := outputs/$(firstword $(shell echo "TRAIN_AND_EVAL_MSMLC_OUT" $(PSEUDO_MSMLC_DATA_ON_GOLD) $(MSMLC_ARGS) | sha1sum))
 EVAL_FLATTEN_MARGINAL_MSMLC_OUT := outputs/$(firstword $(shell echo "TRAIN_AND_EVAL_MSMLC_OUT" $(PSEUDO_MSMLC_DATA_ON_GOLD) $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL) $(FOCUS_CATS) $(NEGATIVE_CATS) | sha1sum))
-EVAL_FLATTEN_MARGINAL_MSMLC_ON_GOLD_OUT := outputs/$(firstword $(shell echo "TRAIN_AND_EVAL_MSMLC_OUT" $(GOLD_MSMLC_DATA) $(GOLD_TRAINED_MSMLC_MODEL) $(FOCUS_CATS) $(NEGATIVE_CATS) | sha1sum))
+EVAL_FLATTEN_MARGINAL_MSMLC_ON_GOLD_OUT := outputs/$(firstword $(shell echo "TRAIN_AND_EVAL_MSMLC_OUT" $(GOLD_TRAIN_MSMLC_DATA) $(GOLD_TRAINED_MSMLC_MODEL) $(FOCUS_CATS) $(NEGATIVE_CATS) | sha1sum))
