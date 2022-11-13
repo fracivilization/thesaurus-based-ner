@@ -1,19 +1,12 @@
-from collections import defaultdict
 import os
-import pickle
 from typing import List, Optional
-import uuid
-from nbformat import from_dict
 import numpy as np
 from transformers.trainer_utils import set_seed
-from src.ner_model.chunker.abstract_model import Chunker
 from src.ner_model.multi_label.ml_typer.abstract import (
     MultiLabelTyper,
     MultiLabelTyperConfig,
 )
 from src.ner_model.typer.data_translator import (
-    MSCConfig,
-    translate_into_msc_datasets,
     log_label_ratio,
 )
 
@@ -24,7 +17,7 @@ from src.utils.hydra import (
 from .abstract import MultiLabelTyper, MultiLabelTyperOutput, MultiLabelTyperOutput
 from dataclasses import field, dataclass
 from omegaconf import MISSING
-from transformers import TrainingArguments, training_args
+from transformers import TrainingArguments
 from datasets import DatasetDict, Dataset
 from loguru import logger
 from transformers import (
@@ -39,12 +32,11 @@ from transformers.models.bert.modeling_bert import BertForTokenClassification
 from tqdm import tqdm
 from typing import Dict
 import itertools
-from hashlib import md5
 from hydra.utils import get_original_cwd
 from transformers.modeling_outputs import (
     TokenClassifierOutput,
 )
-from scipy.special import softmax, expit
+from scipy.special import expit
 import psutil
 import itertools
 import datasets
@@ -156,20 +148,6 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
         self.start_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
         self.end_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
         self.config = config
-        # self.step = 0
-
-    # def calculate_sampling_ratio(self, train_dataset: Dataset):
-    #     label_num = len(train_dataset.features["labels"].feature.feature.names)
-    #     pos_label_count = np.zeros(label_num, dtype=np.int)
-    #     span_num = 0
-    #     for snt in tqdm(train_dataset):
-    #         for labels in snt["labels"]:
-    #             for l in labels:
-    #                 pos_label_count[l] += 1
-    #                 span_num += 1
-    #     neg_label_count = span_num - pos_label_count
-    #     self.neg_sampling_ratio = pos_label_count / neg_label_count
-    #     self.pos_sampling_ratio = neg_label_count / pos_label_count
 
     def get_valid_entities(self, starts, ends, labels):
         """
@@ -199,15 +177,6 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
         ret_label_masks = torch.logical_or(
             not_o_label_mask * label_masks, o_label_mask * label_masks * sample_mask
         )
-        # sampled_labels = torch.where(
-        #     label_masks * sample_mask,
-        #     -1,
-        # )
-        # # サンプリングに合わせて、-1に当たる部分をソートして外側に出す
-        # sort_arg = torch.argsort(sampled_labels, descending=True, dim=1)
-        # sorted_sampled_labels = torch.take_along_dim(sampled_labels, sort_arg, dim=1)
-        # sorted_starts = torch.take_along_dim(starts, sort_arg, dim=1)
-        # sorted_ends = torch.take_along_dim(ends, sort_arg, dim=1)
         return ret_label_masks
 
     def get_under_sampling_label_masks(self, starts, ends, labels, label_masks):
@@ -272,23 +241,12 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
             )
             remained_o_spans = o_labeled_spans * remained_spans
             label_masks = torch.logical_or(non_o_spans, remained_o_spans) * label_masks
-        # if self.training:
-        #     # label_masks = self.get_o_under_sampled_label_masks(
-        #     #     starts, ends, labels, label_masks
-        #     # )
-        #     # starts, ends, labels = self.get_valid_entities(starts, ends, labels)
-        #     label_masks = self.get_under_sampling_label_masks(
-        #         starts, ends, labels, label_masks
-        #     )
-        # if self.training:
-        #     label_masks = label_masks[:, :, None]
         minibatch_size, max_seq_lens = input_ids.shape
         outputs = self.bert(
             input_ids,
             attention_mask=attention_mask,
         )
         hidden_states = outputs.last_hidden_state  # (BatchSize, SeqLength, EmbedDim)
-        # device = starts.device
         droped_hidden_states = self.dropout(hidden_states)
         start_logits = self.start_classifier(
             droped_hidden_states
@@ -305,7 +263,6 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
                 minibatch_size, max_span_num, self.config.num_labels
             ),
         )  # (BatchSize, SpanNum, ClassNum)
-        # starts_logits_per_span[i,j,k] = start_logits[i,starts[i,j,k],k]
         end_logits_per_span = torch.gather(
             end_logits,
             1,
@@ -313,16 +270,9 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
                 minibatch_size, max_span_num, self.config.num_labels
             ),
         )  # (BatchSize, SpanNum, ClassNum)
-        # ends_logits_per_span[i,j,k] = ends_logits[i,starts[i,j,k],k]
         logits = start_logits_per_span + end_logits_per_span
         loss = None
         if labels is not None:
-            label_num = labels.shape[-1]
-            # print(
-            #     100
-            #     * torch.logical_and(logits > 0, label_masks).sum(dim=1).sum(dim=0)
-            #     / label_masks.sum()
-            # )
             if self.model_args.loss_func == "BCEWithLogitsLoss":
                 loss_fct = torch.nn.BCEWithLogitsLoss(reduction="none")
                 loss = loss_fct(logits, labels.to(torch.float))
@@ -411,7 +361,6 @@ class MultiLabelEnumeratedTyperConfig(MultiLabelTyperConfig):
     )
     model_output_path: str = MISSING
     prediction_threshold: float = 0.5
-    # msc_args: MSCConfig = MSCConfig()
 
 
 class MultiLabelEnumeratedTyperPreprocessor:
@@ -450,7 +399,6 @@ class MultiLabelEnumeratedTyperPreprocessor:
             Dict: [description]
         """
         sn = max_span_num
-        ignore_label = -1
         padding_label = 0
         ignore_span_label = [-1] * max_span_num
         for key, value in example.items():
@@ -480,15 +428,6 @@ class MultiLabelEnumeratedTyperPreprocessor:
         labels: List[List[int]] = None,
         max_span_num=10000,
     ):
-        args = (
-            tokens,
-            snt_starts,
-            snt_ends,
-            labels,
-            self.data_args,
-            max_span_num,
-            label_num,
-        )
         example = self.padding_spans(
             {
                 "tokens": tokens,
@@ -512,24 +451,13 @@ class MultiLabelEnumeratedTyperPreprocessor:
         )["input_ids"]
         snt_split = list(zip([0] + snt_split, snt_split))
         pad_token_id = self.tokenizer.pad_token_id
-        # Dataset.from_dict(
-        #     {"tokenized_tokens": tokenized_tokens, "starts": starts, "ends": ends}
-        # )
         for snt_id in tqdm(list(range(len(example["tokens"])))):
             snt_starts = starts[snt_id]
             snt_ends = ends[snt_id]
             s, e = snt_split[snt_id]
             tokens = tokenized_tokens[s:e]
             subwords = [w for li in tokens for w in li]
-            # subword2token = list(
-            #     itertools.chain(*[[i] * len(li) for i, li in enumerate(tokens)])
-            # )
-            # token2subword = np.array([0] + list(
-            #     itertools.accumulate(len(li) for li in tokens)
-            # ))
             token2subword = [0] + list(itertools.accumulate(len(li) for li in tokens))
-            # new_starts = token2subword[snt_starts]
-            # new_ends = token2subword@snt_ends]
             new_starts = [token2subword[s] for s in snt_starts]
             new_ends = [token2subword[e] for e in snt_ends]
             for i, (s, e) in enumerate(zip(new_starts, new_ends)):
@@ -541,7 +469,6 @@ class MultiLabelEnumeratedTyperPreprocessor:
             assert all(e <= self.data_args.max_length for e in new_ends)
             all_starts.append(new_starts)
             all_ends.append(new_ends)
-            # token_ids = [sw for word in subwords for sw in word]
             padded_subwords = (
                 [self.tokenizer.cls_token_id]
                 + subwords[: self.data_args.max_length - 2]
@@ -559,7 +486,6 @@ class MultiLabelEnumeratedTyperPreprocessor:
         all_labels = []
         all_label_masks = []
         no_span_mask = [False] * label_num
-        span_exist_mask = [True] * label_num
         if example["labels"]:
             padded_labels = [False for i in range(label_num)]
             for snt_labels in example["labels"]:
@@ -696,27 +622,11 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         msml_datasets = DatasetDict.load_from_disk(
             os.path.join(get_original_cwd(), config.train_datasets)
         )
-        # debug = True
-        # if True:
-        #     small_train = Dataset.from_dict(
-        #         msml_datasets["train"][:1], features=msml_datasets["train"].features
-        #     )
-        #     msml_datasets = DatasetDict(
-        #         {"train": small_train, "validation": small_train, "test": small_train}
-        #     )
         log_label_ratio(msml_datasets)
         if train_args.do_train:
-            column_names = msml_datasets["train"].column_names
             features = msml_datasets["train"].features
         else:
-            column_names = msml_datasets["validation"].column_names
             features = msml_datasets["validation"].features
-        # text_column_name = "tokens" if "tokens" in column_names else column_names[0]
-        # label_column_name = (
-        #     f"{data_args.task_name}_tags"
-        #     if f"{data_args.task_name}_tags" in column_names
-        #     else column_names[1]
-        # )
 
         label_list = features["labels"].feature.feature.names
         self.label_names = label_list
@@ -751,24 +661,6 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                 "validation": msml_datasets["validation"],
             }
         )
-        # For Debugging
-        # msml_datasets = DatasetDict(
-        #     {
-        #         key: Dataset.from_dict(split[:1000], features=split.features)
-        #         for key, split in msml_datasets.items()
-        #     }
-        # )
-        #     {
-        #         "train": Dataset.from_dict(
-        #             msml_datasets["train"][:10000],
-        #             features=msml_datasets["train"].features,
-        #         ),
-        #         "validation": Dataset.from_dict(
-        #             msml_datasets["validation"][:10000],
-        #             features=msml_datasets["validation"].features,
-        #         ),
-        #     }
-        # )
         if model_args.pn_ratio_equivalence or model_args.dynamic_pn_ratio_equivalence:
             if self.model_args.loss_func == "MarginalCrossEntropyLoss":
                 train_dataset = msml_datasets["train"]
@@ -871,7 +763,6 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                 batched=True,
                 load_from_cache_file=True,
                 keep_in_memory=True,
-                # cache_file_names=cache_file_names,
                 num_proc=psutil.cpu_count(logical=False),
                 features=features,
             )
@@ -888,7 +779,6 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
             config=config,
             cache_dir=model_args.cache_dir,
         )
-        # model.calculate_sampling_ratio(msml_datasets["train"])
         if model_args.saved_param_path:
             model.load_state_dict(
                 torch.load(
@@ -898,12 +788,8 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                     )
                 )
             )
-        # Preprocessing the dataset
-        # Padding strategy
         self.model = model
 
-        # Data collator
-        # data_collator = DataCollatorForTokenClassification(tokenizer)
 
         # Metrics
         def compute_metrics(p):
@@ -960,10 +846,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         context_tokens = self.get_spanned_token(tokens, starts, ends)
         tokenized_context = self.preprocessor.tokenizer(
             context_tokens,
-            # padding="max_length",
-            # truncation=True,
             # We use this argument because the texts in our dataset are lists of words (with a label for each word).
-            # max_length=self.data_args.max_length,
             is_split_into_words=True,
             return_offsets_mapping=True,
         )
@@ -979,55 +862,13 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         outputs = self.model(**kwargs)
         # TODO: change into TyperOutput
         raise NotImplementedError
-        # return MultiSpanClassifierOutput(
-        #     label=self.label_list[outputs.logits[0].argmax()],
-        #     logits=outputs.logits[0].cpu().detach().numpy(),
-        # )
 
-    # def batch_predict(
-    #     self, tokens: List[List[str]], starts: List[int], ends: List[int]
-    # ) -> List[TyperOutput]:
-    #     assert len(tokens) == len(starts)
-    #     assert len(starts) == len(ends)
-    #     max_context_len = max(
-    #         len(
-    #             self.tokenizer(
-    #                 tok,
-    #                 is_split_into_words=True,
-    #             )["input_ids"]
-    #         )
-    #         for tok in tqdm(tokens)
-    #     )
-    #     max_span_num = max(len(snt) for snt in starts)
-    #     model_input = self.load_model_input(
-    #         tokens, starts, ends, max_span_num=max_span_num
-    #     )
-    #     del model_input["labels"]
-    #     dataset = Dataset.from_dict(model_input)
-    #     outputs = self.trainer.predict(dataset)
-    #     logits = outputs.predictions
-    #     ret_list = []
-    #     assert all(len(s) == len(e) for s, e in zip(starts, ends))
-    #     for logit, span_num in zip(logits, map(len, starts)):
-    #         ret_list.append(
-    #             TyperOutput(
-
-    #             )
-    #             TyperOutput(
-    #                 labels=[
-    #                     self.label_list[l] for l in logit[:span_num].argmax(axis=1)
-    #                 ],
-    #                 logits=logit[:span_num],
-    #             )
-    #         )
-    #     return ret_list
 
     def batch_predict(
         self, tokens: List[List[str]], starts: List[List[int]], ends: List[List[int]]
     ) -> List[List[MultiLabelTyperOutput]]:
         assert len(tokens) == len(starts)
         assert len(starts) == len(ends)
-        max_span_num = max(len(snt) for snt in starts)
         input_dataset = Dataset.from_dict(
             {"tokens": tokens, "starts": starts, "ends": ends}
         )
@@ -1038,12 +879,6 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
             keep_in_memory=True,
             num_proc=psutil.cpu_count(logical=False),
         )
-        # model_input = self.preprocessor.load_model_input(
-        #     tokens, starts, ends, self.label_num, max_span_num=max_span_num
-        # )
-        # del model_input["labels"]
-        # del model_input["label_masks"]
-        # dataset = Dataset.from_dict(model_input)
         outputs = self.trainer.predict(dataset)
         logits = outputs.predictions
         ret_list = []
