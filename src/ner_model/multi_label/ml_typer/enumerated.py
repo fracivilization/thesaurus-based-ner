@@ -598,9 +598,15 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         # Set seed before initializing model.
         set_seed(train_args.seed)
         # msml: Multi Span Multi Label
-        msml_datasets = DatasetDict.load_from_disk(
-            os.path.join(get_original_cwd(), config.train_datasets)
-        )
+        from hydra.core.hydra_config import HydraConfig
+
+        if HydraConfig.initialized():
+            train_datasets_path = os.path.join(
+                get_original_cwd(), config.train_datasets
+            )
+        else:
+            train_datasets_path = config.train_datasets
+        msml_datasets = DatasetDict.load_from_disk(train_datasets_path)
         log_label_ratio(msml_datasets)
         if train_args.do_train:
             features = msml_datasets["train"].features
