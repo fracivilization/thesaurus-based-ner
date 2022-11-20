@@ -192,25 +192,6 @@ class BertForEnumeratedTyper(BertForTokenClassification):
         sorted_ends = torch.take_along_dim(ends, sort_arg, dim=1)
         return sorted_starts, sorted_ends, sorted_sampled_labels
 
-    def under_sample_nc(self, starts, ends, labels):
-        """
-        Get valid entities from start, end and label, cut tensor by no-ent label.
-        """
-        # O ラベルをサンプリングする
-        nc_ids = torch.cuda.LongTensor(self.nc_ids, device=labels.device)
-        nc_label_mask = torch.isin(labels, nc_ids)
-        sample_mask = (
-            torch.rand(labels.shape, device=labels.device)
-            >= self.model_args.nc_sampling_ratio
-        )  # 1-sample ratio の割合で True となる mask
-        sampled_labels = torch.where(nc_label_mask * sample_mask, -1, labels)
-        # サンプリングに合わせて、-1に当たる部分をソートして外側に出す
-        sort_arg = torch.argsort(sampled_labels, descending=True, dim=1)
-        sorted_sampled_labels = torch.take_along_dim(sampled_labels, sort_arg, dim=1)
-        sorted_starts = torch.take_along_dim(starts, sort_arg, dim=1)
-        sorted_ends = torch.take_along_dim(ends, sort_arg, dim=1)
-        return sorted_starts, sorted_ends, sorted_sampled_labels
-
     def forward(
         self, input_ids=None, attention_mask=None, labels=None, starts=None, ends=None
     ):
@@ -221,8 +202,6 @@ class BertForEnumeratedTyper(BertForTokenClassification):
         """
         if self.training:
             starts, ends, labels = self.under_sample_o(starts, ends, labels)
-            # starts, ends, labels = self.under_sample_nc(starts, ends, labels)
-            # starts, ends, labels = self.get_valid_entities(starts, ends, labels)
         minibatch_size, max_seq_lens = input_ids.shape
         outputs = self.bert(
             input_ids,
@@ -713,9 +692,7 @@ class EnumeratedTyper(Typer):
             # token2subword = np.array([0] + list(
             #     itertools.accumulate(len(li) for li in tokens)
             # ))
-            token2subword = [0] + list(
-                itertools.accumulate(len(li) for li in tokens)
-            )
+            token2subword = [0] + list(itertools.accumulate(len(li) for li in tokens))
             # new_starts = token2subword[snt_starts]
             # new_ends = token2subword@snt_ends]
             new_starts = [token2subword[s] for s in snt_starts]
