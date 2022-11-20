@@ -1,18 +1,11 @@
 import dataclasses
-from distutils.command.config import config
-from enum import unique
-import click
 import datasets
-from datasets import features
 from datasets.arrow_dataset import Dataset
 from datasets.dataset_dict import DatasetDict
 from src.ner_model.chunker.abstract_model import Chunker
-from src.utils.utils import remove_BIE
 import dataclasses
-from seqeval.metrics.sequence_labeling import get_entities
 from collections import defaultdict
 from logging import getLogger
-from src.utils.params import span_length
 from hydra.utils import get_original_cwd
 from hashlib import md5
 import prettytable
@@ -30,14 +23,6 @@ class MSMLCConfig:
     with_o: bool = False
     chunker: ChunkerConfig = ChunkerConfig()
     under_sample: bool = False
-    # multi_label_ner_dataset: str = MISSING
-    # output_dir: str = MISSING
-    # with_o: bool = False
-    # chunker: ChunkerConfig = ChunkerConfig()
-    # o_sampling_ratio: float = 1.0
-    # hard_o_sampling: bool = False
-    # o_outside_entity: bool = False
-    # weight_of_hard_o_for_easy_o: float = 0.5  #
 
 
 from tqdm import tqdm
@@ -76,45 +61,6 @@ def remove_misguided_fns(starts, ends, labels):
             new_ends.append(e)
             new_labels.append(l)
     return new_starts, new_ends, new_labels
-
-
-# def undersample_thesaurus_negatives(pre_span_classification_dataset):
-#     label_counter = Counter(
-#         [label for snt in pre_span_classification_dataset["labels"] for label in snt]
-#     )
-#     pass
-#     positive_labels = [
-#         label for label in label_counter.keys() if not label.startswith("nc-")
-#     ]
-#     max_positive_count = max(label_counter[label] for label in positive_labels)
-#     thesaurus_negative_class_sampling_ratio = {
-#         label: max_positive_count / count
-#         for label, count in label_counter.items()
-#         if label != "nc-O" and label.startswith("nc-")
-#     }
-#     new_pre_span_classification_dataset = defaultdict(list)
-#     pscd = pre_span_classification_dataset
-#     for tokens, starts, ends, labels in zip(
-#         pscd["tokens"], pscd["starts"], pscd["ends"], pscd["labels"]
-#     ):
-#         new_starts = []
-#         new_ends = []
-#         new_labels = []
-#         for s, e, l in zip(starts, ends, labels):
-#             if (
-#                 l != "nc-O"
-#                 and l.startswith("nc-")
-#                 and random.random() > thesaurus_negative_class_sampling_ratio[l]
-#             ):
-#                 continue
-#             new_starts.append(s)
-#             new_ends.append(e)
-#             new_labels.append(l)
-#         new_pre_span_classification_dataset["tokens"].append(tokens)
-#         new_pre_span_classification_dataset["starts"].append(new_starts)
-#         new_pre_span_classification_dataset["ends"].append(new_ends)
-#         new_pre_span_classification_dataset["labels"].append(new_labels)
-#     return new_pre_span_classification_dataset
 
 
 def undersample_o_span(msml_dataset: Dataset, info):
@@ -158,7 +104,6 @@ def undersample_o_span(msml_dataset: Dataset, info):
         },
         info=info,
     )
-    # labelの何かしら付与されているらべｒ
 
 
 def multi_label_ner_datasets_to_multi_span_multi_label_classification_datasets(
@@ -200,11 +145,6 @@ def multi_label_ner_datasets_to_multi_span_multi_label_classification_datasets(
                 # "nc-O" の分だけ1つずらす
                 labels = [[label + 1 for label in span] for span in labels]
             registered_chunks = set(zip(starts, ends))
-            # for label, s, e in get_entities(ner_tags):
-            #     starts.append(s)
-            #     ends.append(e + 1)
-            #     labels.append(label)
-            #     registered_chunks.add((s, e))
             for s, e in enumerator.predict(snt["tokens"]):
                 if (s, e) not in registered_chunks:
                     starts.append(s)
@@ -218,10 +158,6 @@ def multi_label_ner_datasets_to_multi_span_multi_label_classification_datasets(
                 msml_dataset["starts"].append(starts)
                 msml_dataset["ends"].append(ends)
                 msml_dataset["labels"].append(labels)
-        # if key == "train":
-        #     pre_span_classification_dataset = undersample_thesaurus_negatives(
-        #         pre_span_classification_dataset
-        #     )
         pre_msml_datasets[key] = datasets.Dataset.from_dict(msml_dataset, info=info)
     if data_args.under_sample:
         for key in {"train", "validation"}:
