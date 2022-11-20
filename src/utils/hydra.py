@@ -2,6 +2,7 @@ from typing import Optional
 from transformers import training_args
 from transformers.training_args import TrainingArguments as OrigTrainingArguments
 from dataclasses import dataclass, field
+import dataclasses
 from transformers.trainer_utils import (
     IntervalStrategy,
     SchedulerType,
@@ -55,6 +56,14 @@ class HydraAddaptedTrainingArguments(OrigTrainingArguments):
 def get_orig_transoformers_train_args_from_hydra_addapted_train_args(
     train_args: HydraAddaptedTrainingArguments,
 ):
-    train_args_dict = {k: v for k, v in train_args.items() if k != "_n_gpu"}
+
+    # NOTE: hydra経由で呼ぶ場合にはtrain_argsはdata_classではない
+    if dataclasses.is_dataclass(train_args):
+        train_args_dict = {
+            k: v for k, v in dataclasses.asdict(train_args).items() if k != "_n_gpu"
+        }
+    else:
+        train_args_dict = {k: v for k, v in train_args.items() if k != "_n_gpu"}
+
     train_args = OrigTrainingArguments(**train_args_dict)
     return train_args
