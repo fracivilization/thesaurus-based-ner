@@ -130,7 +130,6 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
     def from_pretrained(
         cls,
         model_args: MultiLabelEnumeratedModelArguments,
-        nc_ids: List[int],
         negative_under_sampling_ratio: float,
         *args,
         **kwargs,
@@ -139,7 +138,6 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
         self = super().from_pretrained(model_args.model_name_or_path, *args, **kwargs)
         assert model_args.o_label_id >= 0
         self.model_args = model_args
-        self.nc_ids = nc_ids
         self.negative_sampling_ratio = negative_under_sampling_ratio
         return self
 
@@ -613,9 +611,6 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         self.label_names = label_list
         num_labels = len(label_list)
         self.label_num = num_labels
-        nc_ids = [
-            i for i, label in enumerate(self.label_names) if label.startswith("nc-")
-        ]
 
         # Load pretrained model and tokenizer
         #
@@ -754,7 +749,6 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
 
         model = BertForEnumeratedMultiLabelTyper.from_pretrained(
             model_args,
-            nc_ids=nc_ids,
             negative_under_sampling_ratio=self.negative_sampling_ratio,
             from_tf=bool(".ckpt" in model_args.model_name_or_path),
             config=config,
