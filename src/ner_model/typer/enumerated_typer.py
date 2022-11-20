@@ -142,7 +142,6 @@ class BertForEnumeratedTyper(BertForTokenClassification):
     def from_pretrained(
         cls,
         model_args: EnumeratedModelArguments,
-        nc_ids: List[int],
         negative_under_sampling_ratio: float,
         *args,
         **kwargs,
@@ -150,7 +149,6 @@ class BertForEnumeratedTyper(BertForTokenClassification):
         cls.model_args = model_args
         self = super().from_pretrained(model_args.model_name_or_path, *args, **kwargs)
         self.model_args = model_args
-        self.nc_ids = nc_ids
         self.negative_under_sampling_ratio = negative_under_sampling_ratio
         return self
 
@@ -394,9 +392,6 @@ class EnumeratedTyper(Typer):
         label_list = features["labels"].feature.names
         self.label_names = label_list
         num_labels = len(label_list)
-        nc_ids = [
-            i for i, label in enumerate(self.label_names) if label.startswith("nc-")
-        ]
 
         # Load pretrained model and tokenizer
         #
@@ -442,7 +437,6 @@ class EnumeratedTyper(Typer):
 
         model = BertForEnumeratedTyper.from_pretrained(
             model_args,
-            nc_ids=nc_ids,
             negative_under_sampling_ratio=self.negative_sampling_ratio,
             from_tf=bool(".ckpt" in model_args.model_name_or_path),
             config=config,
