@@ -198,25 +198,6 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
         ret_label_masks = sample_mask * label_masks[:, :, None]
         return ret_label_masks
 
-    def under_sample_nc(self, starts, ends, labels):
-        """
-        Get valid entities from start, end and label, cut tensor by no-ent label.
-        """
-        # O ラベルをサンプリングする
-        nc_ids = torch.cuda.LongTensor(self.nc_ids, device=labels.device)
-        nc_label_mask = torch.isin(labels, nc_ids)
-        sample_mask = (
-            torch.rand(labels.shape, device=labels.device)
-            >= self.model_args.nc_sampling_ratio
-        )  # 1-sample ratio の割合で True となる mask
-        sampled_labels = torch.where(nc_label_mask * sample_mask, -1, labels)
-        # サンプリングに合わせて、-1に当たる部分をソートして外側に出す
-        sort_arg = torch.argsort(sampled_labels, descending=True, dim=1)
-        sorted_sampled_labels = torch.take_along_dim(sampled_labels, sort_arg, dim=1)
-        sorted_starts = torch.take_along_dim(starts, sort_arg, dim=1)
-        sorted_ends = torch.take_along_dim(ends, sort_arg, dim=1)
-        return sorted_starts, sorted_ends, sorted_sampled_labels
-
     def forward(
         self,
         input_ids=None,
@@ -790,7 +771,6 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
             )
         self.model = model
 
-
         # Metrics
         def compute_metrics(p):
             predictions, labels = p
@@ -862,7 +842,6 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         outputs = self.model(**kwargs)
         # TODO: change into TyperOutput
         raise NotImplementedError
-
 
     def batch_predict(
         self, tokens: List[List[str]], starts: List[List[int]], ends: List[List[int]]
