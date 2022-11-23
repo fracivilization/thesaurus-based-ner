@@ -49,6 +49,23 @@ span_end_token = "[unused2]"
 
 
 @dataclass
+class LabelReconstructionArguments:
+    """
+    Arguments to use label reconstruction model by Lin and Ji 2019 of
+    "An Attentive Fine-Grained Entity Typing Model with Latent Type Representation".
+    """
+
+    latent_representation_dim: int = field(
+        default=100,
+        metadata={"help": "number of dimmension to compress by trancated SVD"},
+    )
+    weight_for_label_reconstruction_loss: float = field(
+        default=0.1,
+        metadata={"help": "Weight for loss from truncated SVD"},
+    )
+
+
+@dataclass
 class MultiLabelEnumeratedModelArguments:
     """
     Arguments pertaining to which model/config/tokenizer we are going to fine-tune from.
@@ -108,6 +125,12 @@ class MultiLabelEnumeratedModelArguments:
             "help": "Positive Negative Ratio; if negative is twice as positive, this parameter will be 2."
         },
     )
+    label_reconstruction_args: LabelReconstructionArguments = field(
+        default=False,
+        metadata={
+            "help": "Use dense label space by Singular Value Decomposition (c.f. https://aclanthology.org/D19-1641.pdf)"
+        },
+    )
 
 
 class MarginalCrossEntropyLoss(torch.nn.BCEWithLogitsLoss):
@@ -132,6 +155,7 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
         model_args: MultiLabelEnumeratedModelArguments,
         negative_under_sampling_ratio: float,
         *args,
+        label_reconstruction_linear_map: np.array = None,
         **kwargs,
     ):
         cls.model_args = model_args
@@ -645,12 +669,14 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                 "validation": msml_datasets["validation"],
             }
         )
+        self.msml_datasets = msml_datasets
         # NOTE: positive_sampling_ratioはBCEWithLogitLossのときにしか使わない
         # TODO: BCEWithLogitLossの削除と同時に消したい
         (
             negative_sampling_ratio,
             positive_sampling_ratio,
         ) = self.load_negpog_sampling_ratio(model_args, msml_datasets["train"])
+        self.negative_sampling_ratio = negative_sampling_ratio
 
         self.preprocessor = MultiLabelEnumeratedTyperPreprocessor(
             model_args,
@@ -716,13 +742,52 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
             negative_sampling_ratio = 1.0
         return negative_sampling_ratio, positive_sampling_ratio
 
-    def init_model(self, auto_config, model_args, negative_sampling_ratio):
+    def load_label_reconstruction_linear_map(
+        self,
+        model_args: MultiLabelEnumeratedModelArguments,
+        train_msml_dataset: Dataset,
+    ):
+        # 正解のラベル確率を取得する
+        label_num = train_msml_dataset.features["labels"].feature.feature.num_classes
+        Y = []
+        one_hots = np.eye(label_num)
+        for snt in train_msml_dataset:
+            for span in snt["labels"]:
+                Y.append(one_hots[span].sum(axis=0) / len(span))
+        Y = np.array(Y)
+
+        from sklearn.decomposition import TruncatedSVD
+
+        svd = TruncatedSVD(
+            n_components=model_args.label_reconstruction_args.latent_representation_dim
+        )
+        svd.fit(Y)
+
+        # U*ΣでW_l を取得する
+        U = svd.components_.T
+        Σ = np.diag(svd.singular_values_)
+        W_l = np.matmul(U, Σ)
+        return W_l
+
+    def init_model(
+        self,
+        auto_config,
+        model_args: MultiLabelEnumeratedModelArguments,
+        negative_sampling_ratio,
+    ):
+        label_reconstruction_linear_map = None
+        if model_args.label_reconstruction_args:
+            label_reconstruction_linear_map = self.load_label_reconstruction_linear_map(
+                model_args
+            )
+        # TODO: label_reconstruction_linear_mapを後でBertForEnumeratedMultiLabelTyperに渡す
         model = BertForEnumeratedMultiLabelTyper.from_pretrained(
             model_args,
             negative_under_sampling_ratio=negative_sampling_ratio,
             from_tf=bool(".ckpt" in model_args.model_name_or_path),
             config=auto_config,
             cache_dir=model_args.cache_dir,
+            label_reconstruction_linear_map=label_reconstruction_linear_map,
         )
         if model_args.saved_param_path:
             model.load_state_dict(
