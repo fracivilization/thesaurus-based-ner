@@ -355,6 +355,7 @@ class MultiLabelEnumeratedTyperPreprocessor:
         data_args: MultiLabelEnumeratedDataTrainingArguments,
         label_names: List[str],
         negative_sampling_ratio: float,
+        positive_sampling_ratio: Optional[float] = 1.0,
     ) -> None:
         self.model_args = model_args
         self.data_args = data_args
@@ -368,6 +369,7 @@ class MultiLabelEnumeratedTyperPreprocessor:
         )
         self.label_names = label_names
         self.negative_sampling_ratio = negative_sampling_ratio
+        self.positive_sampling_ratio = positive_sampling_ratio
 
     def padding_spans(self, example: Dict, max_span_num=10000) -> Dict:
         """add padding for example
@@ -623,7 +625,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         # Distributed training:
         # The .from_pretrained methods guarantee that only one local process can concurrently
         # download model & vocab.
-        config = AutoConfig.from_pretrained(
+        auto_config = AutoConfig.from_pretrained(
             model_args.config_name
             if model_args.config_name
             else model_args.model_name_or_path,
@@ -643,9 +645,38 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                 "validation": msml_datasets["validation"],
             }
         )
+        # NOTE: positive_sampling_ratioはBCEWithLogitLossのときにしか使わない
+        # TODO: BCEWithLogitLossの削除と同時に消したい
+        (
+            negative_sampling_ratio,
+            positive_sampling_ratio,
+        ) = self.load_negpog_sampling_ratio(model_args, msml_datasets["train"])
+
+        self.preprocessor = MultiLabelEnumeratedTyperPreprocessor(
+            model_args,
+            data_args,
+            label_names=self.label_names,
+            negative_sampling_ratio=negative_sampling_ratio,
+            positive_sampling_ratio=positive_sampling_ratio,
+        )
+
+        self.model = self.init_model(auto_config, model_args, negative_sampling_ratio)
+
+        self.trainer = self.init_trainer(
+            train_args,
+            data_args,
+            model_args,
+            auto_config,
+            self.model,
+            label_list,
+            self.preprocessor,
+            msml_datasets,
+        )
+
+    def load_negpog_sampling_ratio(self, model_args, train_dataset):
+        positive_sampling_ratio = 1.0
         if model_args.pn_ratio_equivalence or model_args.dynamic_pn_ratio_equivalence:
-            if self.model_args.loss_func == "MarginalCrossEntropyLoss":
-                train_dataset = msml_datasets["train"]
+            if model_args.loss_func == "MarginalCrossEntropyLoss":
                 label_names = train_dataset.features["labels"].feature.feature.names
                 assert label_names.index("nc-O") == 0
                 pos_label_count = 0
@@ -657,107 +688,40 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                             neg_label_count += 1
                         else:
                             pos_label_count += 1
-                self.negative_sampling_ratio = (
+                negative_sampling_ratio = (
                     model_args.negative_ratio_over_positive
                     * pos_label_count
                     / neg_label_count
                 )
             else:
-                train_dataset = msml_datasets["train"]
                 label_names = train_dataset.features["labels"].feature.feature.names
                 label_count = [0] * len(label_names)
-                self.span_num = 0
+                span_num = 0
                 for snt in train_dataset:
                     for span in snt["labels"]:
-                        self.span_num += 1
+                        span_num += 1
                         for label in span:
                             label_count[label] += 1
-                self.label_count = np.array(label_count)
-                negative_count = self.span_num - self.label_count
-                self.positive_sampling_ratio = negative_count / (
-                    self.label_count * model_args.negative_ratio_over_positive
+                label_count = np.array(label_count)
+                negative_count = span_num - label_count
+                positive_sampling_ratio = negative_count / (
+                    label_count * model_args.negative_ratio_over_positive
                 )
-                self.negative_sampling_ratio = (
+                negative_sampling_ratio = (
                     model_args.negative_ratio_over_positive
-                    * self.label_count
+                    * label_count
                     / negative_count
                 )
         else:
-            self.negative_sampling_ratio = 1.0
+            negative_sampling_ratio = 1.0
+        return negative_sampling_ratio, positive_sampling_ratio
 
-        if self.model_args.loss_func == "MarginalCrossEntropyLoss":
-            features = datasets.Features(
-                {
-                    "input_ids": datasets.Sequence(
-                        datasets.Value("int32"),
-                        length=config.max_position_embeddings,
-                    ),
-                    "attention_mask": datasets.Sequence(
-                        datasets.Value("int8"),
-                        length=config.max_position_embeddings,
-                    ),
-                    "starts": datasets.Sequence(datasets.Value("int16")),
-                    "ends": datasets.Sequence(datasets.Value("int16")),
-                    "labels": datasets.features.Array2D(
-                        (data_args.max_span_num, num_labels), "bool"
-                    ),
-                    "label_masks": datasets.Sequence(datasets.Value("bool")),
-                    "tokens": datasets.Sequence(datasets.Value("string")),
-                }
-            )
-
-        elif self.model_args.loss_func == "BCEWithLogitsLoss":
-            features = datasets.Features(
-                {
-                    "input_ids": datasets.Sequence(
-                        datasets.Value("int32"),
-                        length=config.max_position_embeddings,
-                    ),
-                    "attention_mask": datasets.Sequence(
-                        datasets.Value("int8"),
-                        length=config.max_position_embeddings,
-                    ),
-                    "starts": datasets.Sequence(datasets.Value("int16")),
-                    "ends": datasets.Sequence(datasets.Value("int16")),
-                    "labels": datasets.features.Array2D(
-                        (data_args.max_span_num, num_labels), "bool"
-                    ),
-                    "label_masks": datasets.Sequence(
-                        datasets.Sequence(
-                            datasets.Value("bool"),
-                            length=self.label_num,
-                        ),
-                        length=config.max_position_embeddings,
-                    ),
-                    "tokens": datasets.Sequence(datasets.Value("string")),
-                }
-            )
-
-        self.preprocessor = MultiLabelEnumeratedTyperPreprocessor(
-            model_args,
-            data_args,
-            label_names=self.label_names,
-            negative_sampling_ratio=self.negative_sampling_ratio,
-        )
-        if train_args.do_train:
-            self.span_classification_datasets: DatasetDict = msml_datasets.map(
-                self.preprocessor.preprocess_function,
-                batched=True,
-                load_from_cache_file=True,
-                keep_in_memory=True,
-                num_proc=psutil.cpu_count(logical=False),
-                features=features,
-            )
-            assert (
-                len(self.span_classification_datasets["train"][0]["labels"])
-                == data_args.max_span_num
-            )
-
+    def init_model(self, auto_config, model_args, negative_sampling_ratio):
         model = BertForEnumeratedMultiLabelTyper.from_pretrained(
             model_args,
-            negative_under_sampling_ratio=self.negative_sampling_ratio,
+            negative_under_sampling_ratio=negative_sampling_ratio,
             from_tf=bool(".ckpt" in model_args.model_name_or_path),
-            config=config,
+            config=auto_config,
             cache_dir=model_args.cache_dir,
         )
         if model_args.saved_param_path:
@@ -769,9 +733,77 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                     )
                 )
             )
-        self.model = model
+        return model
 
-        # Metrics
+    def init_trainer(
+        self,
+        train_args,
+        data_args,
+        model_args,
+        auto_config,
+        model,
+        label_list,
+        preprocessor,
+        msml_datasets,
+    ):
+        num_labels = len(label_list)
+        if model_args.loss_func == "MarginalCrossEntropyLoss":
+            features = datasets.Features(
+                {
+                    "input_ids": datasets.Sequence(
+                        datasets.Value("int32"),
+                        length=auto_config.max_position_embeddings,
+                    ),
+                    "attention_mask": datasets.Sequence(
+                        datasets.Value("int8"),
+                        length=auto_config.max_position_embeddings,
+                    ),
+                    "starts": datasets.Sequence(datasets.Value("int16")),
+                    "ends": datasets.Sequence(datasets.Value("int16")),
+                    "labels": datasets.features.Array2D(
+                        (data_args.max_span_num, num_labels), "bool"
+                    ),
+                    "label_masks": datasets.Sequence(datasets.Value("bool")),
+                    "tokens": datasets.Sequence(datasets.Value("string")),
+                }
+            )
+        elif model_args.loss_func == "BCEWithLogitsLoss":
+            features = datasets.Features(
+                {
+                    "input_ids": datasets.Sequence(
+                        datasets.Value("int32"),
+                        length=auto_config.max_position_embeddings,
+                    ),
+                    "attention_mask": datasets.Sequence(
+                        datasets.Value("int8"),
+                        length=auto_config.max_position_embeddings,
+                    ),
+                    "starts": datasets.Sequence(datasets.Value("int16")),
+                    "ends": datasets.Sequence(datasets.Value("int16")),
+                    "labels": datasets.features.Array2D(
+                        (data_args.max_span_num, num_labels), "bool"
+                    ),
+                    "label_masks": datasets.Sequence(
+                        datasets.Sequence(
+                            datasets.Value("bool"),
+                            length=self.label_num,
+                        ),
+                        length=auto_config.max_position_embeddings,
+                    ),
+                    "tokens": datasets.Sequence(datasets.Value("string")),
+                }
+            )
+
+        if train_args.do_train:
+            self.span_classification_datasets: DatasetDict = msml_datasets.map(
+                preprocessor.preprocess_function,
+                batched=True,
+                load_from_cache_file=True,
+                keep_in_memory=True,
+                num_proc=psutil.cpu_count(logical=False),
+                features=features,
+            )
+
         def compute_metrics(p):
             predictions, labels = p
             predictions = np.argmax(predictions, axis=2)
@@ -802,23 +834,15 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         # Initialize our Trainer
         from transformers import default_data_collator
 
-        trainer = Trainer(
+        return Trainer(
             model=model,
             args=train_args,
-            train_dataset=self.span_classification_datasets["train"]
-            if train_args.do_train
-            else None,
-            eval_dataset=self.span_classification_datasets["validation"]
-            if train_args.do_train
-            else None,
-            tokenizer=self.preprocessor.tokenizer,
+            train_dataset=datasets["train"] if train_args.do_train else None,
+            eval_dataset=datasets["validation"] if train_args.do_train else None,
+            tokenizer=preprocessor.tokenizer,
             data_collator=default_data_collator,
             compute_metrics=compute_metrics,
         )
-        self.trainer = trainer
-
-    def maintain_pn_ratio_equivalence(self, example):
-        pass
 
     def predict(
         self, tokens: List[str], starts: List[str], ends: List[str]
