@@ -102,7 +102,7 @@ class MultiLabelEnumeratedModelArguments:
     o_sampling_ratio: float = 0.3  # O sampling in train
     nc_sampling_ratio: float = 1.0  # O sampling in train
     loss_func: str = field(
-        default="BCEWithLogitsLoss",
+        default="MarginalCrossEntropyLoss",
         metadata={
             "help": "loss_fucntion of model: BCEWithLogitsLoss or MarginalCrossEntropyLoss"
         },
@@ -163,6 +163,27 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
         assert model_args.o_label_id >= 0
         self.model_args = model_args
         self.negative_sampling_ratio = negative_under_sampling_ratio
+        if model_args.label_reconstruction_args:
+            # NOTE: BertForTokenClassificationのfrom_pretrainedをベースにうごかしている
+            # NOTE: このため__init__にlabel_reconstruction_linear_map関係のモデルパラメタを記載できない
+            # NOTE: (__init__にconfig以外のものを渡せないため)
+            # NOTE: もしかしたらこのことが原因で動かない可能性が万が一存在するが
+            # NOTE: 一旦はfrom_pretrained内部に実装を進める
+            # NOTE: 実装は先行研究 https://github.com/limteng-rpi/fet/blob/master/model.py を参考にした
+
+            # NOTE: linear_mapをパラメタにして読み込む
+            self.label_reconstruction_linear_map = torch.nn.Parameter(
+                torch.Tensor(label_reconstruction_linear_map), requires_grad=False
+            ).T
+            # NOTE: ベクトルを圧縮するようの線形変換を準備する
+            self.start_compress_linear_map = torch.nn.Linear(
+                self.config.hidden_size,
+                model_args.label_reconstruction_args.latent_representation_dim,
+            )
+            self.end_compress_linear_map = torch.nn.Linear(
+                self.config.hidden_size,
+                model_args.label_reconstruction_args.latent_representation_dim,
+            )
         return self
 
     def __init__(self, config):
@@ -257,7 +278,19 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
         end_logits = self.end_classifier(
             droped_hidden_states
         )  # (BatchSize, SeqLength, ClassNum)
-        starts = starts  # (BatchSize, SeqLength, SpanNum)
+        if self.model_args.label_reconstruction_args:
+            # start_logistsに追加する値を取得し、加算する
+            # end_logits に追加する値を取得し、加算する
+            print(self.label_reconstruction_linear_map[0, 0])
+            print(self.start_compress_linear_map.weight[0, 0])
+            compressed_start = self.start_compress_linear_map(droped_hidden_states)
+            start_logits += torch.matmul(
+                compressed_start, self.label_reconstruction_linear_map
+            )
+            compressed_end = self.end_compress_linear_map(droped_hidden_states)
+            end_logits += torch.matmul(
+                compressed_end, self.label_reconstruction_linear_map
+            )
         minibatch_size, max_span_num = starts.shape
         start_logits_per_span = torch.gather(
             start_logits,
@@ -558,7 +591,7 @@ class MultiLabelEnumeratedTyperPreprocessor:
             "attention_mask": all_attention_mask,
             "starts": all_starts,
             "ends": all_ends,
-            "labels": np.array(all_labels),
+            "labels": all_labels,
             "label_masks": all_label_masks,
         }
         return ret_dict
@@ -686,7 +719,9 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
             positive_sampling_ratio=positive_sampling_ratio,
         )
 
-        self.model = self.init_model(auto_config, model_args, negative_sampling_ratio)
+        self.model = self.init_model(
+            auto_config, model_args, negative_sampling_ratio, msml_datasets
+        )
 
         self.trainer = self.init_trainer(
             train_args,
@@ -773,12 +808,13 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         self,
         auto_config,
         model_args: MultiLabelEnumeratedModelArguments,
-        negative_sampling_ratio,
+        negative_sampling_ratio: float,
+        msml_datasets: DatasetDict,
     ):
         label_reconstruction_linear_map = None
         if model_args.label_reconstruction_args:
             label_reconstruction_linear_map = self.load_label_reconstruction_linear_map(
-                model_args
+                model_args, msml_datasets["train"]
             )
         # TODO: label_reconstruction_linear_mapを後でBertForEnumeratedMultiLabelTyperに渡す
         model = BertForEnumeratedMultiLabelTyper.from_pretrained(
@@ -829,7 +865,6 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                         (data_args.max_span_num, num_labels), "bool"
                     ),
                     "label_masks": datasets.Sequence(datasets.Value("bool")),
-                    "tokens": datasets.Sequence(datasets.Value("string")),
                 }
             )
         elif model_args.loss_func == "BCEWithLogitsLoss":
@@ -855,19 +890,28 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                         ),
                         length=auto_config.max_position_embeddings,
                     ),
-                    "tokens": datasets.Sequence(datasets.Value("string")),
                 }
             )
 
         if train_args.do_train:
-            self.span_classification_datasets: DatasetDict = msml_datasets.map(
-                preprocessor.preprocess_function,
-                batched=True,
-                load_from_cache_file=True,
-                keep_in_memory=True,
-                num_proc=psutil.cpu_count(logical=False),
-                features=features,
+            self.span_classification_datasets = DatasetDict(
+                {
+                    key: Dataset.from_dict(
+                        preprocessor.preprocess_function(split.to_dict()),
+                        features=features,
+                    )
+                    for key, split in msml_datasets.items()
+                }
             )
+            # TODO: なぜかテストでは動かない
+            # self.span_classification_datasets: DatasetDict = msml_datasets.map(
+            #     preprocessor.preprocess_function,
+            #     batched=False,
+            #     load_from_cache_file=False,
+            #     keep_in_memory=True,
+            #     num_proc=psutil.cpu_count(logical=False),
+            #     features=features,
+            # )
 
         def compute_metrics(p):
             predictions, labels = p
@@ -902,8 +946,12 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         return Trainer(
             model=model,
             args=train_args,
-            train_dataset=datasets["train"] if train_args.do_train else None,
-            eval_dataset=datasets["validation"] if train_args.do_train else None,
+            train_dataset=self.span_classification_datasets["train"]
+            if train_args.do_train
+            else None,
+            eval_dataset=self.span_classification_datasets["validation"]
+            if train_args.do_train
+            else None,
             tokenizer=preprocessor.tokenizer,
             data_collator=default_data_collator,
             compute_metrics=compute_metrics,

@@ -82,24 +82,22 @@ class TestMultiLabelEnumeratedTyper:
     def test_loading(self, multi_label_enumerated_typer):
         pass
 
-    def test_load_label_reconstruction_linear_map(
+    def test_load_label_reconstruction_linear_map_and_can_batch_predict(
         self,
+        multi_label_enumerated_typer_config: MultiLabelEnumeratedTyperConfig,
         model_args_with_label_reconstruction: MultiLabelEnumeratedModelArguments,
-        multi_label_enumerated_typer: MultiLabelEnumeratedTyper,
     ):
-        label_reconstruction_linear_map = (
-            multi_label_enumerated_typer.load_label_reconstruction_linear_map(
-                model_args_with_label_reconstruction,
-                multi_label_enumerated_typer.msml_datasets["train"],
-            )
+        multi_label_enumerated_typer_config.train_args.do_train = True
+        multi_label_enumerated_typer_config.train_args.overwrite_output_dir = True
+        multi_label_enumerated_typer_config.model_args = (
+            model_args_with_label_reconstruction
         )
-        multi_label_enumerated_typer.msml_datasets["train"]
-        label_num = (
-            multi_label_enumerated_typer.msml_datasets["train"]
-            .features["labels"]
-            .feature.feature.num_classes
+        enumerated_typer = MultiLabelEnumeratedTyper(
+            multi_label_enumerated_typer_config
         )
-        assert label_reconstruction_linear_map.shape == (
-            label_num,
-            model_args_with_label_reconstruction.label_reconstruction_args.latent_representation_dim,
+
+        enumerated_typer.train()
+        # 予測ができる
+        enumerated_typer.batch_predict(
+            [["I", "have", "an", "apple", "."]], [[0]], [[1]]
         )
