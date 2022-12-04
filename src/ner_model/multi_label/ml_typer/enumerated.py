@@ -172,17 +172,22 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
             # NOTE: 実装は先行研究 https://github.com/limteng-rpi/fet/blob/master/model.py を参考にした
 
             # NOTE: linear_mapをパラメタにして読み込む
+            label_num, latent_dim = label_reconstruction_linear_map.shape
+            self.latent_to_label = torch.nn.Linear(latent_dim, label_num,
+                                         bias=False)
+            self.latent_to_label.weight = torch.nn.Parameter(torch.Tensor(label_reconstruction_linear_map), requires_grad=True)
+            self.latent_to_label.weight.requires_grad = False
             self.label_reconstruction_linear_map = torch.nn.Parameter(
                 torch.Tensor(label_reconstruction_linear_map), requires_grad=False
             ).T
             # NOTE: ベクトルを圧縮するようの線形変換を準備する
             self.start_compress_linear_map = torch.nn.Linear(
                 self.config.hidden_size,
-                model_args.label_reconstruction_args.latent_representation_dim,
+                latent_dim,
             )
             self.end_compress_linear_map = torch.nn.Linear(
                 self.config.hidden_size,
-                model_args.label_reconstruction_args.latent_representation_dim,
+                latent_dim,
             )
         return self
 
@@ -281,16 +286,10 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
         if self.model_args.label_reconstruction_args:
             # start_logistsに追加する値を取得し、加算する
             # end_logits に追加する値を取得し、加算する
-            print(self.label_reconstruction_linear_map[0, 0])
-            print(self.start_compress_linear_map.weight[0, 0])
             compressed_start = self.start_compress_linear_map(droped_hidden_states)
-            start_logits += torch.matmul(
-                compressed_start, self.label_reconstruction_linear_map
-            )
+            start_logits += self.latent_to_label(compressed_start)
             compressed_end = self.end_compress_linear_map(droped_hidden_states)
-            end_logits += torch.matmul(
-                compressed_end, self.label_reconstruction_linear_map
-            )
+            end_logits += self.latent_to_label(compressed_end)
         minibatch_size, max_span_num = starts.shape
         start_logits_per_span = torch.gather(
             start_logits,
