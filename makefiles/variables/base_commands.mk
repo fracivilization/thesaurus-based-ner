@@ -6,14 +6,6 @@ MSMLC_DATA_BASE_CMD := ${PYTHON} -m cli.preprocess.load_msmlc_dataset +chunker=$
 MSMLC_BINARY_DATA_BASE_CMD := ${PYTHON} -m cli.preprocess.load_msmlc_dataset +chunker=$(FIRST_STAGE_CHUNKER) ++under_sample=$(UNDERSAMPLE_MSLC) ++with_o=False
 TRAIN_COMMON_BASE_CMD := ${PYTHON} -m cli.train \
 		dataset.name_or_path=$(GOLD_DATA)
-FLATTEN_MULTILABEL_NER_BASE_CMD := $(TRAIN_COMMON_BASE_CMD) \
-		ner_model=flatten_ner \
-		ner_model.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
-		ner_model/multi_label_ner_model=two_stage \
-		+ner_model/multi_label_ner_model/chunker=$(FIRST_STAGE_CHUNKER) \
-		+ner_model/multi_label_ner_model/multi_label_typer=enumerated \
-		++ner_model.multi_label_ner_model.multi_label_typer.prediction_threshold=$(FLATTEN_NER_THRESHOLD) \
-		testor.baseline_typer.term2cat=data/term2cat/8a23fbd2bc56b5182ab677063f52af0497d1d5c6.pkl
 FLATTEN_MARGINAL_SOFTMAX_NER_BASE_CMD := $(TRAIN_COMMON_BASE_CMD) \
 		ner_model=flatten_marginal_softmax_ner \
 		ner_model.focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
