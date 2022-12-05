@@ -3,7 +3,7 @@ from src.ner_model.multi_label.ml_typer.enumerated import (
     MultiLabelEnumeratedTyperConfig,
     BertForEnumeratedMultiLabelTyper,
     MultiLabelEnumeratedTyper,
-    LabelReconstructionArguments,
+    LatentLabelArguments
 )
 from transformers import AutoConfig
 import pytest
@@ -74,7 +74,7 @@ def multi_label_enumerated_typer(
 def model_args_with_label_reconstruction(
     model_args: MultiLabelEnumeratedModelArguments,
 ) -> MultiLabelEnumeratedModelArguments:
-    model_args.label_reconstruction_args = LabelReconstructionArguments(100, 0.1)
+    model_args.label_reconstruction_args = LatentLabelArguments(True, 100, 0.1)
     return model_args
 
 

@@ -25,14 +25,20 @@ FLATTEN_MARGINAL_SOFTMAX_NER_BASE_CMD := $(TRAIN_COMMON_BASE_CMD) \
 		++ner_model.multi_label_ner_model.multi_label_typer.train_args.do_train=False \
 		++ner_model.multi_label_ner_model.multi_label_typer.model_output_path="no_output" \
 		++msmlc_datasets=$(GOLD_TRAIN_MSMLC_DATA) \
-		++ner_model.multi_label_ner_model.multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss
+		++ner_model.multi_label_ner_model.multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss \
+		++ner_model.multi_label_ner_model.multi_label_typer.model_args.latent_label_args.use_latent_label=$(USE_LATENT_LABEL) \
+		++ner_model.multi_label_ner_model.multi_label_typer.model_args.latent_label_args.latent_label_dim=$(LATENT_LABEL_DIM) \
+		++ner_model.multi_label_ner_model.multi_label_typer.model_args.latent_label_args.weight_for_latent_label=$(WEIGHT_FOR_LATENT_LABEL)
 TRAIN_MSMLC_BASE_CMD := ${PYTHON} -m cli.train_msmlc +multi_label_typer=enumerated \
 		++multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss \
 		++multi_label_typer.model_args.dynamic_pn_ratio_equivalence=$(MSMLC_DYNAMIC_PN_RATIO_EQUIVALENCE) \
 		++multi_label_typer.model_args.pn_ratio_equivalence=$(MSMLC_PN_RATIO_EQUIVALENCE) \
 		++multi_label_typer.model_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE) \
 		++multi_label_typer.train_args.per_device_train_batch_size=$(TRAIN_BATCH_SIZE) \
-		++multi_label_typer.train_args.per_device_eval_batch_size=$(EVAL_BATCH_SIZE)
+		++multi_label_typer.train_args.per_device_eval_batch_size=$(EVAL_BATCH_SIZE) \
+		++multi_label_typer.model_args.latent_label_args.use_latent_label=$(USE_LATENT_LABEL) \
+		++multi_label_typer.model_args.latent_label_args.latent_label_dim=$(LATENT_LABEL_DIM) \
+		++multi_label_typer.model_args.latent_label_args.weight_for_latent_label=$(WEIGHT_FOR_LATENT_LABEL)
 
 
 TRAIN_BASE_CMD := $(TRAIN_COMMON_BASE_CMD) \

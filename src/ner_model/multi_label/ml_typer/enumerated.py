@@ -49,17 +49,20 @@ span_end_token = "[unused2]"
 
 
 @dataclass
-class LabelReconstructionArguments:
+class LatentLabelArguments:
     """
     Arguments to use label reconstruction model by Lin and Ji 2019 of
     "An Attentive Fine-Grained Entity Typing Model with Latent Type Representation".
     """
-
-    latent_representation_dim: int = field(
+    use_latent_label: bool = field(
+        default=False,
+        metadata={"help": "True if you use latent label"},
+    )
+    latent_label_dim: int = field(
         default=100,
         metadata={"help": "number of dimmension to compress by trancated SVD"},
     )
-    weight_for_label_reconstruction_loss: float = field(
+    weight_for_latent_label: float = field(
         default=0.1,
         metadata={"help": "Weight for loss from truncated SVD"},
     )
@@ -125,12 +128,7 @@ class MultiLabelEnumeratedModelArguments:
             "help": "Positive Negative Ratio; if negative is twice as positive, this parameter will be 2."
         },
     )
-    label_reconstruction_args: LabelReconstructionArguments = field(
-        default=False,
-        metadata={
-            "help": "Use dense label space by Singular Value Decomposition (c.f. https://aclanthology.org/D19-1641.pdf)"
-        },
-    )
+    latent_label_args: LatentLabelArguments = LatentLabelArguments()
 
 
 class MarginalCrossEntropyLoss(torch.nn.BCEWithLogitsLoss):
@@ -163,7 +161,7 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
         assert model_args.o_label_id >= 0
         self.model_args = model_args
         self.negative_sampling_ratio = negative_under_sampling_ratio
-        if model_args.label_reconstruction_args:
+        if model_args.latent_label_args.use_latent_label:
             # NOTE: BertForTokenClassificationのfrom_pretrainedをベースにうごかしている
             # NOTE: このため__init__にlabel_reconstruction_linear_map関係のモデルパラメタを記載できない
             # NOTE: (__init__にconfig以外のものを渡せないため)
@@ -283,13 +281,14 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
         end_logits = self.end_classifier(
             droped_hidden_states
         )  # (BatchSize, SeqLength, ClassNum)
-        if self.model_args.label_reconstruction_args:
+        if self.model_args.latent_label_args.use_latent_label:
             # start_logistsに追加する値を取得し、加算する
             # end_logits に追加する値を取得し、加算する
+            weight_for_latent = self.model_args.latent_label_args.weight_for_latent_label
             compressed_start = self.start_compress_linear_map(droped_hidden_states)
-            start_logits += self.latent_to_label(compressed_start)
+            start_logits += weight_for_latent * self.latent_to_label(compressed_start)
             compressed_end = self.end_compress_linear_map(droped_hidden_states)
-            end_logits += self.latent_to_label(compressed_end)
+            end_logits += weight_for_latent * self.latent_to_label(compressed_end)
         minibatch_size, max_span_num = starts.shape
         start_logits_per_span = torch.gather(
             start_logits,
@@ -787,13 +786,14 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         one_hots = np.eye(label_num)
         for snt in train_msml_dataset:
             for span in snt["labels"]:
-                Y.append(one_hots[span].sum(axis=0) / len(span))
+                if span:
+                    Y.append(one_hots[span].sum(axis=0) / len(span))
         Y = np.array(Y)
 
         from sklearn.decomposition import TruncatedSVD
 
         svd = TruncatedSVD(
-            n_components=model_args.label_reconstruction_args.latent_representation_dim
+            n_components=model_args.latent_label_args.latent_label_dim
         )
         svd.fit(Y)
 
@@ -811,7 +811,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         msml_datasets: DatasetDict,
     ):
         label_reconstruction_linear_map = None
-        if model_args.label_reconstruction_args:
+        if model_args.latent_label_args.use_latent_label:
             label_reconstruction_linear_map = self.load_label_reconstruction_linear_map(
                 model_args, msml_datasets["train"]
             )
