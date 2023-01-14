@@ -41,7 +41,6 @@ def main(cfg: PseudoMSMLCAnnoConfig):
         raw_corpus = Dataset.load_from_disk(
             os.path.join(get_original_cwd(), cfg.raw_corpus)
         )
-        assert not cfg.remove_fp_instance
     multi_label_ner_model: MultiLabelNERModel = multi_label_ner_model_builder(
         cfg.multi_label_ner_model
     )

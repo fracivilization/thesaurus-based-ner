@@ -40,7 +40,6 @@ class PseudoMSMLCAnnoConfig:
     output_dir: str = MISSING
     raw_corpus: str = MISSING
     gold_corpus: str = MISSING
-    # remove_fp_instance: bool = False
     # mark_misguided_fn: bool = False
     # duplicate_cats: str = MISSING
     # focus_cats: str = MISSING

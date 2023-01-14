@@ -36,7 +36,6 @@ class PseudoAnnoConfig:
     output_dir: str = MISSING
     raw_corpus: str = MISSING
     gold_corpus: str = MISSING
-    remove_fp_instance: bool = False
     mark_misguided_fn: bool = False
     # duplicate_cats: str = MISSING
     # focus_cats: str = MISSING
@@ -114,18 +113,14 @@ def load_pseudo_dataset(
 
     ret_tokens = []
     ner_tags = []
-    if conf.remove_fp_instance or conf.mark_misguided_fn:
+    if conf.mark_misguided_fn:
         label_names = raw_corpus.features["ner_tags"].feature.names
         for tokens, gold_tags in tqdm(
             zip(raw_corpus["tokens"], raw_corpus["ner_tags"])
         ):
             pred_tags = ner_model.predict(tokens)
             gold_tags = [label_names[tagid] for tagid in gold_tags]
-            if conf.remove_fp_instance or conf.mark_misguided_fn:
-                if conf.remove_fp_instance:
-                    pred_tags = remove_fp_ents(pred_tags, gold_tags)
-                elif conf.mark_misguided_fn:
-                    pred_tags = mark_misguided_fn(pred_tags, gold_tags)
+            pred_tags = mark_misguided_fn(pred_tags, gold_tags)
 
             if any(tag != "O" for tag in pred_tags):
                 ret_tokens.append(tokens)
