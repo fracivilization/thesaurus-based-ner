@@ -89,21 +89,7 @@ $(RAW_CORPUS_OUT): $(SOURCE_TXT_DIR)
 	@echo raw corpus out dir: $(RAW_CORPUS_OUT)
 	${PYTHON} -m cli.preprocess.load_raw_corpus --raw-sentence-num $(RAW_SENTENCE_NUM) --source-txt-dir $(SOURCE_TXT_DIR) --output-dir $(RAW_CORPUS_OUT)
 
-$(PSEUDO_NER_DATA_DIR): $(DICT_FILES) $(PSEUDO_DATA_DIR) $(GOLD_DATA) $(RAW_CORPUS_OUT) $(TERM2CAT) $(BUFFER_DIR)
-	@echo make pseudo ner data from $(DICT_FILES)
-	@echo focused categories: $(FOCUS_CATS)
-	@echo negative categories: $(NEGATIVE_CATS)
-	@echo PSEUDO_NER_DATA_DIR: $(PSEUDO_NER_DATA_DIR)
-	$(PSEUDO_DATA_BASE_CMD) \
-		+raw_corpus=$(RAW_CORPUS_OUT) \
-		+output_dir=$(PSEUDO_NER_DATA_DIR)
-$(PSEUDO_MSC_NER_DATA_DIR): $(PSEUDO_NER_DATA_DIR)
-	@echo PSEUDO_MSC_NER_DATA_DIR: $(PSEUDO_MSC_NER_DATA_DIR)
-	$(MSC_DATA_BASE_CMD) \
-		+ner_dataset=$(PSEUDO_DATA_ON_GOLD) \
-		+output_dir=$(PSEUDO_MSC_NER_DATA_DIR)
-
-$(PSEUDO_DATA_ON_GOLD): $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR) $(TERM2CAT) $(BUFFER_DIR)
+$(PSEUDO_DATA_ON_GOLD): $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(TERM2CAT) $(BUFFER_DIR)
 	@echo make pseudo data on Gold dataset for comparison
 	@echo make from Gold: $(GOLD_DATA)
 	@echo focused categories: $(FOCUS_CATS)

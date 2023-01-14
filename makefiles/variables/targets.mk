@@ -9,8 +9,6 @@ DICT_FILES := $(addprefix $(DICT_DIR)/,$(APPEARED_CATS))
 UMLS_DICT_FILES := $(addprefix $(DICT_DIR)/,$(UMLS_CATS))
 # APPEARED_CATS を使って 出力先のフォルダを決める
 RAW_CORPUS_OUT := $(RAW_CORPUS_DIR)/$(firstword $(shell echo $(RAW_CORPUS_NUM) | sha1sum))
-PSEUDO_NER_DATA_DIR := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo $(PSEUDO_DATA_ARGS) $(RAW_CORPUS_NUM) | sha1sum))
-PSEUDO_MSC_NER_DATA_DIR := $(PSEUDO_DATA_DIR)/$(firstword $(shell echo "MSC DATASET" $(PSEUDO_NER_DATA_DIR) $(WITH_O) $(FIRST_STAGE_CHUNKER) | sha1sum)) 
 PSEUDO_OUT := outputs/$(firstword $(shell echo "PSEUDO_OUT" $(PSEUDO_DATA_ARGS) | sha1sum))
 
 GOLD_DATA := $(GOLD_DIR)/$(firstword $(shell echo "MedMentions" $(FOCUS_CATS) | sha1sum))
