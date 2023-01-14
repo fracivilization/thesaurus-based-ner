@@ -13,7 +13,6 @@ TERM2CATS_DIR := $(DATA_DIR)/term2cats
 DICT_DIR := $(DATA_DIR)/dict
 UMLS_DIR := $(DATA_DIR)/2021AA
 DBPEDIA_DIR := $(DATA_DIR)/DBPedia
-PubChem_DIR := $(DATA_DIR)/PubChem
 RAW_CORPUS_DIR := $(DATA_DIR)/raw
 BUFFER_DIR := $(DATA_DIR)/buffer
 PUBMED := $(RAW_CORPUS_DIR)/pubmed

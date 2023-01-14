@@ -1,6 +1,5 @@
 import click
 from src.dataset.term2cat.terms import (
-    load_PubChem_terms,
     load_TUI_terms,
     DBPedia_categories,
     load_DBPedia_terms,
@@ -19,8 +18,6 @@ def cmd(category: str, output: str):
         terms = load_TUI_terms(category)
     elif category in DBPedia_categories:
         terms = load_DBPedia_terms(category)
-    elif category == "PubChem":
-        terms = load_PubChem_terms()
     else:
         raise NotImplementedError
     with open(output, "w") as f:

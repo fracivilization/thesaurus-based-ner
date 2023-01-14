@@ -317,11 +317,6 @@ def terms_from_Wikidata_for_cats(cats: List[str]) -> List[str]:
         terms |= entity2names[entity]
     return list(terms)
 
-
-def load_PubChem_terms() -> Set:
-    pass
-
-
 def load_DBPedia_terms(name="Agent") -> Set:
     assert name in DBPedia_categories
 

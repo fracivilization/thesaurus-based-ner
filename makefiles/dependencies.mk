@@ -23,15 +23,6 @@ $(DBPEDIA_DIR): $(DATA_DIR)
 	# bunzip2 *.bz2
 	# mv *.ttl $(DBPEDIA_DIR)
 	# mv *.nt $(DBPEDIA_DIR)
-$(PubChem_DIR): $(DATA_DIR)
-	mkdir -p $(PubChem_DIR)
-	wget https://ftp.ncbi.nlm.nih.gov/pubchem/Substance/CURRENT-Full/XML/
-	FILES=`cat index.html  | grep xml.gz | grep -v md5| sed -e 's/<[^>]*>//g' | awk '{print $$1}'`
-	for f in `cat index.html  | grep xml.gz | grep -v md5| sed -e 's/<[^>]*>//g' | awk '{print $1}'`; do 
-		wget "https://ftp.ncbi.nlm.nih.gov/pubchem/Substance/CURRENT-Full/XML/${f}"
-	done
-	gunzip *.gz
-	mv *.xml $(PubChem_DIR)/
 $(BUFFER_DIR):
 	mkdir -p $(BUFFER_DIR)
 
