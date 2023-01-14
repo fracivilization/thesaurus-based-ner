@@ -40,7 +40,6 @@ class PseudoMSMLCAnnoConfig:
     output_dir: str = MISSING
     raw_corpus: str = MISSING
     gold_corpus: str = MISSING
-    # mark_misguided_fn: bool = False
     # duplicate_cats: str = MISSING
     # focus_cats: str = MISSING
 
@@ -63,23 +62,6 @@ def remove_fp_ents(pred_tags: List[str], gold_tags: List[str]):
                     new_tags[i] = "B-%s" % pred_label
                 else:
                     new_tags[i] = "I-%s" % pred_label
-    return new_tags
-
-
-def mark_misguided_fn(pred_tags: List[str], gold_tags: List[str]):
-    new_tags = copy.deepcopy(pred_tags)
-    for gold_label, gs, ge in get_entities(gold_tags):
-        pred_labels = {
-            pl
-            for pl, ps, pe in get_entities(pred_tags[gs : ge + 1])
-            if not pl.startswith("nc")
-        }
-        if not gold_label in pred_labels:
-            for i in range(gs, ge + 1):
-                if i == gs:
-                    new_tags[i] = "B-MISGUIDANCE"
-                else:
-                    new_tags[i] = "I-MISGUIDANCE"
     return new_tags
 
 

@@ -36,7 +36,6 @@ class PseudoAnnoConfig:
     output_dir: str = MISSING
     raw_corpus: str = MISSING
     gold_corpus: str = MISSING
-    mark_misguided_fn: bool = False
     # duplicate_cats: str = MISSING
     # focus_cats: str = MISSING
 
@@ -59,23 +58,6 @@ def remove_fp_ents(pred_tags: List[str], gold_tags: List[str]):
                     new_tags[i] = "B-%s" % pred_label
                 else:
                     new_tags[i] = "I-%s" % pred_label
-    return new_tags
-
-
-def mark_misguided_fn(pred_tags: List[str], gold_tags: List[str]):
-    new_tags = copy.deepcopy(pred_tags)
-    for gold_label, gs, ge in get_entities(gold_tags):
-        pred_labels = {
-            pl
-            for pl, ps, pe in get_entities(pred_tags[gs : ge + 1])
-            if not pl.startswith("nc")
-        }
-        if not gold_label in pred_labels:
-            for i in range(gs, ge + 1):
-                if i == gs:
-                    new_tags[i] = "B-MISGUIDANCE"
-                else:
-                    new_tags[i] = "I-MISGUIDANCE"
     return new_tags
 
 
@@ -113,24 +95,11 @@ def load_pseudo_dataset(
 
     ret_tokens = []
     ner_tags = []
-    if conf.mark_misguided_fn:
-        label_names = raw_corpus.features["ner_tags"].feature.names
-        for tokens, gold_tags in tqdm(
-            zip(raw_corpus["tokens"], raw_corpus["ner_tags"])
-        ):
-            pred_tags = ner_model.predict(tokens)
-            gold_tags = [label_names[tagid] for tagid in gold_tags]
-            pred_tags = mark_misguided_fn(pred_tags, gold_tags)
-
-            if any(tag != "O" for tag in pred_tags):
-                ret_tokens.append(tokens)
-                ner_tags.append(pred_tags)
-    else:
-        for tokens in tqdm(raw_corpus["tokens"]):
-            pred_tags = ner_model.predict(tokens)
-            if any(tag != "O" for tag in pred_tags):
-                ret_tokens.append(tokens)
-                ner_tags.append(pred_tags)
+    for tokens in tqdm(raw_corpus["tokens"]):
+        pred_tags = ner_model.predict(tokens)
+        if any(tag != "O" for tag in pred_tags):
+            ret_tokens.append(tokens)
+            ner_tags.append(pred_tags)
 
     ner_labels = [
         l for l, c in Counter([tag for snt in ner_tags for tag in snt]).most_common()
