@@ -75,7 +75,7 @@ $(DICT_FILES) $(UMLS_DICT_FILES): $(DICT_DIR) $(UMLS_DIR) $(DBPEDIA_DIR)
 	@echo make dict files $@
 	${PYTHON} -m cli.preprocess.load_terms --category $(notdir $@) --output $@
 
-$(RAW_CORPUS_DIR):
+$(RAW_CORPUS_DIR): $(DATA_DIR)
 	mkdir -p $(RAW_CORPUS_DIR)
 $(PUBMED): $(RAW_CORPUS_DIR)
 	# mkdir -p $(PUBMED)
