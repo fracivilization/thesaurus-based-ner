@@ -15,7 +15,6 @@ GOLD_DATA := $(GOLD_DIR)/$(firstword $(shell echo "MedMentions" $(FOCUS_CATS) | 
 GOLD_TRAIN_DATA := $(GOLD_DIR)/$(firstword $(shell echo "MedMentions" $(FOCUS_CATS) $(NEGATIVE_CATS) $(TRAIN_SNT_NUM) | sha1sum))
 GOLD_TRAIN_MSC_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSC DATA" $(GOLD_TRAIN_DATA) $(MSC_ARGS) | sha1sum)) 
 GOLD_MULTI_LABEL_NER_DATA := $(GOLD_DIR)/multi_label_ner
-GOLD_MSMLC_BINARY_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSMLC BINARY DATA" $(GOLD_DATA) $(MSMLC_ARGS) | sha1sum)) 
 GOLD_TRAIN_MSMLC_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSMLC DATA" $(GOLD_MULTI_LABEL_NER_DATA) $(MSMLC_ARGS) | sha1sum)) 
 GOLD_TRAINED_MSMLC_BINARY_MODEL := $(MODEL_DIR)/$(firstword $(shell echo "GOLD TRAINED MSMLC MODEL" $(GOLD_TRAIN_MSMLC_DATA) | sha1sum)) 
 GOLD_TRAINED_MSMLC_MODEL := $(MODEL_DIR)/$(firstword $(shell echo "GOLD TRAINED MSMLC MODEL" $(GOLD_TRAIN_MSMLC_DATA) $(MSMLC_ARGS) | sha1sum)) 
