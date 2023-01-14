@@ -20,3 +20,4 @@ SOURCE_TXT_DIR := $(PUBMED)
 PSEUDO_DATA_DIR := $(DATA_DIR)/pseudo
 MODEL_DIR := $(DATA_DIR)/model
 GOLD_DIR := $(DATA_DIR)/gold
+MED_MENTIONS_DIR := $(GOLD_DIR)/MedMentions

@@ -44,7 +44,7 @@ $(PSEUDO_DATA_DIR): $(DATA_DIR)
 
 $(GOLD_DIR): $(DATA_DIR)
 	mkdir -p $(GOLD_DIR)
-$(GOLD_DIR)/MedMentions: $(GOLD_DIR)
+$(MED_MENTIONS_DIR): $(GOLD_DIR)
 	git clone https://github.com/chanzuckerberg/MedMentions
 	for f in `find MedMentions/ | grep gz`; do gunzip $$f; done
 	mv MedMentions $(GOLD_DIR)/MedMentions
@@ -120,8 +120,8 @@ $(PSEUDO_OUT): $(GOLD_DATA) $(TERM2CAT)
 		+ner_model.typer.term2cat=$(TERM2CAT) \
 		+testor.baseline_typer.term2cat=$(TERM2CAT) 2>&1 | tee ${PSEUDO_OUT}
 
-$(GOLD_MULTI_LABEL_NER_DATA):
-	${PYTHON} -m cli.preprocess.load_gold_multi_label_ner --output-dir $(GOLD_MULTI_LABEL_NER_DATA)
+$(GOLD_MULTI_LABEL_NER_DATA): $(MED_MENTIONS_DIR)
+	${PYTHON} -m cli.preprocess.load_gold_multi_label_ner --input-dir $(MED_MENTIONS_DIR)/full/data --output-dir $(GOLD_MULTI_LABEL_NER_DATA)
 $(GOLD_MSMLC_BINARY_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	$(MSMLC_BINARY_DATA_BASE_CMD) \
 	+multi_label_ner_dataset=$(GOLD_MULTI_LABEL_NER_DATA) \
