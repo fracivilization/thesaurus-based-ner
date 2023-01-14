@@ -103,18 +103,6 @@ $(PSEUDO_MSC_NER_DATA_DIR): $(PSEUDO_NER_DATA_DIR)
 		+ner_dataset=$(PSEUDO_DATA_ON_GOLD) \
 		+output_dir=$(PSEUDO_MSC_NER_DATA_DIR)
 
-        
-$(FP_REMOVED_PSEUDO_DATA): $(DICT_FILES) $(GOLD_DATA) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR) $(TERM2CAT) $(BUFFER_DIR)
-	@echo make pseudo data whose FP is removed according to Gold dataset
-	@echo make from Gold: $(GOLD_DATA)
-	@echo focused categories: $(FOCUS_CATS)
-	@echo negative categories: $(NEGATIVE_CATS)
-	@echo FP_REMOVED_PSEUDO_DATA: $(FP_REMOVED_PSEUDO_DATA)
-	$(PSEUDO_DATA_BASE_CMD) \
-		+raw_corpus=$(GOLD_DATA) \
-		+output_dir=$(FP_REMOVED_PSEUDO_DATA) \
-		++remove_fp_instance=True
-
 $(PSEUDO_DATA_ON_GOLD): $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(PSEUDO_NER_DATA_DIR) $(TERM2CAT) $(BUFFER_DIR)
 	@echo make pseudo data on Gold dataset for comparison
 	@echo make from Gold: $(GOLD_DATA)
