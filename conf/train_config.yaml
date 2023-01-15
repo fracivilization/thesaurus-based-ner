@@ -7,7 +7,6 @@ defaults:
   # - ner_model: matcher
   # - ner_model: PseudoTwoStage
   - testor: base_NERTestor_config
-  - ner_model/typer/dict_match@testor.baseline_typer
 
 dataset:
   # name_or_path: "conll2003"

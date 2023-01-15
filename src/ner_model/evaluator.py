@@ -90,7 +90,7 @@ def calculate_set_PRF(pred_set: Set, gold_set: Set):
 
 @dataclass
 class NERTestorConfig:
-    baseline_typer: TyperConfig = MISSING
+    pass
 
 
 def register_ner_testor_configs(group="testor") -> None:
@@ -142,12 +142,6 @@ class NERTestor:
         orig_level = trainer_logger.level
         trainer_logger.setLevel(logging.WARNING)
 
-        # if isinstance(ner_model, TwoStageModel):
-        #     self.baseline_typer = typer_builder(
-        #         config.baseline_typer, ner_dataset, writer, chunker=None
-        #     )
-        #     self.analyze_likelihood_diff_between_dict_term(ner_dataset["test"])
-
         (
             self.prediction_for_test_w_nc,
             self.prediction_for_test,
@@ -174,76 +168,6 @@ class NERTestor:
             self.evaluate_on_negative_chunk_by_category(
                 self.prediction_for_test_w_nc, chunker
             )
-
-    def analyze_likelihood_diff_between_dict_term(self, gold_dataset: Dataset):
-        assert isinstance(self.ner_model, TwoStageModel)
-        baseline_typer: Typer = self.baseline_typer
-        ner_model: TwoStageModel = self.ner_model
-        focus_typer: Typer = ner_model.typer
-        in_dict_likelihoods = []
-        out_dict_likelihoods = []
-        label_names = focus_typer.label_names
-        tag_names = gold_dataset.features["ner_tags"].feature.names
-        tokens = gold_dataset["tokens"]
-        starts, ends, labels = [], [], []
-        for snt in gold_dataset:
-            snt_starts = []
-            snt_ends = []
-            snt_labels = []
-            for l, s, e in get_entities([tag_names[tag] for tag in snt["ner_tags"]]):
-                snt_starts.append(s)
-                snt_ends.append(e)
-                snt_labels.append(l)
-            starts.append(snt_starts)
-            ends.append(snt_ends)
-            labels.append(snt_labels)
-        focus_probs = [
-            output.probs for output in focus_typer.batch_predict(tokens, starts, ends)
-        ]
-
-        for snt_tokens, snt_starts, snt_ends, snt_labels, snt_probs in zip(
-            tokens, starts, ends, labels, focus_probs
-        ):
-            baseline_predictions = baseline_typer.predict(
-                snt_tokens, snt_starts, snt_ends
-            ).labels
-            for label, start, end, snt_prob, baseline_prediction in zip(
-                snt_labels, snt_starts, snt_ends, snt_probs, baseline_predictions
-            ):
-                likelihood = snt_prob[label_names.index(label)]
-                if isinstance(likelihood, np.float32):
-                    likelihood = float(likelihood)
-                if baseline_prediction == label:
-                    in_dict_likelihoods.append(likelihood)
-                    # self.modelのスパン (s, e)に対する予測確率を in_dict_likelihood に appendする
-                    pass
-                else:
-                    out_dict_likelihoods.append(likelihood)
-                    # self.modelのスパン (s, e)に対する予測確率を out_dict_likelihood に appendする
-                    pass
-        ptl = PrettyTable(["class", "mean", "variance"])
-        in_dict_likelihood_mean = statistics.mean(in_dict_likelihoods)
-        in_dict_likelihood_var = statistics.variance(in_dict_likelihoods)
-        out_dict_likelihood_mean = statistics.mean(out_dict_likelihoods)
-        out_dict_likelihood_var = statistics.variance(out_dict_likelihoods)
-        self.writer.log_metric("in_dict_likelihood_mean", 100 * in_dict_likelihood_mean)
-        self.writer.log_metric("in_dict_likelihood_var", 100 * in_dict_likelihood_var)
-        self.writer.log_metric(
-            "out_dict_likelihood_mean", 100 * out_dict_likelihood_mean
-        )
-        self.writer.log_metric("out_dict_likelihood_var", 100 * out_dict_likelihood_var)
-        ptl.add_row(
-            ["in dict", in_dict_likelihood_mean, in_dict_likelihood_var],
-        )
-        ptl.add_row(
-            [
-                "out dict",
-                statistics.mean(out_dict_likelihoods),
-                statistics.variance(out_dict_likelihoods),
-            ],
-        )
-
-        logger.info(ptl.get_string())
 
     def analyze_nc_fn(self, prediction_for_test_w_nc: Dataset):
         count_for_fn_miss_classification_on_end = 0

@@ -14,8 +14,7 @@ TERM2CAT=`eval ${MAKE} -n all | grep TERM2CAT | awk '{print $3}'`
 poetry run python -m cli.train \
     ner_model=matcher \
     ++dataset.name_or_path=${GOLD_NER_DATA_DIR} \
-    +ner_model.term2cat=${TERM2CAT} \
-    +testor.baseline_typer.term2cat=${TERM2CAT} 2>&1 | tee ${TMPFILE}
+    +ner_model.term2cat=${TERM2CAT} 2>&1 | tee ${TMPFILE}
 RUN_ID_ExactMatch=$(cat ${TMPFILE} | grep "mlflow_run_id" | awk '{print $2}')
 echo "RUN_ID_ExactMatch" ${RUN_ID_ExactMatch}
 FIRST_STAGE_CHUNKER="spacy_np"
@@ -23,8 +22,7 @@ FIRST_STAGE_CHUNKER="spacy_np"
 poetry run python -m cli.train \
     ner_model=PseudoTwoStage \
     ++dataset.name_or_path=${GOLD_NER_DATA_DIR} \
-    +ner_model.typer.term2cat=${TERM2CAT} \
-    +testor.baseline_typer.term2cat=${TERM2CAT} 2>&1 | tee ${TMPFILE}
+    +ner_model.typer.term2cat=${TERM2CAT} 2>&1 | tee ${TMPFILE}
 RUN_ID_EndsWithMatch=$(cat ${TMPFILE} | grep "mlflow_run_id" | awk '{print $2}')
 echo "RUN_ID_EndsWithMatch" ${RUN_ID_EndsWithMatch}
 
@@ -38,8 +36,7 @@ TERM2CAT=`eval ${MAKE} -n all | grep TERM2CAT | awk '{print $3}'`
 poetry run python -m cli.train \
     ner_model=matcher \
     ++dataset.name_or_path=${GOLD_NER_DATA_DIR} \
-    +ner_model.term2cat=${TERM2CAT} \
-    +testor.baseline_typer.term2cat=${TERM2CAT} 2>&1 | tee ${TMPFILE}
+    +ner_model.term2cat=${TERM2CAT} 2>&1 | tee ${TMPFILE}
 
 # Thesaurus Negatives (UMLS + DBPedia)
 FIRST_STAGE_CHUNKER="spacy_np"
@@ -52,8 +49,7 @@ eval ${MAKE} train_pseudo_anno 2>&1 | tee ${TMPFILE}
 # poetry run python -m cli.train \
 #     ner_model=PseudoTwoStage \
 #     ++dataset.name_or_path=${GOLD_NER_DATA_DIR} \
-#     +ner_model.typer.term2cat=${TERM2CAT} \
-#     +testor.baseline_typer.term2cat=${TERM2CAT} 2>&1 | tee ${TMPFILE}
+#     +ner_model.typer.term2cat=${TERM2CAT} 2>&1 | tee ${TMPFILE}
 RUN_ID_EndsWithMatch=$(cat ${TMPFILE} | grep "mlflow_run_id" | awk '{print $2}')
 echo "RUN_ID_Thesaurus Negatives (UMLS + DBPedia)" ${RUN_ID_EndsWithMatch}
 
