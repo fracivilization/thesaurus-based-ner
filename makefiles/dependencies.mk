@@ -127,7 +127,7 @@ $(GOLD_TRAIN_MSMLC_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	+multi_label_ner_dataset=$(GOLD_MULTI_LABEL_NER_DATA) \
 	+output_dir=$(GOLD_TRAIN_MSMLC_DATA)
 
-$(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD): $(UMLS_TERM2CATS) $(GOLD_MULTI_LABEL_NER_DATA)
+$(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD): $(UMLS_TERM2CATS) $(GOLD_MULTI_LABEL_NER_DATA) $(PSEUDO_DATA_DIR)
 	${PYTHON} -m cli.preprocess.load_pseudo_multi_label_ner \
 		++multi_label_ner_model.multi_label_typer.term2cats=$(UMLS_TERM2CATS) \
 		+gold_corpus=$(GOLD_MULTI_LABEL_NER_DATA) \
