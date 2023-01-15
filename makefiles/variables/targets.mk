@@ -6,7 +6,6 @@ PSEUDO_DATA_ARGS := $(TERM2CAT)
 RUN_ARGS := $(O_SAMPLING_RATIO) $(FIRST_STAGE_CHUNKER)
 
 DICT_FILES := $(addprefix $(DICT_DIR)/,$(APPEARED_CATS))
-UMLS_DICT_FILES := $(addprefix $(DICT_DIR)/,$(UMLS_CATS))
 # APPEARED_CATS を使って 出力先のフォルダを決める
 RAW_CORPUS_OUT := $(RAW_CORPUS_DIR)/$(firstword $(shell echo $(RAW_CORPUS_NUM) | sha1sum))
 PSEUDO_OUT := outputs/$(firstword $(shell echo "PSEUDO_OUT" $(PSEUDO_DATA_ARGS) | sha1sum))

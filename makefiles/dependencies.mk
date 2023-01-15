@@ -71,7 +71,7 @@ $(GOLD_TRAIN_MSC_DATA): $(GOLD_TRAIN_DATA)
 
 
 
-$(DICT_FILES) $(UMLS_DICT_FILES): $(DICT_DIR) $(UMLS_DIR) $(DBPEDIA_DIR)
+$(DICT_FILES): $(DICT_DIR) $(UMLS_DIR) $(DBPEDIA_DIR)
 	@echo make dict files $@
 	${PYTHON} -m cli.preprocess.load_terms --category $(notdir $@) --output $@
 
