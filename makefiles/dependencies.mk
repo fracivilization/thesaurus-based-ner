@@ -23,7 +23,7 @@ $(DBPEDIA_DIR): $(DATA_DIR)
 	# bunzip2 *.bz2
 	# mv *.ttl $(DBPEDIA_DIR)
 	# mv *.nt $(DBPEDIA_DIR)
-$(BUFFER_DIR):
+$(BUFFER_DIR): $(DATA_DIR)
 	mkdir -p $(BUFFER_DIR)
 
 $(TERM2CAT_DIR): $(DATA_DIR)
