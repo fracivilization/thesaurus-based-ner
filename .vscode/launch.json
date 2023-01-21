@@ -256,17 +256,6 @@
             "justMyCode": false
         },
         {
-            "name": "Get UMLS Negative Cats",
-            "type": "python",
-            "request": "launch",
-            "module": "cli.get_umls_negative_cats",
-            "justMyCode": false,
-            "args": [
-                "--focus-cats",
-                "T005"
-            ],
-        },
-        {
             "name": "Get MultiLabelNER Gold Dataset",
             "type": "python",
             "request": "launch",
