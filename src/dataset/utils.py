@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datasets import DatasetDict
 from datasets import load_dataset
 from dataclasses import dataclass
-from typing import Any, Dict, List, Callable
+from typing import Any, Dict, List, Callable, Set
 from more_itertools import powerset
 import os
 import re
@@ -316,24 +316,32 @@ def ranked_label2hierarchical_valid_labels(ranked_labels: List[str]):
     return hierarchical_valid_labels
 
 
+def get_negative_cats_from_focus_cats(
+    focus_cats: Set[str], root_node_of_thesaurus: Node
+):
+    def is_focus_cats(node: UMLSNode):
+        return node.name in focus_cats
+
+    def is_negative_cats(node: UMLSNode):
+        return not bool(
+            set([descendant.name for descendant in node.descendants]) & focus_cats
+        ) and not is_focus_cats(node)
+
+    negative_cat_nodes = root_node_of_thesaurus.breadth_first_search(
+        is_negative_cats, lambda node: is_focus_cats(node) or is_negative_cats(node)
+    )
+    negative_cat_names = [node.name for node in negative_cat_nodes]
+    negative_cat_names.sort()
+    return negative_cat_names
+
+
 def get_umls_negative_cats_from_focus_cats(umls_focus_cat_tuis: List[str]):
     umls_thesaurus = load_umls_thesaurus()
     umls_focus_cat_tuis = set(umls_focus_cat_tuis)
 
-    def is_focus_cats(node: UMLSNode):
-        return node.tui in umls_focus_cat_tuis
-
-    def is_negative_cats(node: UMLSNode):
-        return not bool(
-            set([descendant.tui for descendant in node.descendants])
-            & umls_focus_cat_tuis
-        ) and not is_focus_cats(node)
-
-    negative_cat_nodes = umls_thesaurus.breadth_first_search(
-        is_negative_cats, lambda node: is_focus_cats(node) or is_negative_cats(node)
+    umls_negative_cat_tuis = get_negative_cats_from_focus_cats(
+        umls_focus_cat_tuis, umls_thesaurus
     )
-    umls_negative_cat_tuis = [node.tui for node in negative_cat_nodes]
-    umls_negative_cat_tuis.sort()
     assert not umls_focus_cat_tuis & set(umls_negative_cat_tuis)
     return umls_negative_cat_tuis
 
