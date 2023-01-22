@@ -1,4 +1,7 @@
-from src.dataset.utils import get_umls_negative_cats_from_focus_cats
+from src.dataset.utils import (
+    get_umls_negative_cats_from_focus_cats,
+    get_dbpedia_negative_cats_from_focus_cats,
+)
 
 
 def test_get_umls_negative_cats_from_focus_cats():
@@ -14,3 +17,69 @@ def test_get_umls_negative_cats_from_focus_cats():
         "T194",
         "T204",
     ] == negative_cats
+
+
+def test_get_dbpedia_negative_cats_from_focus_cats():
+    focus_cats = ["Person"]
+    negative_cats = get_dbpedia_negative_cats_from_focus_cats(focus_cats)
+    assert negative_cats == [
+        "Activity",
+        "Algorithm",
+        "Altitude",
+        "AnatomicalStructure",
+        "Area",
+        "Award",
+        "Biomolecule",
+        "Blazon",
+        "Browser",
+        "ChartsPlacements",
+        "ChemicalSubstance",
+        "Cipher",
+        "Colour",
+        "Currency",
+        "Deity",
+        "Demographics",
+        "Depth",
+        "Device",
+        "Diploma",
+        "Disease",
+        "ElectionDiagram",
+        "Employer",
+        "EthnicGroup",
+        "Event",
+        "Family",
+        "FictionalCharacter",
+        "FileSystem",
+        "Flag",
+        "Food",
+        "GeneLocation",
+        "GrossDomesticProduct",
+        "GrossDomesticProductPerCapita",
+        "Identifier",
+        "Language",
+        "List",
+        "MeanOfTransportation",
+        "Media",
+        "MedicalSpecialty",
+        "Medicine",
+        "Name",
+        "Organisation",
+        "PersonFunction",
+        "Place",
+        "Population",
+        "Protocol",
+        "PublicService",
+        "Relationship",
+        "Species",
+        "SportCompetitionResult",
+        "SportsSeason",
+        "Spreadsheet",
+        "StarCluster",
+        "Statistic",
+        "Tank",
+        "TimePeriod",
+        "TopicalConcept",
+        "UnitOfWork",
+        "Unknown",
+        "Work",
+    ]

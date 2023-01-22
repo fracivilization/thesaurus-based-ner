@@ -7,7 +7,7 @@ from rdflib import Graph, URIRef
 import re
 from logging import getLogger
 from hydra.utils import to_absolute_path
-from src.dataset.utils import ST21pvSrc, tui2ST
+from src.dataset.utils import ST21pvSrc, tui2ST, load_dbpedia_parent2descendants
 
 logger = getLogger(__name__)
 
@@ -317,20 +317,11 @@ def terms_from_Wikidata_for_cats(cats: List[str]) -> List[str]:
         terms |= entity2names[entity]
     return list(terms)
 
+
 def load_DBPedia_terms(name="Agent") -> Set:
     assert name in DBPedia_categories
 
-    # Get DBPedia Concepts
-    g = Graph()
-    g.parse(DBPedia_ontology)
-    s, p, o = next(g.__iter__())
-    parent2children = defaultdict(set)
-    for s, p, o in g:
-        if isinstance(o, URIRef) and p.n3() in {
-            "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>",
-            "<http://www.w3.org/2000/01/rdf-schema#subClassOf>",
-        }:
-            parent2children[o.n3()] |= {s.n3()}
+    parent2children = load_dbpedia_parent2descendants()
     remained_category = {"<http://dbpedia.org/ontology/%s>" % name}
     descendants = set()
     while remained_category:
