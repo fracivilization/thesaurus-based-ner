@@ -93,29 +93,27 @@
             ],
         },
         {
-            "name": "Load Terms (UMLS)",
+            "name": "Load Terms",
             "type": "python",
             "request": "launch",
             "module": "cli.preprocess.load_terms",
             "justMyCode": false,
             "args": [
+                // UMLS
+                // "--category",
+                // "T000",
+                // "--output",
+                // "data/dict/T000",
+                // DBPedia
+                // "--category",
+                // "Activity",
+                // "--output",
+                // "data/dict/Activity",
+                // CoNLL2003
                 "--category",
-                "T000",
+                "PER",
                 "--output",
-                "data/dict/T000",
-            ],
-        },
-        {
-            "name": "Load Terms (DBPedia)",
-            "type": "python",
-            "request": "launch",
-            "module": "cli.preprocess.load_terms",
-            "justMyCode": false,
-            "args": [
-                "--category",
-                "Activity",
-                "--output",
-                "data/dict/Activity",
+                "data/dict/PER",
             ],
         },
         {

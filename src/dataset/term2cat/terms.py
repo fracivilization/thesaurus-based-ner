@@ -169,12 +169,12 @@ def terms_from_Wikipedia_for_cats(cats: List[str]) -> List[str]:
     return terms
 
 
-def get_entity2names():
+def get_names_from_entities(entities: Set[str]):
     logger.info("loading entity2names")
     # Translate DBPedia Entities into string by
     # DBPedia_WD_labels
     # DBPedia_WD_alias
-    entity2names = defaultdict(set)
+    names = set()
     pattern = (
         "(<[^>]+>) "
         + "<http://www.w3.org/2000/01/rdf-schema#label>"
@@ -182,55 +182,52 @@ def get_entity2names():
     )
     pattern = re.compile(pattern)
     with open(DBPedia_WD_labels) as f:
-        for line in tqdm(f):
+        for line in tqdm(f, total=276814263):
             if pattern.match(line):
                 entity, label = pattern.findall(line)[0]
-                entity2names[entity] |= {label}
+                if entity in entities:
+                    names.add(label)
 
     pattern = "(<[^>]+>) " + "<http://dbpedia.org/ontology/alias>" + ' "([^"]+)"@en .'
     pattern = re.compile(pattern)
     with open(DBPedia_WD_alias) as f:
-        for line in tqdm(f):
+        for line in tqdm(f, total=18641218):
             if pattern.match(line):
                 entity, label = pattern.findall(line)[0]
-                entity2names[entity] |= {label}
+                if entity in entities:
+                    names.add(label)
     # DBPedia_WD_labels
     # DBPedia_WD_alias
-    return entity2names
+    return names
 
 
 def terms_from_Wikidata_for_cats(cats: List[str]) -> List[str]:
     # Get DBPedia Entities using
     # DBPedia_WD_instance_type
     # DBPedia_WD_SubClassOf
-    class2entities = defaultdict(set)
+    entities = set()
     with open(DBPedia_WD_instance_type) as f:
         for line in f:
             ent, _, cl, _ = line.split()
-            class2entities[cl] |= {ent}
+            if cl in cats:
+                entities.add(ent)
     with open(DBPedia_WD_SubClassOf) as f:
         for line in f:
             ent, _, cl, _ = line.split()
-            class2entities[cl] |= {ent}
-    entities = set()
-    for cat in cats:
-        entities |= class2entities[cat]
-
-    entity2names = get_entity2names()
-    terms = set()
-    for entity in entities:
-        terms |= entity2names[entity]
+            if cl in cats:
+                entities.add(ent)
+    terms = get_names_from_entities(entities)
     return list(terms)
 
 
 DBPediaCategories = load_DBPediaCategories()
 
 
-def load_DBPedia_terms(name="Agent") -> Set:
-    assert name in DBPediaCategories
+def load_DBPedia_terms(names=["Agent"]) -> Set:
+    assert all(name in DBPediaCategories for name in names)
 
     parent2children = load_dbpedia_parent2descendants()
-    remained_category = {"<http://dbpedia.org/ontology/%s>" % name}
+    remained_category = {"<http://dbpedia.org/ontology/%s>" % name for name in names}
     descendants = set()
     while remained_category:
         parent = remained_category.pop()
@@ -240,5 +237,29 @@ def load_DBPedia_terms(name="Agent") -> Set:
     del parent2children
 
     terms = terms_from_Wikidata_for_cats(descendants)
-    terms += terms_from_Wikipedia_for_cats(descendants)
     return set(terms)
+
+
+CoNLL2003ToDBPediaCategoryMapper = {
+    # NOTE: MISCはこれらいずれにも属さないカテゴリとする
+    "PER": {"Person"},
+    "ORG": {"Organization"},
+    "LOC": {"Place"},
+}
+
+
+def load_CoNLL2003_terms(name="PER") -> Set:
+    terms = set()
+    if name == "MISC":
+        mapped_categories = {
+            correspond_cat
+            for _, correspond_cats in CoNLL2003ToDBPediaCategoryMapper.items()
+            for correspond_cat in correspond_cats
+        }
+        complement_categories = get_dbpedia_negative_cats_from_focus_cats(
+            mapped_categories
+        )
+        terms = load_DBPedia_terms(complement_categories)
+    else:
+        terms = load_DBPedia_terms(CoNLL2003ToDBPediaCategoryMapper[name])
+    return terms

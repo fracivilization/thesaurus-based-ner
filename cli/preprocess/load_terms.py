@@ -1,8 +1,9 @@
 import click
 from src.dataset.term2cat.terms import (
     load_TUI_terms,
-    DBPedia_categories,
     load_DBPedia_terms,
+    CoNLL2003Categories,
+    load_CoNLL2003_terms,
 )
 import re
 import os
@@ -19,7 +20,9 @@ def cmd(category: str, output: str):
     if re.match(pattern, category):
         terms = load_TUI_terms(category)
     elif category in DBPediaCategories:
-        terms = load_DBPedia_terms(category)
+        terms = load_DBPedia_terms([category])
+    elif category in CoNLL2003Categories:
+        terms = load_CoNLL2003_terms(category)
     else:
         raise NotImplementedError
     with open(output, "w") as f:
