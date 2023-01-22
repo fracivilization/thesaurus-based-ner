@@ -35,8 +35,7 @@ $(TERM2CAT): $(TERM2CAT_DIR) $(DICT_FILES)
 	${PYTHON} -m cli.preprocess.load_term2cat \
 		output=$(TERM2CAT) \
 		focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
-		negative_cats=$(subst $() ,_,$(NEGATIVE_CATS)) \
-		++positive_ratio_thr_of_negative_cat=${POSITIVE_RATIO_THR_OF_NEGATIVE_CAT}
+		negative_cats=$(subst $() ,_,$(NEGATIVE_CATS))
 
 $(PSEUDO_DATA_DIR): $(DATA_DIR)
 	echo $(PSEUDO_DATA_DIR)

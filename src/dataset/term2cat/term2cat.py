@@ -35,7 +35,6 @@ class DictTerm2CatConfig(Term2CatConfig):
     # with_nc: bool = False
     remove_anomaly_suffix: bool = False  # remove suffix term (e.g. "migration": nc-T054 for "cell migration": T038)
     output: str = MISSING
-    positive_ratio_thr_of_negative_cat: float = 1.0
 
 
 @dataclass
@@ -124,9 +123,6 @@ def load_dict_term2cat(conf: DictTerm2CatConfig):
     negative_cat2positive_ratio = log_duplication_between_positive_and_negative_cats(
         cat2terms, positive_cats=focus_cats, negative_cats=negative_cats
     )
-    for cat, positive_ratio in negative_cat2positive_ratio.items():
-        if conf.positive_ratio_thr_of_negative_cat < positive_ratio:
-            del cat2terms[cat]
 
     remove_terms = set()
     # term2cats = defaultdict(set)
