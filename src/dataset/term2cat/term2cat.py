@@ -8,7 +8,6 @@ import os
 import json
 from dataclasses import dataclass
 from omegaconf import MISSING
-from .terms import DBPedia_categories, UMLS_Categories
 from hydra.utils import get_original_cwd
 from collections import defaultdict
 import re
