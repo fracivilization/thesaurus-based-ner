@@ -243,7 +243,7 @@ def load_DBPedia_terms(names=["Agent"]) -> Set:
 CoNLL2003ToDBPediaCategoryMapper = {
     # NOTE: MISCはこれらいずれにも属さないカテゴリとする
     "PER": {"Person"},
-    "ORG": {"Organization"},
+    "ORG": {"Organisation"},
     "LOC": {"Place"},
 }
 
