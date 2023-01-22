@@ -16,6 +16,7 @@ NEGATIVE_CATEGORY_PREFIX = "nc"
 NEGATIVE_CATEGORY_TEMPLATE = f"{NEGATIVE_CATEGORY_PREFIX}-%s"
 PLURAL_RULES = [(re.compile(rule), replacement) for rule, replacement in PLURALS]
 SINGULAR_RULES = [(re.compile(rule), replacement) for rule, replacement in SINGULARS]
+dbpedia_ontology_pattern = re.compile("<http://dbpedia.org/ontology/([^>]+)>")
 
 
 def pluralize(word: str) -> str:
@@ -409,7 +410,6 @@ def get_negative_cats_from_focus_cats(
     )
     negative_cat_names = [node.name for node in negative_cat_nodes]
     # TODO: 全部 dbpedia_ontology内であることを確かめる
-    dbpedia_ontology_pattern = re.compile("<http://dbpedia.org/ontology/([^>]+)>")
     for negative_cat_name in negative_cat_names:
         assert dbpedia_ontology_pattern.match(negative_cat_name)
     negative_cat_names = [
@@ -441,6 +441,18 @@ def get_dbpedia_negative_cats_from_focus_cats(focus_cats: List[str]):
     negative_cats = get_negative_cats_from_focus_cats(focus_cats, dbpedia_thesaurus)
     assert not focus_cats & set(negative_cats)
     return negative_cats
+
+
+def load_DBPediaCategories():
+    dbpedia_thesaurus = load_dbpedia_thesaurus()
+    categories = []
+    for node in dbpedia_thesaurus.descendants:
+        matched = dbpedia_ontology_pattern.match(node.name)
+        assert matched
+        if matched:
+            categories.append(matched.group(1))
+    categories.sort()
+    return categories
 
 
 ST21pvSrc = {

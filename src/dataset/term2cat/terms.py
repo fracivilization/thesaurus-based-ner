@@ -7,7 +7,13 @@ from rdflib import Graph, URIRef
 import re
 from logging import getLogger
 from hydra.utils import to_absolute_path
-from src.dataset.utils import ST21pvSrc, tui2ST, load_dbpedia_parent2descendants
+from src.dataset.utils import (
+    ST21pvSrc,
+    tui2ST,
+    load_dbpedia_parent2descendants,
+    get_dbpedia_negative_cats_from_focus_cats,
+    load_DBPediaCategories,
+)
 
 logger = getLogger(__name__)
 
@@ -128,66 +134,7 @@ def get_article2names():
     return article2names
 
 
-# DBPedia_categories = set()
-DBPedia_categories = {
-    "ChemicalSubstance",
-    "GrossDomesticProduct",
-    "Protocol",
-    "Disease",
-    "GrossDomesticProductPerCapita",
-    "Unknown",
-    "Tank",
-    "Flag",
-    "Device",
-    "Identifier",
-    "MeanOfTransportation",
-    "Species",
-    "Agent",
-    "Colour",
-    "SportsSeason",
-    "Population",
-    "Biomolecule",
-    "Area",
-    "Currency",
-    "PersonFunction",
-    "UnitOfWork",
-    "ElectionDiagram",
-    "Diploma",
-    "Spreadsheet",
-    "StarCluster",
-    "Name",
-    "FileSystem",
-    "Work",
-    "Event",
-    "Statistic",
-    "AnatomicalStructure",
-    "Place",
-    "Algorithm",
-    "MedicalSpecialty",
-    "Cipher",
-    "Relationship",
-    "Browser",
-    "SportCompetitionResult",
-    "EthnicGroup",
-    "Medicine",
-    "Blazon",
-    "Food",
-    "Media",
-    "TopicalConcept",
-    "Language",
-    "List",
-    "GeneLocation",
-    "Demographics",
-    "Depth",
-    "PublicService",
-    "ChartsPlacements",
-    "TimePeriod",
-    "Altitude",
-    "Award",
-    "Activity",
-}
-
-
+CoNLL2003Categories = {"PER", "ORG", "LOC", "MISC"}
 
 
 def terms_from_Wikipedia_for_cats(cats: List[str]) -> List[str]:
@@ -276,8 +223,11 @@ def terms_from_Wikidata_for_cats(cats: List[str]) -> List[str]:
     return list(terms)
 
 
+DBPediaCategories = load_DBPediaCategories()
+
+
 def load_DBPedia_terms(name="Agent") -> Set:
-    assert name in DBPedia_categories
+    assert name in DBPediaCategories
 
     parent2children = load_dbpedia_parent2descendants()
     remained_category = {"<http://dbpedia.org/ontology/%s>" % name}

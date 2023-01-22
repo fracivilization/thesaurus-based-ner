@@ -7,16 +7,18 @@ from src.dataset.term2cat.terms import (
 import re
 import os
 from tqdm import tqdm
-from src.dataset.utils import singularize, pluralize
+from src.dataset.utils import singularize, pluralize, load_DBPediaCategories
+
 
 @click.command()
 @click.option("--category", type=str, default="T116")
 @click.option("--output", type=str, default="data/dict/T116")
 def cmd(category: str, output: str):
     pattern = "T\d{3}"
+    DBPediaCategories = load_DBPediaCategories()
     if re.match(pattern, category):
         terms = load_TUI_terms(category)
-    elif category in DBPedia_categories:
+    elif category in DBPediaCategories:
         terms = load_DBPedia_terms(category)
     else:
         raise NotImplementedError
