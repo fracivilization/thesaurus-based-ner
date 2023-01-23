@@ -259,8 +259,18 @@
             "module": "cli.preprocess.load_gold_multi_label_ner",
             "justMyCode": false,
             "args": [
+                // "--evaluation-data",
+                // "MedMentions",
+                // "--input-dir",
+                // "data/gold/MedMentions/full/data",
+                // "--output-dir",
+                // "data/gold/MedMentions_multi_label_ner",
+                "--evaluation-data",
+                "CoNLL2003",
+                "--input-dir",
+                "data/gold/CoNLL2003",
                 "--output-dir",
-                "data/gold/multi_label_ner"
+                "data/gold/CoNLL2003_multi_label_ner"
             ],
         },
         {

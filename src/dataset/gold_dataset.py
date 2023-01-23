@@ -3,7 +3,7 @@ from datasets.info import DatasetInfo
 from src.ner_model.chunker.abstract_model import Chunker
 from src.utils.params import get_ner_dataset_features
 from datasets import DatasetDict, Dataset
-from src.dataset.term2cat.terms import get_descendants_TUIs
+from src.dataset.term2cat.terms import CoNLL2003Categories
 from typing import List, Dict, Tuple
 import spacy
 from logging import getLogger
@@ -66,36 +66,6 @@ def singularize_by_target_cats(
                         ner_tags[i] = "I-%s" % remained_label
         ret_conll.append({"tokens": snt["tokens"], "tags": ner_tags})
     return ret_conll
-
-    # dec2root = {dec: tui for tui in focus_cats for dec in get_descendants_TUIs(tui)}
-    # remained_cats = set(list(dec2root.keys()))
-
-    # # remain only remained cats
-    # screened_docs = []
-    # for doc in pubtator_datasets:
-    #     doc = doc.split("\n")
-    #     title = doc[0]
-    #     abstract = doc[1]
-    #     spans = doc[2:]
-    #     remained_spans = []
-    #     for span in spans:
-    #         pmid, start, end, name, labels, cui = span.split("\t")
-    #         labels = set(labels.split(","))
-    #         remained_labels = labels & remained_cats
-    #         if remained_labels:
-    #             remained_spans.append(
-    #                 "%s\t%s\t%s\t%s\t%s\t%s"
-    #                 % (
-    #                     pmid,
-    #                     start,
-    #                     end,
-    #                     name,
-    #                     ",".join(set(dec2root[l] for l in remained_labels)),
-    #                     cui,
-    #                 )
-    #             )
-    #     screened_docs.append("\n".join([title, abstract] + remained_spans))
-    # return screened_docs
 
 
 def snt_split_conll(
@@ -342,7 +312,7 @@ def load_gold_datasets(
     return DatasetDict(dataset_dict)
 
 
-def translate_conll_into_msmlc_dataset(
+def translate_MedMentions_conll_into_msmlc_dataset(
     conll_snt: List[Dict],
     label_names: List[str],
     desc: Dict = dict(),
@@ -385,7 +355,7 @@ def translate_conll_into_msmlc_dataset(
     return ret_dataset
 
 
-def load_gold_multi_label_ner_datasets(input_dir: str):
+def load_MedMentions_gold_multi_label_ner_datasets(input_dir: str):
     # load dataset
     pubtator = os.path.join(input_dir, "corpus_pubtator.txt")
     with open(pubtator) as f:
@@ -414,19 +384,93 @@ def load_gold_multi_label_ner_datasets(input_dir: str):
     label_names = sorted(tui2ST.keys())
     # if with_o:
     #     label_names = ["nc-O"] + label_names
-    desc = {"desc": "MSMLC Dataset"}
+    desc = {"desc": "MedMentions MSMLC Dataset"}
     dataset_dict = dict()
     desc["split"] = "train"
-    dataset_dict["train"] = translate_conll_into_msmlc_dataset(
+    dataset_dict["train"] = translate_MedMentions_conll_into_msmlc_dataset(
         train_conll, label_names, desc
     )
     desc["split"] = "validation"
-    dataset_dict["validation"] = translate_conll_into_msmlc_dataset(
+    dataset_dict["validation"] = translate_MedMentions_conll_into_msmlc_dataset(
         dev_conll, label_names, desc
     )
     desc["split"] = "test"
-    dataset_dict["test"] = translate_conll_into_msmlc_dataset(
+    dataset_dict["test"] = translate_MedMentions_conll_into_msmlc_dataset(
         test_conll, label_names, desc
     )
     # describe focus_cat into datasetdict or dataset (describing into dataset dict is better)
+    return DatasetDict(dataset_dict)
+
+
+def translate_CoNLL2003_conll_into_msmlc_dataset(
+    conll_snt: List[Dict],
+    label_names: List[str],
+    desc: Dict = dict(),
+) -> Dataset:
+    desc = json.dumps(desc)
+    ret_dataset = defaultdict(list)
+    for snt in conll_snt:
+        ret_dataset["tokens"].append(snt["tokens"])
+        starts, ends, labels = [], [], []
+        for ls, s, e in get_entities(snt["tags"]):
+            if ls == "UnknownType":
+                continue
+            starts.append(s), ends.append(e + 1)
+            labels.append(ls.split(","))
+        ret_dataset["starts"].append(starts)
+        ret_dataset["ends"].append(ends)
+        ret_dataset["labels"].append(labels)
+
+    features = datasets.Features(
+        {
+            "tokens": datasets.Sequence(datasets.Value("string")),
+            "starts": datasets.Sequence(datasets.Value("int32")),
+            "ends": datasets.Sequence(datasets.Value("int32")),
+            "labels": datasets.Sequence(
+                datasets.Sequence(datasets.ClassLabel(names=label_names))
+            ),
+        }
+    )
+
+    ret_dataset = Dataset.from_dict(
+        ret_dataset,
+        info=DatasetInfo(description=desc, features=features),
+    )
+    return ret_dataset
+
+
+def load_CoNLL2003_gold_multi_label_ner_datasets(input_dir):
+    # load dataset
+    # TODO: まずCoNLL2003データを読み込む
+    # TODO: CoNLL2003データをtranslate_conll_into_msmlc_datasetで変換する
+    split_key2file = {
+        "train": "train.txt",
+        "validation": "valid.txt",
+        "test": "test.txt",
+    }
+    key2conll = dict()
+    for key, file in split_key2file.items():
+        with open(os.path.join(input_dir, file)) as f:
+            all_dataset = f.read().split("\n\n")
+            data_split = []
+            for snt in all_dataset[1:]:  # NOTE 最初の行の-DOCSTART-を取り除く
+                conll_snt = {"tokens": [], "tags": []}
+                for word in snt.split("\n"):
+                    if word:
+                        token, _, _, tag = word.split(" ")
+                    conll_snt["tokens"].append(token)
+                    conll_snt["tags"].append(tag)
+                data_split.append(conll_snt)
+        key2conll[key] = data_split
+
+    label_names = list(CoNLL2003Categories)
+    label_names.sort()
+    desc = {"desc": "CoNLL2003 MSMLC Dataset"}
+    dataset_dict = dict()
+    for key, conll in key2conll.items():
+        desc["split"] = key
+        dataset_dict[key] = translate_CoNLL2003_conll_into_msmlc_dataset(
+            conll, label_names, desc
+        )
+
     return DatasetDict(dataset_dict)

@@ -50,6 +50,10 @@ $(MED_MENTIONS_DIR): $(GOLD_DIR)
 	cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_trng.txt data/gold/MedMentions/st21pv/data/
 	cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_dev.txt data/gold/MedMentions/st21pv/data/
 	cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_test.txt data/gold/MedMentions/st21pv/data/
+$(CONLL2003_DIR): $(GOLD_DIR)
+	@echo CONLL2003_DIR: $(CONLL2003_DIR)
+	@echo Please download from https://www.kaggle.com/datasets/alaakhaled/conll003-englishversion?resource=download
+	mkdir -p $(CONLL2003_DIR)
 $(GOLD_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	@echo "Gold Data"
 	@echo GOLD_MULTI_LABEL_NER_DATA: $(GOLD_MULTI_LABEL_NER_DATA)
@@ -118,8 +122,11 @@ $(PSEUDO_OUT): $(GOLD_DATA) $(TERM2CAT)
 		++dataset.name_or_path=$(GOLD_DATA) \
 		+ner_model.typer.term2cat=$(TERM2CAT) 2>&1 | tee ${PSEUDO_OUT}
 
-$(GOLD_MULTI_LABEL_NER_DATA): $(MED_MENTIONS_DIR)
-	${PYTHON} -m cli.preprocess.load_gold_multi_label_ner --input-dir $(MED_MENTIONS_DIR)/full/data --output-dir $(GOLD_MULTI_LABEL_NER_DATA)
+$(GOLD_DIR)/MedMentions_multi_label_ner: $(MED_MENTIONS_DIR)
+	${PYTHON} -m cli.preprocess.load_gold_multi_label_ner --evaluation-data MedMentions --input-dir $(MED_MENTIONS_DIR)/full/data --output-dir $(GOLD_DIR)/MedMentions_multi_label_ner
+
+$(GOLD_DIR)/CoNLL2003_multi_label_ner: $(CONLL2003_DIR)
+	${PYTHON} -m cli.preprocess.load_gold_multi_label_ner --evaluation-data CoNLL2003 --input-dir $(CONLL2003_DIR) --output-dir $(GOLD_DIR)/CoNLL2003_multi_label_ner
 
 $(GOLD_TRAIN_MSMLC_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	$(MSMLC_DATA_BASE_CMD) \
