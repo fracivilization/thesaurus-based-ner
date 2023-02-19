@@ -87,7 +87,11 @@ def load_dict_term2cat(conf: DictTerm2CatConfig):
     for term, cats in term2cats.items():
         candidate_cats = set(cats.split("_")) & target_cats
         if len(candidate_cats) == 1:
-            term2cat[term] = candidate_cats.pop()
+            cat = candidate_cats.pop()
+            if cat in negative_cats:
+                term2cat[term] = "nc-%s" % cat
+            else:
+                term2cat[term] = cat
 
     if conf.remove_anomaly_suffix:
         anomaly_suffixes = get_anomaly_suffixes(term2cat)

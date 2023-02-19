@@ -437,19 +437,19 @@
                 "++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=data/gold/bb7f6bdfa26f7893f68b0466becf7b54d39d1496"
             ],
         },
-        // {
-        //     "name": "Eval (Gold MultiLabelTwoStage)",
-        //     "type": "python",
-        //     "request": "launch",
-        //     "module": "cli.train",
-        //     "justMyCode": false,
-        //     "args": [
-        //         "ner_model=PseudoMultiLabelTwoStage",
-        //         "ner_model.focus_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
-        //         "ner_model.multi_label_typer.term2cats=data/term2cat/d8f23e25ae9fd1286c54c41e20dc9e373e933159.pkl",
-        //         "++dataset.name_or_path=data/gold/836053d1bd47c7cf824672a17714a61a354af8e9",
-        //     ],
-        // },
+        {
+            "name": "Load Negative Categories",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.preprocess.load_negative_categories",
+            "justMyCode": false,
+            "args": [
+                "--focus-categories",
+                "T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
+                "--with-negative_categories",
+                "True",
+            ],
+        },
         {
             "name": "Eval (Gold MultiLabelTwoStage)",
             "type": "python",
