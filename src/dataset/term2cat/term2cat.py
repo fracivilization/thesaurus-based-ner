@@ -6,13 +6,14 @@ from hashlib import md5
 import os
 from dataclasses import dataclass
 from omegaconf import MISSING
-from hydra.utils import get_original_cwd
+from hydra.utils import get_original_cwd, to_absolute_path
 from collections import defaultdict
 from src.utils.string_match import ComplexKeywordTyper
 from hydra.core.config_store import ConfigStore
 from datasets import DatasetDict
 from collections import Counter
 from prettytable import PrettyTable
+import pickle
 
 
 @dataclass
@@ -101,38 +102,15 @@ def load_dict_term2cat(conf: DictTerm2CatConfig):
         negative_cats = set(conf.negative_cats.split("_"))
     else:
         negative_cats = set()
-    cats = focus_cats | negative_cats
-    cat2terms = dict()
-    for cat in cats:
-        buffer_file = os.path.join(get_original_cwd(), conf.dict_dir, cat)
-        with open(buffer_file) as f:
-            terms = []
-            for line in f:
-                term = line.strip()
-                if term:
-                    terms.append(term)
-        cat2terms[cat] = set(terms)
-    log_duplication_between_positive_and_negative_cats(
-        cat2terms, positive_cats=focus_cats, negative_cats=negative_cats
-    )
+    target_cats = focus_cats | negative_cats
+    with open(to_absolute_path(conf.term2cats), "rb") as f:
+        term2cats = pickle.load(f)
 
-    remove_terms = set()
-    # term2cats = defaultdict(set)
-    for i1, (c1, t1) in enumerate(cat2terms.items()):
-        for i2, (c2, t2) in enumerate(cat2terms.items()):
-            if i2 > i1:
-                duplicated = t1 & t2
-                if duplicated:
-                    remove_terms |= duplicated
-                    # for t in duplicated:
-                    # term2cats[t] |= {c1, c2}
     term2cat = dict()
-    for cat, terms in cat2terms.items():
-        for non_duplicated_term in terms - remove_terms:
-            if cat in negative_cats:
-                term2cat[non_duplicated_term] = "nc-%s" % cat
-            else:
-                term2cat[non_duplicated_term] = cat
+    for term, cats in term2cats.items():
+        candidate_cats = set(cats.split("_")) & target_cats
+        if len(candidate_cats) == 1:
+            term2cat[term] = candidate_cats.pop()
 
     if conf.remove_anomaly_suffix:
         anomaly_suffixes = get_anomaly_suffixes(term2cat)
