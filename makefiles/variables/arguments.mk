@@ -1,7 +1,7 @@
 # Arguments
 PYTHON ?= .venv/bin/python
-KNOWLEDGE_BASE ?= UMLS
-EVAL_DATASET ?= MedMentions # or CoNLL2003
+KNOWLEDGE_BASE ?= UMLS# or DBPedia
+EVAL_DATASET ?= MedMentions# or CoNLL2003
 FOCUS_CATS ?= T005 T007 T017 T022 T031 T033 T037 T038 T058 T062 T074 T082 T091 T092 T097 T098 T103 T168 T170 T201 T204
 WITH_NEGATIVE_CATEGORIES ?= False
 NEGATIVE_CATS ?= $(shell ${PYTHON} -m cli.preprocess.load_negative_categories --focus-categories $(subst $() ,_,$(FOCUS_CATS)) --with-negative_categories $(WITH_NEGATIVE_CATEGORIES))
