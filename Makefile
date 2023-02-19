@@ -15,8 +15,8 @@ make_pseudo_data_on_gold: $(PSEUDO_DATA_ON_GOLD)
 	@echo $(PSEUDO_DATA_ON_GOLD)
 make_pseudo_multi_label_ner_on_gold: $(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD)
 	@echo $(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD)
-make_umls_term2cats: $(UMLS_TERM2CATS)
-	@echo $(UMLS_TERM2CATS)
+make_term2cats: $(TERM2CATS)
+	@echo $(TERM2CATS)
 
 # Train Main (Flat NER) Model
 train: $(TRAIN_OUT)
@@ -29,8 +29,8 @@ train_msmlc: $(GOLD_TRAINED_MSMLC_MODEL)
 	@echo $(GOLD_TRAINED_MSMLC_MODEL)
 
 # Check Pseudo MSMLC
-check_pseudo_msmlc: $(GOLD_TRAIN_MSMLC_DATA) $(UMLS_TERM2CATS)
-	poetry run python -m cli.train_msmlc +multi_label_typer=MultiLabelDictMatchTyper ++msmlc_datasets=$(GOLD_TRAIN_MSMLC_DATA) multi_label_typer.term2cats=$(UMLS_TERM2CATS)
+check_pseudo_msmlc: $(GOLD_TRAIN_MSMLC_DATA) $(TERM2CATS)
+	poetry run python -m cli.train_msmlc +multi_label_typer=MultiLabelDictMatchTyper ++msmlc_datasets=$(GOLD_TRAIN_MSMLC_DATA) multi_label_typer.term2cats=$(TERM2CATS)
 
 # Eval flatten marginal_softmax
 eval_flatten_marginal_softmax_gold: $(EVAL_FLATTEN_MARGINAL_MSMLC_ON_GOLD_OUT)

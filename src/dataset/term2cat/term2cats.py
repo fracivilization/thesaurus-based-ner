@@ -32,7 +32,7 @@ class Term2CatsConfig:
 @dataclass
 class DictTerm2CatsConfig(Term2CatsConfig):
     name: str = "dict"
-    dict_dir: str = os.path.join(os.getcwd(), "data/dict")
+    knowledge_base: str = "UMLS"
     output: str = MISSING
 
 
@@ -169,16 +169,21 @@ def cuis2labels(cuis: List[str]):
 
 
 def load_dict_term2cats(conf: DictTerm2CatsConfig):
-    term2cats = dict()
+    if conf.knowledge_base == "UMLS":
+        term2cats = dict()
 
-    # 1. 表層形からCUIへのマップを構築し
-    print("load term2cuis")
-    term2cuis = load_term2cuis()
-    # 2. CUI(の集合)からそれらの共通成分をとる
-    print("load intersection labels (tuis) for each cuis")
-    for term, cuis in tqdm(term2cuis.items()):
-        term2cats[term] = "_".join(sorted(cuis2labels(cuis)))
-    return term2cats
+        # 1. 表層形からCUIへのマップを構築し
+        print("load term2cuis")
+        term2cuis = load_term2cuis()
+        # 2. CUI(の集合)からそれらの共通成分をとる
+        print("load intersection labels (tuis) for each cuis")
+        for term, cuis in tqdm(term2cuis.items()):
+            term2cats[term] = "_".join(sorted(cuis2labels(cuis)))
+        return term2cats
+    elif conf.knowledge_base == "DBPedia":
+        raise NotImplementedError
+    else:
+        raise NotImplementedError
 
 
 def load_oracle_term2cat(conf: OracleTerm2CatsConfig):

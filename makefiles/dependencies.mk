@@ -30,9 +30,10 @@ $(TERM2CAT_DIR): $(DATA_DIR)
 	mkdir -p $(TERM2CAT_DIR)
 $(TERM2CATS_DIR): $(DATA_DIR)
 	mkdir -p $(TERM2CATS_DIR)
-$(TERM2CAT): $(TERM2CAT_DIR) $(DICT_FILES)
+$(TERM2CAT): $(TERM2CAT_DIR) $(DICT_FILES) $(TERM2CATS)
 	@echo TERM2CAT: $(TERM2CAT)
 	${PYTHON} -m cli.preprocess.load_term2cat \
+		term2cats=$(TERM2CATS)
 		output=$(TERM2CAT) \
 		focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
 		negative_cats=$(subst $() ,_,$(NEGATIVE_CATS))
@@ -133,9 +134,9 @@ $(GOLD_TRAIN_MSMLC_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	+multi_label_ner_dataset=$(GOLD_MULTI_LABEL_NER_DATA) \
 	+output_dir=$(GOLD_TRAIN_MSMLC_DATA)
 
-$(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD): $(UMLS_TERM2CATS) $(GOLD_MULTI_LABEL_NER_DATA) $(PSEUDO_DATA_DIR)
+$(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD): $(TERM2CATS) $(GOLD_MULTI_LABEL_NER_DATA) $(PSEUDO_DATA_DIR)
 	${PYTHON} -m cli.preprocess.load_pseudo_multi_label_ner \
-		++multi_label_ner_model.multi_label_typer.term2cats=$(UMLS_TERM2CATS) \
+		++multi_label_ner_model.multi_label_typer.term2cats=$(TERM2CATS) \
 		+gold_corpus=$(GOLD_MULTI_LABEL_NER_DATA) \
 		+raw_corpus=$(GOLD_MULTI_LABEL_NER_DATA) \
 		+output_dir=$(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD)
@@ -144,10 +145,11 @@ $(PSEUDO_MSMLC_DATA_ON_GOLD): $(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD)
 	+multi_label_ner_dataset=$(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD) \
 	+output_dir=$(PSEUDO_MSMLC_DATA_ON_GOLD)
 
-$(UMLS_TERM2CATS): $(TERM2CATS_DIR) $(UMLS_DIR)
-	@echo TERM2CAT: $(UMLS_TERM2CATS)
+$(TERM2CATS): $(TERM2CATS_DIR) $(UMLS_DIR)
+	@echo TERM2CATS: $(TERM2CATS)
 	${PYTHON} -m cli.preprocess.load_term2cats \
-		output=$(UMLS_TERM2CATS)
+		++knowledge_base=$(KNOWLEDGE_BASE) \
+		++output=$(TERM2CATS)
 
 $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL): $(PSEUDO_MSMLC_DATA_ON_GOLD)
 	$(TRAIN_MSMLC_BASE_CMD) \
