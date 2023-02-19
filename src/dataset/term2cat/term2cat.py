@@ -1,17 +1,13 @@
-from typing import Dict, List
+from typing import Dict
 from seqeval.metrics.sequence_labeling import get_entities
-from src.dataset import gold_dataset
 from .genia import load_term2cat as genia_load_term2cat
 from .twitter import load_twitter_main_dictionary, load_twitter_sibling_dictionary
 from hashlib import md5
 import os
-import json
 from dataclasses import dataclass
 from omegaconf import MISSING
 from hydra.utils import get_original_cwd
 from collections import defaultdict
-import re
-from tqdm import tqdm
 from src.utils.string_match import ComplexKeywordTyper
 from hydra.core.config_store import ConfigStore
 from datasets import DatasetDict
@@ -21,6 +17,7 @@ from prettytable import PrettyTable
 
 @dataclass
 class Term2CatConfig:
+    term2cats: str = MISSING
     name: str = MISSING
     output: str = MISSING
 
@@ -59,11 +56,6 @@ def register_term2cat_configs(group="ner_model/typer/term2cat") -> None:
 
 
 def get_anomaly_suffixes(term2cat):
-    buffer_file = os.path.join(
-        get_original_cwd(),
-        "data/buffer/%s"
-        % md5(("anomaly_suffixes" + str(term2cat)).encode()).hexdigest(),
-    )
     anomaly_suffixes = set()
     complex_typer = ComplexKeywordTyper(term2cat)
     lowered2orig = defaultdict(list)
@@ -120,7 +112,7 @@ def load_dict_term2cat(conf: DictTerm2CatConfig):
                 if term:
                     terms.append(term)
         cat2terms[cat] = set(terms)
-    negative_cat2positive_ratio = log_duplication_between_positive_and_negative_cats(
+    log_duplication_between_positive_and_negative_cats(
         cat2terms, positive_cats=focus_cats, negative_cats=negative_cats
     )
 
@@ -208,7 +200,6 @@ def load_twitter_dictionary(
     sibling_compression: str = "none",
     only_fake: bool = True,
 ):
-    args = str(with_sibilling) + str(sibling_compression) + str(only_fake)
     term2cat = dict()
     main_dictionary = load_twitter_main_dictionary()
     term2cat.update({k: v for k, v in main_dictionary.items() if v != "product"})
