@@ -33,7 +33,7 @@ $(TERM2CATS_DIR): $(DATA_DIR)
 $(TERM2CAT): $(TERM2CAT_DIR) $(DICT_FILES) $(TERM2CATS)
 	@echo TERM2CAT: $(TERM2CAT)
 	${PYTHON} -m cli.preprocess.load_term2cat \
-		term2cats=$(TERM2CATS)
+		term2cats=$(TERM2CATS) \
 		output=$(TERM2CAT) \
 		focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
 		negative_cats=$(subst $() ,_,$(NEGATIVE_CATS))
