@@ -33,6 +33,9 @@ class Term2CatsConfig:
 class DictTerm2CatsConfig(Term2CatsConfig):
     name: str = "dict"
     knowledge_base: str = "UMLS"
+    remain_common_sense: bool = (
+        True  # 複数のエンティティから共通のカテゴリのみを利用する。Falseの場合KBに含まれる全ての語義（カテゴリ）を残す
+    )
     output: str = MISSING
 
 
@@ -157,14 +160,23 @@ def expand_tuis(tuis: Set[str]) -> Set:
     return expanded_tuis
 
 
-def cuis2labels(cuis: List[str]):
+def cuis2labels(cuis: List[str], config: DictTerm2CatsConfig):
     cui2tuis = load_cui2tuis()
-    labels = tui2ST.keys()
-    # 各CUI:j は複数のラベルからなるラベル集合L_j={l_{ij}}を持つとしたときに
-    # すべてのCUIのPATHSに含まれるラベル集合を取得する
+    if config.remain_common_sense:
+        labels = tui2ST.keys()
+        # 各CUI:j は複数のラベルからなるラベル集合L_j={l_{ij}}を持つとしたときに
+        # すべてのCUIのPATHSに含まれるラベル集合を取得する
+    else:
+        labels = set()
+        # 各CUI:j は複数のラベルからなるラベル集合L_j={l_{ij}}を持つとしたときに
+        # いずれかのCUIのPATHSに含まれるラベル集合を取得する
+
     for cui in cuis:
         tuis = cui2tuis[cui]
-        labels &= expand_tuis(tuis)
+        if config.remain_common_sense:
+            labels &= expand_tuis(tuis)
+        else:
+            labels |= expand_tuis(tuis)
     return labels
 
 
@@ -175,10 +187,10 @@ def load_dict_term2cats(conf: DictTerm2CatsConfig):
         # 1. 表層形からCUIへのマップを構築し
         print("load term2cuis")
         term2cuis = load_term2cuis()
-        # 2. CUI(の集合)からそれらの共通成分をとる
-        print("load intersection labels (tuis) for each cuis")
+        # 2. CUI(の集合)からそれらの共通・合併成分をとる
+        print("load intersection or union labels (tuis) for each cuis")
         for term, cuis in tqdm(term2cuis.items()):
-            term2cats[term] = "_".join(sorted(cuis2labels(cuis)))
+            term2cats[term] = "_".join(sorted(cuis2labels(cuis, conf)))
         return term2cats
     elif conf.knowledge_base == "DBPedia":
         raise NotImplementedError

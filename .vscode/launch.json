@@ -366,6 +366,7 @@
             "justMyCode": false,
             "args": [
                 "++knowledge_base=UMLS",
+                "++remain_common_sense=True",
                 "++output=data/term2cats/d8f23e25ae9fd1286c54c41e20dc9e373e933159.pkl",
             ],
         },
