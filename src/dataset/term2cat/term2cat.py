@@ -73,29 +73,6 @@ def get_anomaly_suffixes(term2cat):
     return anomaly_suffixes
 
 
-def log_duplication_between_positive_and_negative_cats(
-    cat2terms, positive_cats, negative_cats
-):
-    positive_terms = set()
-    negative_cat2duplicated_terms = defaultdict(set)
-    for cat in cat2terms:
-        if cat in positive_cats:
-            positive_terms |= cat2terms[cat]
-    for cat in cat2terms:
-        if cat in negative_cats:
-            negative_cat2duplicated_terms[cat] |= cat2terms[cat] & positive_terms
-
-    tbl = PrettyTable(["cat", "count", "positive num", "positive ratio"])
-    negative_cat2positive_ratio = dict()
-    for cat, terms in negative_cat2duplicated_terms.items():
-        if len(cat2terms[cat]) > 0:
-            positive_ratio = len(terms) / len(cat2terms[cat])
-            tbl.add_row([cat, len(cat2terms[cat]), len(terms), positive_ratio])
-            negative_cat2positive_ratio[cat] = positive_ratio
-    print(tbl.get_string())
-    return negative_cat2positive_ratio
-
-
 def load_dict_term2cat(conf: DictTerm2CatConfig):
     focus_cats = set(conf.focus_cats.split("_"))
     if conf.negative_cats:
