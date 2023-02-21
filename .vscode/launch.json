@@ -365,9 +365,9 @@
             "module": "cli.preprocess.load_term2cats",
             "justMyCode": false,
             "args": [
-                "++knowledge_base=UMLS",
+                "++knowledge_base=DBPedia",
                 "++remain_common_sense=True",
-                "++output=data/term2cats/d8f23e25ae9fd1286c54c41e20dc9e373e933159.pkl",
+                "++output=data/term2cats/88ba83ce32822dd55dd70928bbacd6e5d87a0708.pkl",
             ],
         },
         {

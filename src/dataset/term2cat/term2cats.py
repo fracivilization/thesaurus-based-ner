@@ -1,15 +1,10 @@
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Tuple
 from seqeval.metrics.sequence_labeling import get_entities
-from src.dataset import gold_dataset
-from .genia import load_term2cat as genia_load_term2cat
-from .twitter import load_twitter_main_dictionary, load_twitter_sibling_dictionary
-from hydra.utils import get_original_cwd
+from hydra.utils import get_original_cwd, to_absolute_path
 from hashlib import md5
 import os
-import json
 from dataclasses import dataclass
 from omegaconf import MISSING
-from hydra.utils import get_original_cwd
 from collections import defaultdict
 import re
 from tqdm import tqdm
@@ -18,9 +13,32 @@ from hydra.core.config_store import ConfigStore
 from datasets import DatasetDict
 from collections import Counter
 from prettytable import PrettyTable
-from src.dataset.utils import STchild2parent, tui2ST, MRCONSO, MRSTY, get_ascendant_tuis
+from src.dataset.utils import (
+    tui2ST,
+    MRCONSO,
+    MRSTY,
+    get_ascendant_tuis,
+    get_ascendant_dbpedia_thesaurus_node,
+)
 from src.dataset.utils import ST21pvSrc
 from functools import lru_cache
+
+DBPedia_dir = "data/DBPedia"
+# DBPedia(Wikipedia)
+DBPedia_ontology = os.path.join(DBPedia_dir, "ontology--DEV_type=parsed_sorted.nt")
+DBPedia_instance_type = os.path.join(DBPedia_dir, "instance-types_lang=en_specific.ttl")
+DBPedia_mapping_literals = os.path.join(
+    DBPedia_dir, "mappingbased-literals_lang=en.ttl"
+)
+DBPedia_infobox = os.path.join(DBPedia_dir, "infobox-properties_lang=en.ttl")
+DBPedia_redirect = os.path.join(DBPedia_dir, "redirects_lang=en.ttl")
+DBPedia_disambiguate = os.path.join(DBPedia_dir, "disambiguations_lang=en.ttl")
+DBPedia_labels = os.path.join(DBPedia_dir, "labels_lang=en.ttl")
+# DBPedia (Wikidata)
+DBPedia_WD_instance_type = os.path.join(DBPedia_dir, "instance-types_specific.ttl")
+DBPedia_WD_SubClassOf = os.path.join(DBPedia_dir, "ontology-subclassof.ttl")
+DBPedia_WD_labels = os.path.join(DBPedia_dir, "labels.ttl")
+DBPedia_WD_alias = os.path.join(DBPedia_dir, "alias.ttl")
 
 
 @dataclass
@@ -157,9 +175,146 @@ def cuis2labels(cuis: List[str], config: DictTerm2CatsConfig):
     return labels
 
 
+def load_ambiguous2monosemies_in_dbpedia() -> Dict[str, Set[str]]:
+    un_disambiguate = defaultdict(set)
+    pattern = (
+        "(<[^>]+>) "
+        + "<http://dbpedia.org/ontology/wikiPageDisambiguates> "
+        + "(<[^>]+>) ."
+    )
+    pattern = re.compile(pattern)
+    disambiguated_entities = set()
+    ambiguous_entities = set()
+    with open(to_absolute_path(DBPedia_disambiguate)) as f:
+        for line in tqdm(f, total=1984950):
+            assert pattern.match(line)
+            ambiguous_entity, disambiguated_entity = pattern.findall(line)[0]
+            disambiguated_entities.add(disambiguated_entity)
+            ambiguous_entities.add(ambiguous_entity)
+            un_disambiguate[disambiguated_entity].add(ambiguous_entity)
+    # NOTE: ambiguateなentityをdisambiguated entitiesに紐付けるmapをつくる
+    ambiguous2monosemies = defaultdict(set)
+    # NOTE: leafノード全てに対してルートまでのパスに存在する全てのノードと紐付ける
+    monosemy_entities = disambiguated_entities - ambiguous_entities
+    for monosemy_entity in tqdm(monosemy_entities):
+        # 曖昧語と曖昧性解消語を辺とするentity上の木構造からmonosemy_entityより曖昧なエンティティを取得する
+        ambigous_ascendants = set()
+        search_target_entities = {monosemy_entity}
+        next_search_target_entities = set()
+        while search_target_entities:
+            for search_target_entity in search_target_entities:
+                if search_target_entity in un_disambiguate:
+                    more_ambiguous_entities = un_disambiguate[search_target_entity]
+                    for more_ambiguous_entity in more_ambiguous_entities:
+                        if more_ambiguous_entity not in ambigous_ascendants:
+                            ambigous_ascendants.add(more_ambiguous_entity)
+                            next_search_target_entities.add(more_ambiguous_entity)
+            search_target_entities = next_search_target_entities
+            next_search_target_entities = set()
+        for ambiguous_ascendant in ambigous_ascendants:
+            ambiguous2monosemies[ambiguous_ascendant].add(monosemy_entity)
+    return ambiguous2monosemies
+
+
+def load_term2dbpedia_entities():
+    term2entities = defaultdict(set)
+    # 基本的にはlabels.ttlからterm2entitiesを取得する
+
+    pattern = (
+        "(<[^>]+>) "
+        + "<http://www.w3.org/2000/01/rdf-schema#label>"
+        + ' "([^"]+)"@en .'
+    )
+    pattern = re.compile(pattern)
+    entity2term = dict()
+    with open(to_absolute_path(DBPedia_labels)) as f:
+        for i, line in enumerate(tqdm(f, total=276814263)):
+            if pattern.match(line):
+                disambiguated_entity, term = pattern.findall(line)[0]
+                term2entities[term].add(disambiguated_entity)
+                assert disambiguated_entity not in entity2term
+                entity2term[disambiguated_entity] = term
+    # NOTE: 曖昧語によってterm2entitiesを拡張する。
+    # NOTE: 例えば"はし"は「橋」か「箸」という曖昧性がある
+    # NOTE: そこでterm2entitiesにはし->「橋」・「箸」という対応を追加する
+    # そこで、entity2termに含まれる曖昧性のないエンティティ「箸」・「橋」に対して
+    # もしそのエンティティが曖昧性解消の結果として現れるならば、「はし」という別の呼称をついかする
+    # つまり曖昧性解消の逆を行う
+    # NOTE: ambiguousなentityの全てに対して、その名前とdisambiguated enttiesの対応をterm2entitiesに追加し、
+    ambiguous2monosemies = load_ambiguous2monosemies_in_dbpedia()
+    for (
+        ambiguous_entity,
+        correspond_monosemy_entities,
+    ) in ambiguous2monosemies.items():
+        if ambiguous_entity in entity2term:
+            ambiguous_term = entity2term[ambiguous_entity]
+            assert term2entities[ambiguous_term] == {ambiguous_entity}
+            term2entities[ambiguous_term] = correspond_monosemy_entities
+        else:
+            # 本来はここを通らないはずだが一旦動作検証のために素通りさせる
+            print(
+                "ambiguous entity: ", ambiguous_entity, "isn't included in entity2term."
+            )
+    return term2entities
+
+
+@lru_cache(maxsize=None)
+def load_dbpedia_entity2cats() -> Dict:
+    entity2cats = defaultdict(set)
+    with open(to_absolute_path(DBPedia_instance_type)) as f:
+        for line in tqdm(f, total=7636009):
+            # 例: line = "<http://dbpedia.org/resource/'Ara'ir> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://dbpedia.org/ontology/Settlement> ."
+            line = line.strip().split()
+            assert len(line) == 4
+            assert line[1] == "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>"
+            entity, _, cat, _ = line
+            entity2cats[entity].add(cat)
+    # Expand Wikipedia Articles using Redirect
+    with open(to_absolute_path(DBPedia_redirect)) as f:
+        for line in tqdm(f, total=10338969):
+            line = line.strip().split()
+            assert len(line) == 4
+            assert line[1] == "<http://dbpedia.org/ontology/wikiPageRedirects>"
+            entity, _, redirect, _ = line
+            if entity not in entity2cats:
+                entity2cats[entity] |= entity2cats[redirect]
+            else:
+                # print(entity, " is already included entity2cats, but also in redirect.")
+                pass
+    return entity2cats
+
+
+def expand_dbpedia_cats(cats: Set[str]) -> Set:
+    # 1. シソーラスの構造に応じてラベル集合L={l_i}_iをパスに展開
+    #    各ラベルまでのパス上にあるノードをすべて集める
+    #    PATHS = {l \in PATH(l_i)}_{i in L}
+    expanded_cats = set()
+    for cat in cats:
+        expanded_cats |= set(get_ascendant_dbpedia_thesaurus_node(cat))
+    return expanded_cats
+
+
+def dbpedia_entities2labels(entities: Tuple[str], config: DictTerm2CatsConfig):
+    entity2cats = load_dbpedia_entity2cats()
+    for i, entity in enumerate(entities):
+        cats = entity2cats[entity]
+        if i == 0:
+            labels = expand_dbpedia_cats(cats)
+        else:
+            if config.remain_common_sense:
+                # 各CUI:j は複数のラベルからなるラベル集合L_j={l_{ij}}を持つとしたときに
+                # すべてのCUIのPATHSに含まれるラベル集合を取得する
+                labels &= expand_dbpedia_cats(cats)
+            else:
+                # 各CUI:j は複数のラベルからなるラベル集合L_j={l_{ij}}を持つとしたときに
+                # いずれかのCUIのPATHSに含まれるラベル集合を取得する
+                labels |= expand_dbpedia_cats(cats)
+    return labels
+
+
 def load_dict_term2cats(conf: DictTerm2CatsConfig):
+    term2cats = dict()
     if conf.knowledge_base == "UMLS":
-        term2cats = dict()
 
         # 1. 表層形からCUIへのマップを構築し
         print("load term2cuis")
@@ -167,10 +322,17 @@ def load_dict_term2cats(conf: DictTerm2CatsConfig):
         # 2. CUI(の集合)からそれらの共通・合併成分をとる
         print("load intersection or union labels (tuis) for each cuis")
         for term, cuis in tqdm(term2cuis.items()):
-            term2cats[term] = "_".join(sorted(cuis2labels(cuis, conf)))
+            term2cats[term] = tuple(sorted(cuis2labels(cuis, conf)))
         return term2cats
     elif conf.knowledge_base == "DBPedia":
-        raise NotImplementedError
+        # 1. 表層形からOntologyへのマップを構築し
+        print("load term2cuis")
+        term2entities = load_term2dbpedia_entities()
+        # 2. entity(の集合)からそれらの共通・合併成分をとる
+        print("load intersection or union labels (ontology classes) for each entities")
+        for term, entities in tqdm(term2entities.items()):
+            term2cats[term] = tuple(sorted(dbpedia_entities2labels(entities, conf)))
+        return term2cats
     else:
         raise NotImplementedError
 
@@ -214,69 +376,6 @@ def load_term2cats(conf: Term2CatsConfig):
     return term2cat
 
 
-def load_jnlpba_main_term2cat():
-    pass
-
-
-def load_jnlpba_dictionary(
-    with_sibilling: bool = False,
-    sibilling_compression: str = "none",
-    only_fake: bool = False,
-):
-    term2cat = load_jnlpba_main_term2cat()
-    if with_sibilling:
-        raise NotImplementedError
-    return term2cat
-
-
-def load_twitter_dictionary(
-    with_sibilling: bool = True,
-    sibling_compression: str = "none",
-    only_fake: bool = True,
-):
-    args = str(with_sibilling) + str(sibling_compression) + str(only_fake)
-    buffer_file = "data/buffer/%s" % md5(args.encode()).hexdigest()
-    term2cat = dict()
-    main_dictionary = load_twitter_main_dictionary()
-    term2cat.update({k: v for k, v in main_dictionary.items() if v != "product"})
-    if with_sibilling:
-        sibling_dict = load_twitter_sibling_dictionary(sibling_compression)
-        for k, v in sibling_dict.items():
-            if k not in term2cat:
-                term2cat[k] = v
-    if only_fake:
-        term2cat = {k: v for k, v in term2cat.items() if v.startswith("fake_")}
-    else:
-        for k, v in main_dictionary.items():
-            if v == "product" and k not in term2cat:
-                term2cat[k] = "product"
-    return term2cat
-
-
-class Term2Cat:
-    def __init__(
-        self,
-        task: str,
-        with_sibling: bool = False,
-        sibilling_compression: str = "none",
-        only_fake: bool = False,
-    ) -> None:
-        assert sibilling_compression in {"all", "sibilling", "none"}
-        args = " ".join(
-            map(str, [task, with_sibling, sibilling_compression, only_fake])
-        )
-        buffer_file = os.path.join("data/buffer", md5(args.encode()).hexdigest())
-        if task == "JNLPBA":
-            term2cat = genia_load_term2cat(
-                with_sibling, sibilling_compression, only_fake
-            )
-        elif task == "Twitter":
-            term2cat = load_twitter_dictionary(
-                with_sibling, sibilling_compression, only_fake
-            )
-        self.term2cat = term2cat
-
-
 def log_term2cats(term2cats: Dict):
     print("log term2cat count")
     tbl = PrettyTable(["cats", "count"])
@@ -288,11 +387,11 @@ def log_term2cats(term2cats: Dict):
 
     cat2count = defaultdict(lambda: 0)
     for cats, count in sorted(list(counter.items()), key=lambda x: x[0]):
-        for cat in cats.split("_"):
+        for cat in cats:
             cat2count[cat] += count
 
-    tbl = PrettyTable(["cat", "Semantic Type", "count"])
+    tbl = PrettyTable(["cat", "count"])
     for cat, count in cat2count.items():
-        tbl.add_row([cat, tui2ST[cat], count])
+        tbl.add_row([cat, count])
     print(tbl.get_string())
     print("category num: ", len(cat2count.keys()))

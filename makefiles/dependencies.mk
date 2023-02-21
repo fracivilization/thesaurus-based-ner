@@ -149,6 +149,7 @@ $(TERM2CATS): $(TERM2CATS_DIR) $(UMLS_DIR)
 	@echo TERM2CATS: $(TERM2CATS)
 	${PYTHON} -m cli.preprocess.load_term2cats \
 		++knowledge_base=$(KNOWLEDGE_BASE) \
+		++remain_common_sense=$(REMAIN_COMMON_SENSE_FOR_TERM2CATS) \
 		++output=$(TERM2CATS)
 
 $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL): $(PSEUDO_MSMLC_DATA_ON_GOLD)

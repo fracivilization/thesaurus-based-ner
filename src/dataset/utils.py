@@ -173,6 +173,7 @@ def load_dbpedia_parent2descendants() -> Dict:
     return parent2children
 
 
+@lru_cache(maxsize=None)
 def load_dbpedia_thesaurus() -> Node:
     parent2children = load_dbpedia_parent2descendants()
     import networkx as nx
@@ -210,6 +211,7 @@ def load_dbpedia_thesaurus() -> Node:
                 top_classses.add(candidate)
             candidate_classes.remove(candidate)
     parent2children["<http://www.w3.org/2002/07/owl#Class>"] = top_classses
+    parent2children["<http://www.w3.org/2002/07/owl#Class>"] = top_classses
 
     def make_subtree(node_name: str, parent_node: UMLSNode):
         subtree_root_node = Node(node_name, parent_node)
@@ -218,6 +220,22 @@ def load_dbpedia_thesaurus() -> Node:
         return subtree_root_node
 
     return make_subtree("<http://www.w3.org/2002/07/owl#Class>", None)
+
+
+@lru_cache(maxsize=None)
+def load_dbpedia_thesaurus_name2node() -> Dict[str, Node]:
+    dbpedia_thesaurus = load_dbpedia_thesaurus()
+    name2node = {node.name: node for node in dbpedia_thesaurus.descendants}
+    name2node[dbpedia_thesaurus.name] = dbpedia_thesaurus
+    name2node["<http://www.w3.org/2002/07/owl#Thing>"] = dbpedia_thesaurus
+    return name2node
+
+
+def get_ascendant_dbpedia_thesaurus_node(node_name: str) -> List[str]:
+    name2node = load_dbpedia_thesaurus_name2node()
+    ascendants = [node.name for node in name2node[node_name].ancestors]
+    # 自分自身を追加する。ただし、owl#Thing は owl#Classと同じとみなす
+    return ascendants + [name2node[node_name].name]
 
 
 @dataclass
