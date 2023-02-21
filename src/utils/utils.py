@@ -48,6 +48,3 @@ def remove_BIE(ner_tag):
 def remain_specified_data(dataset: Dataset, num: int):
     remained_dataset = dataset[:num]
     return Dataset.from_dict(remained_dataset, features=dataset.features)
-
-
-
