@@ -41,10 +41,13 @@ def main(cfg: PseudoMSMLCAnnoConfig):
         raw_corpus = Dataset.load_from_disk(
             os.path.join(get_original_cwd(), cfg.raw_corpus)
         )
+    print("load multi label ner model")
     multi_label_ner_model: MultiLabelNERModel = multi_label_ner_model_builder(
         cfg.multi_label_ner_model
     )
+    print("load pseudo dataset")
     pseudo_dataset = load_msml_pseudo_dataset(raw_corpus, multi_label_ner_model, cfg)
+    print("load gold corpus")
     gold_corpus = DatasetDict.load_from_disk(
         os.path.join(get_original_cwd(), cfg.gold_corpus)
     )
