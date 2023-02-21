@@ -85,7 +85,7 @@ def load_dict_term2cat(conf: DictTerm2CatConfig):
 
     term2cat = dict()
     for term, cats in term2cats.items():
-        candidate_cats = set(cats.split("_")) & target_cats
+        candidate_cats = set(cats) & target_cats
         if len(candidate_cats) == 1:
             cat = candidate_cats.pop()
             if cat in negative_cats:

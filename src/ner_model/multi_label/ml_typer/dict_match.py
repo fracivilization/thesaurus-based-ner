@@ -4,15 +4,13 @@ from .abstract import (
     MultiLabelTyperConfig,
     MultiLabelTyperOutput,
 )
-from datasets import DatasetDict
 from src.utils.string_match import ComplexKeywordTyper
 from tqdm import tqdm
 from dataclasses import dataclass
 from omegaconf import MISSING
 import numpy as np
 import pickle
-from hydra.utils import get_original_cwd
-import os
+import json
 from hydra.utils import to_absolute_path
 
 np.ones(13)
@@ -32,17 +30,12 @@ class MultiLabelDictMatchTyper(MultiLabelTyper):
         # term2catを無理やり作る(複数カテゴリを連結した文字列をTypeにしてしまえばそれで事足りそう)
         with open(to_absolute_path(conf.term2cats), "rb") as f:
             self.term2cats = pickle.load(f)
-        self.keyword_processor = ComplexKeywordTyper(self.term2cats)
-        jointed_label_names = set(self.term2cats.values())
         self.label_names = sorted(
-            set(
-                [
-                    label
-                    for joint_label in jointed_label_names
-                    for label in joint_label.split("_")
-                ]
-            )
+            set(cat for cats in self.term2cats.values() for cat in cats)
         )
+        for term, cats in self.term2cats.items():
+            self.term2cats[term] = json.dumps(cats)
+        self.keyword_processor = ComplexKeywordTyper(self.term2cats)
 
     def predict(
         self, tokens: List[str], starts: List[str], ends: List[str]
@@ -58,7 +51,7 @@ class MultiLabelDictMatchTyper(MultiLabelTyper):
                 if label == "nc-O":
                     labels.append(list())
                 else:
-                    labels.append(label.split("_"))
+                    labels.append(json.loads(label))
             # label_ids = np.array([self.label_names.index(l) for l in labels])
             logits = []
             for span_labels in labels:
