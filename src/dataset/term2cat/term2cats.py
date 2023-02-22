@@ -22,6 +22,7 @@ from src.dataset.utils import (
 )
 from src.dataset.utils import ST21pvSrc
 from functools import lru_cache
+import json
 
 DBPedia_dir = "data/DBPedia"
 # DBPedia(Wikipedia)
@@ -220,15 +221,16 @@ def load_term2dbpedia_entities():
     term2entities = defaultdict(set)
     # 基本的にはlabels.ttlからterm2entitiesを取得する
 
+    # Wikipdiaに含まれるentityだけ考慮する。Wikidataに含まれるだけのものはとりあえず考慮しない
     pattern = (
-        "(<[^>]+>) "
+        "(<http://dbpedia.org/resource/[^>]+>) "
         + "<http://www.w3.org/2000/01/rdf-schema#label>"
         + ' "([^"]+)"@en .'
     )
     pattern = re.compile(pattern)
     entity2term = dict()
     with open(to_absolute_path(DBPedia_labels)) as f:
-        for i, line in enumerate(tqdm(f, total=276814263)):
+        for i, line in enumerate(tqdm(f, total=16751238)):
             if pattern.match(line):
                 disambiguated_entity, term = pattern.findall(line)[0]
                 term2entities[term].add(disambiguated_entity)
@@ -326,12 +328,15 @@ def load_dict_term2cats(conf: DictTerm2CatsConfig):
         return term2cats
     elif conf.knowledge_base == "DBPedia":
         # 1. 表層形からOntologyへのマップを構築し
-        print("load term2cuis")
+        print("load term2entities")
         term2entities = load_term2dbpedia_entities()
         # 2. entity(の集合)からそれらの共通・合併成分をとる
         print("load intersection or union labels (ontology classes) for each entities")
         for term, entities in tqdm(term2entities.items()):
-            term2cats[term] = tuple(sorted(dbpedia_entities2labels(entities, conf)))
+            cats = sorted(dbpedia_entities2labels(entities, conf))
+            if cats:
+                term2cats[term] = json.dumps(cats)
+        load_dbpedia_entity2cats.cache_clear()
         return term2cats
     else:
         raise NotImplementedError

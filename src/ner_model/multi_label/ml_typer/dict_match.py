@@ -31,10 +31,8 @@ class MultiLabelDictMatchTyper(MultiLabelTyper):
         with open(to_absolute_path(conf.term2cats), "rb") as f:
             self.term2cats = pickle.load(f)
         self.label_names = sorted(
-            set(cat for cats in self.term2cats.values() for cat in cats)
+            set(cat for cats in self.term2cats.values() for cat in json.loads(cats))
         )
-        for term, cats in self.term2cats.items():
-            self.term2cats[term] = json.dumps(cats)
         self.keyword_processor = ComplexKeywordTyper(self.term2cats)
 
     def predict(

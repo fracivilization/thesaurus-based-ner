@@ -161,7 +161,7 @@ def load_dbpedia_parent2descendants() -> Dict:
     from rdflib import Graph, URIRef
 
     g = Graph()
-    g.parse(DBPedia_ontology)
+    g.parse(to_absolute_path(DBPedia_ontology))
     s, p, o = next(g.__iter__())
     parent2children = defaultdict(set)
     for s, p, o in g:

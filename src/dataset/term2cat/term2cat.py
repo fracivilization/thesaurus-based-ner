@@ -2,7 +2,6 @@ from typing import Dict
 from seqeval.metrics.sequence_labeling import get_entities
 from .genia import load_term2cat as genia_load_term2cat
 from .twitter import load_twitter_main_dictionary, load_twitter_sibling_dictionary
-from hashlib import md5
 import os
 from dataclasses import dataclass
 from omegaconf import MISSING
@@ -14,6 +13,7 @@ from datasets import DatasetDict
 from collections import Counter
 from prettytable import PrettyTable
 import pickle
+import json
 
 
 @dataclass
@@ -85,7 +85,7 @@ def load_dict_term2cat(conf: DictTerm2CatConfig):
 
     term2cat = dict()
     for term, cats in term2cats.items():
-        candidate_cats = set(cats) & target_cats
+        candidate_cats = set(json.loads(cats)) & target_cats
         if len(candidate_cats) == 1:
             cat = candidate_cats.pop()
             if cat in negative_cats:
