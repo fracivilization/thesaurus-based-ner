@@ -44,15 +44,6 @@ class ComplexKeywordTyper:
             all_terms = set(term2cat.keys())
             # 残りのものをcase insensitiveとする
             case_insensitive_base_terms = all_terms - case_sensitive_terms
-            # for term in tqdm(case_sensitive_terms):
-            #     del term2cat[term]
-
-            # self.reversed_case_sensitive_keyword_processor = KeywordProcessor(
-            #     case_sensitive=True
-            # )
-            # self.reversed_case_insensitive_keyword_processor = KeywordProcessor(
-            #     case_sensitive=False
-            # )
 
             self.reversed_case_sensitive_darts = dartsclone.DoubleArray()
             self.reversed_case_insensitive_darts = dartsclone.DoubleArray()
@@ -64,10 +55,6 @@ class ComplexKeywordTyper:
                 for term in tqdm(case_sensitive_terms)
             ]
 
-            # for term, cat in tqdm(case_sensitive_terms.items()):
-            #     terms.append(term.encode())
-            #     cats.append(self.cat_labels.index(self.term2cat[term]))
-            # self.reversed_case_sensitive_darts.add_keyword(term[::-1], cat)
             self.reversed_case_sensitive_darts.build(
                 case_sensitive_terms, values=case_sensitive_cats
             )
@@ -76,20 +63,9 @@ class ComplexKeywordTyper:
             case_insensitive_cats = []
             case_insensitive_cats_append = case_insensitive_cats.append
             for term in tqdm(case_insensitive_base_terms):
-                # case insensitiveのものに関しては複数形を追加する
                 cat = term2cat[term]
                 case_insensitive_terms_append(term.lower()[::-1])
                 case_insensitive_cats_append(cat)
-                # pluralized_term = pluralize(term)
-                # case_insensitive_terms_append(pluralized_term.lower()[::-1])
-                # case_insensitive_cats_append(cat)
-
-                # self.reversed_case_insensitive_keyword_processor.add_keyword(
-                #     term[::-1], cat
-                # )
-                # self.reversed_case_insensitive_keyword_processor.add_keyword(
-                #     pluralized_term[::-1], cat
-                # )
             case_insensitive_term_and_cat = [
                 (t.encode(), self.cat_labels.index(c))
                 for t, c in zip(case_insensitive_terms, case_insensitive_cats)
@@ -111,17 +87,6 @@ class ComplexKeywordTyper:
             self.reversed_case_insensitive_darts.save(
                 str(buffer_dir.joinpath("reversed_case_insensitive_darts"))
             )
-            # buffer_dir.joinpath("reversed_case_sensitive_darts"),
-            # with open(
-            #     buffer_dir.joinpath("reversed_case_sensitive_keyword_processor.pkl"),
-            #     "wb",
-            # ) as f:
-            #     pickle.dump(self.reversed_case_sensitive_darts, f)
-            # with open(
-            #     buffer_dir.joinpath("reversed_case_insensitive_keyword_processor.pkl"),
-            #     "wb",
-            # ) as f:
-            #     pickle.dump(self.reversed_case_insensitive_darts, f)
         self.reversed_case_sensitive_darts = dartsclone.DoubleArray()
         self.reversed_case_sensitive_darts.open(
             str(buffer_dir.joinpath("reversed_case_sensitive_darts"))
@@ -130,14 +95,6 @@ class ComplexKeywordTyper:
         self.reversed_case_insensitive_darts.open(
             str(buffer_dir.joinpath("reversed_case_insensitive_darts"))
         )
-        # with open(
-        #     buffer_dir.joinpath("reversed_case_sensitive_keyword_processor.pkl"), "rb"
-        # ) as f:
-        #     self.reversed_case_sensitive_darts = pickle.load(f)
-        # with open(
-        #     buffer_dir.joinpath("reversed_case_insensitive_keyword_processor.pkl"), "rb"
-        # ) as f:
-        #     self.reversed_case_insensitive_darts = pickle.load(f)
 
     def get_confirmed_common_suffixes(self, chunk: str):
         """Return confirmed common suffixes
