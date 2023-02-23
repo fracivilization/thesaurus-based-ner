@@ -1,7 +1,6 @@
 from typing import Dict, List, Set, Tuple
 from seqeval.metrics.sequence_labeling import get_entities
 from hydra.utils import get_original_cwd, to_absolute_path
-from hashlib import md5
 import os
 from dataclasses import dataclass
 from omegaconf import MISSING
@@ -23,6 +22,8 @@ from src.dataset.utils import (
 from src.dataset.utils import ST21pvSrc
 from functools import lru_cache
 import json
+from pathlib import Path
+import tempfile
 
 DBPedia_dir = "data/DBPedia"
 # DBPedia(Wikipedia)
@@ -80,11 +81,6 @@ def register_term2cat_configs(group="ner_model/typer/term2cat") -> None:
 
 
 def get_anomaly_suffixes(term2cat):
-    buffer_file = os.path.join(
-        get_original_cwd(),
-        "data/buffer/%s"
-        % md5(("anomaly_suffixes" + str(term2cat)).encode()).hexdigest(),
-    )
     anomaly_suffixes = set()
     complex_typer = ComplexKeywordTyper(term2cat)
     lowered2orig = defaultdict(list)
@@ -217,7 +213,8 @@ def load_ambiguous2monosemies_in_dbpedia() -> Dict[str, Set[str]]:
     return ambiguous2monosemies
 
 
-def load_term2dbpedia_entities():
+def load_term2dbpedia_entities(work_dir=tempfile.TemporaryDirectory()):
+    output_file = Path(work_dir.name).joinpath("term2dbpedia_entities.jsonl")
     term2entities = defaultdict(set)
     # 基本的にはlabels.ttlからterm2entitiesを取得する
 
@@ -243,11 +240,12 @@ def load_term2dbpedia_entities():
     # もしそのエンティティが曖昧性解消の結果として現れるならば、「はし」という別の呼称をついかする
     # つまり曖昧性解消の逆を行う
     # NOTE: ambiguousなentityの全てに対して、その名前とdisambiguated enttiesの対応をterm2entitiesに追加し、
+    print("load ambiguous entities")
     ambiguous2monosemies = load_ambiguous2monosemies_in_dbpedia()
     for (
         ambiguous_entity,
         correspond_monosemy_entities,
-    ) in ambiguous2monosemies.items():
+    ) in tqdm(ambiguous2monosemies.items()):
         if ambiguous_entity in entity2term:
             ambiguous_term = entity2term[ambiguous_entity]
             assert term2entities[ambiguous_term] == {ambiguous_entity}
@@ -257,7 +255,13 @@ def load_term2dbpedia_entities():
             print(
                 "ambiguous entity: ", ambiguous_entity, "isn't included in entity2term."
             )
-    return term2entities
+    with open(output_file, "w") as f:
+        for term, entities in tqdm(term2entities.items()):
+            f.write(json.dumps([term, list(sorted(entities))]) + "\n")
+    del term2entities
+    del entity2term
+    del ambiguous2monosemies
+    return output_file
 
 
 @lru_cache(maxsize=None)
@@ -311,35 +315,45 @@ def dbpedia_entities2labels(entities: Tuple[str], config: DictTerm2CatsConfig):
                 # 各CUI:j は複数のラベルからなるラベル集合L_j={l_{ij}}を持つとしたときに
                 # いずれかのCUIのPATHSに含まれるラベル集合を取得する
                 labels |= expand_dbpedia_cats(cats)
+    del entity2cats
     return labels
 
 
-def load_dict_term2cats(conf: DictTerm2CatsConfig):
-    term2cats = dict()
+def load_dict_term2cats_jsonl(
+    conf: DictTerm2CatsConfig, work_dir=tempfile.TemporaryDirectory()
+):
+    term2cats_file = Path(work_dir.name).joinpath("term2cats.jsonl")
     if conf.knowledge_base == "UMLS":
-
         # 1. 表層形からCUIへのマップを構築し
         print("load term2cuis")
         term2cuis = load_term2cuis()
         # 2. CUI(の集合)からそれらの共通・合併成分をとる
         print("load intersection or union labels (tuis) for each cuis")
-        for term, cuis in tqdm(term2cuis.items()):
-            term2cats[term] = tuple(sorted(cuis2labels(cuis, conf)))
-        return term2cats
+        with open(term2cats_file, "w") as g:
+            for term, cuis in tqdm(term2cuis.items()):
+                cats = tuple(sorted(cuis2labels(cuis, conf)))
+                if cats:
+                    g.write(json.dumps([term, cats]) + "\n")
     elif conf.knowledge_base == "DBPedia":
         # 1. 表層形からOntologyへのマップを構築し
         print("load term2entities")
-        term2entities = load_term2dbpedia_entities()
+        term2entities_file = Path(work_dir.name).joinpath("term2entities.jsonl")
+        print("load term2dbpedia_entities")
+        term2entities_file = load_term2dbpedia_entities(work_dir=work_dir)
+        print("term2dbpedia_entities is loaded!")
         # 2. entity(の集合)からそれらの共通・合併成分をとる
         print("load intersection or union labels (ontology classes) for each entities")
-        for term, entities in tqdm(term2entities.items()):
-            cats = sorted(dbpedia_entities2labels(entities, conf))
-            if cats:
-                term2cats[term] = json.dumps(cats)
-        load_dbpedia_entity2cats.cache_clear()
-        return term2cats
+        term2entities_line_count = sum(1 for _ in open(term2entities_file))
+        with open(term2entities_file, "r") as f_in:
+            with open(term2cats_file, "w") as f_out:
+                for line in tqdm(f_in, total=term2entities_line_count):
+                    term, entities = json.loads(line)
+                    cats = sorted(dbpedia_entities2labels(entities, conf))
+                    if cats:
+                        f_out.write(json.dumps([term, cats]) + "\n")
     else:
         raise NotImplementedError
+    return term2cats_file
 
 
 def load_oracle_term2cat(conf: OracleTerm2CatsConfig):
@@ -371,14 +385,16 @@ def load_oracle_term2cat(conf: OracleTerm2CatsConfig):
     return term2cat
 
 
-def load_term2cats(conf: Term2CatsConfig):
+def load_term2cats_jsonl(conf: Term2CatsConfig, work_dir=tempfile.TemporaryDirectory()):
     if conf.name == "dict":
-        term2cat = load_dict_term2cats(conf)
+        term2cats_jsonl = load_dict_term2cats_jsonl(conf, work_dir=work_dir)
     elif conf.name == "oracle":
-        term2cat = load_oracle_term2cat(conf)
+        # TODO: jsonlファイルを返すように修正する
+        raise NotImplementedError
+        term2cats_jsonl = load_oracle_term2cat(conf)
     else:
         raise NotImplementedError
-    return term2cat
+    return term2cats_jsonl
 
 
 def log_term2cats(term2cats: Dict):
