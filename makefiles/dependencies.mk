@@ -118,10 +118,14 @@ $(TRAIN_ON_GOLD_OUT): $(GOLD_TRAIN_MSC_DATA) $(GOLD_DATA)
 
 
 $(PSEUDO_OUT): $(GOLD_DATA) $(TERM2CAT)
+ifeq ($(REMAIN_COMMON_SENSE_FOR_TERM2CATS),False)
 	${PYTHON} -m cli.train \
 		ner_model=PseudoTwoStage \
 		++dataset.name_or_path=$(GOLD_DATA) \
 		+ner_model.typer.term2cat=$(TERM2CAT) 2>&1 | tee ${PSEUDO_OUT}
+else
+		echo "疑似教師による予測の際には着目クラスのみを利用してください"
+endif
 
 $(GOLD_DIR)/MedMentions_multi_label_ner: $(MED_MENTIONS_DIR)
 	${PYTHON} -m cli.preprocess.load_gold_multi_label_ner --evaluation-data MedMentions --input-dir $(MED_MENTIONS_DIR)/full/data --output-dir $(GOLD_DIR)/MedMentions_multi_label_ner
