@@ -4,7 +4,7 @@ from datasets.arrow_dataset import Dataset
 from tqdm import tqdm
 import dartsclone
 import json
-from hydra.utils import to_absolute_path
+import os
 
 
 class UnionFind:
@@ -145,8 +145,11 @@ class DoubleArrayDict:
         cats_list = []
         keys = []
         values = []
+        print("calulating key value pairs count")
+        total_key_value_count = sum(1 for _ in open(jsonl_key_value_pairs_file_path))
         for line in tqdm(
-            open(to_absolute_path(jsonl_key_value_pairs_file_path)), total=11476181
+            open(jsonl_key_value_pairs_file_path),
+            total=total_key_value_count,
         ):
             if line:
                 term, cats = json.loads(line.strip())
@@ -157,4 +160,101 @@ class DoubleArrayDict:
 
         return DoubleArrayDict.load_from_unsorted_unbinarized_key_and_indexed_values(
             keys, values, cats_list
+        )
+
+
+class FileBasedIterator:
+    """ファイルから読み取った行をもとにしたイテレーター"""
+
+    def __init__(self, file_path, func_for_each_line) -> None:
+        print("start calculating length")
+        # self.length = sum(1 for _ in tqdm(open(file_path)))
+        self.f = open(file_path, "r")
+        self.func_for_each_line = func_for_each_line
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        try:
+            next_line = self.f.readline()
+        except StopIteration:
+            raise StopIteration()
+        else:
+            if next_line.strip():
+                return self.func_for_each_line(next_line)
+            else:
+                raise StopIteration()
+
+    # def __len__(self):
+    #     return self.length
+
+
+class DoubleArrayDictWithIterators:
+    """Double Array Dictに.keys, .values, .items などの Iteratorを追加する
+
+    jsonl_key_value_paris (各行がkeyとvalueのペアで表されるようなjsonになっているファイル)からロードする"""
+
+    def __init__(
+        self, jsonl_key_value_pairs_file_path: Path, da_dict: DoubleArrayDict = None
+    ) -> None:
+        self.jsonl_key_value_pairs_file = jsonl_key_value_pairs_file_path
+        if da_dict:
+            self.da_dict = da_dict
+        else:
+            self.da_dict = DoubleArrayDict.load_from_jsonl_key_value_pairs(
+                jsonl_key_value_pairs_file_path
+            )
+
+    def __getitem__(self, item: str):
+        if item in self.da_dict:
+            return self.da_dict[item]
+        else:
+            raise KeyError
+
+    def __contains__(self, item: str):
+        return item in self.da_dict
+
+    def items(self):
+        return FileBasedIterator(
+            self.jsonl_key_value_pairs_file, lambda line: json.loads(line.strip())
+        )
+
+    def keys(self):
+        return FileBasedIterator(
+            self.jsonl_key_value_pairs_file, lambda line: json.loads(line.strip())[0]
+        )
+
+    def values(self):
+        return FileBasedIterator(
+            self.jsonl_key_value_pairs_file, lambda line: json.loads(line.strip())[1]
+        )
+
+    def save_to_disk(self, target_dir: Path):
+        os.makedirs(target_dir, exist_ok=True)
+        medata_path = os.path.join(target_dir, "metadata.json")
+        double_array_path = os.path.join(target_dir, "double_array.dic")
+        with open(medata_path, "w") as f:
+            json.dump(
+                {
+                    "jsonl_key_valu_pairs_file": self.jsonl_key_value_pairs_file,
+                    "value_labels": self.da_dict.value_labels,
+                },
+                f,
+            )
+        self.da_dict.double_array.save(double_array_path)
+
+    def load_from_disk(target_dir: Path):
+        medata_path = os.path.join(target_dir, "metadata.json")
+        double_array_path = os.path.join(target_dir, "double_array.dic")
+
+        with open(medata_path, "r") as f:
+            metadata = json.load(f)
+
+        da_dict = DoubleArrayDict([], [], metadata["value_labels"])
+        da_dict.double_array.clear()
+        da_dict.double_array.open(double_array_path)
+
+        return DoubleArrayDictWithIterators(
+            metadata["jsonl_key_valu_pairs_file"], da_dict
         )

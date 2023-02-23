@@ -1,5 +1,5 @@
 import unittest
-from src.utils.utils import LazyFileList, DoubleArrayDict
+from src.utils.utils import LazyFileList, DoubleArrayDict, DoubleArrayDictWithIterators
 import json
 from tqdm import tqdm
 
@@ -42,3 +42,22 @@ class TestDoubleArrayDict(unittest.TestCase):
         for key, val in zip(keys, values):
             assert da_dict[key] == cats_list[val]
         assert "not included word" not in da_dict
+
+
+class TestDoubleArrayDictWithIterators(unittest.TestCase):
+    def test_load_double_array_dict(self):
+        file_path = "tests/fixtures/term2cats"
+
+        da_dict = DoubleArrayDictWithIterators(file_path)
+        for i, (k, v) in enumerate(da_dict.items()):
+            print(i, k, v)
+            if i == 10:
+                break
+        for i, k in enumerate(da_dict.keys()):
+            print(i, k)
+            if i == 10:
+                break
+        for i, v in enumerate(da_dict.values()):
+            print(i, v)
+            if i == 10:
+                break

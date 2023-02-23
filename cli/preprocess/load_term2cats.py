@@ -12,7 +12,7 @@ from src.dataset.utils import singularize, pluralize
 from tqdm import tqdm
 import tempfile
 from pathlib import Path
-from src.utils.utils import DoubleArrayDict
+from src.utils.utils import DoubleArrayDict, DoubleArrayDictWithIterators
 import json
 
 register_term2cat_configs(None)
@@ -28,7 +28,6 @@ def main(config: Term2CatsConfig):
     inflected_term2cats_file = output_path + ".src.inflected_term2cats.jsonl"
 
     print("load inflected term2cats")
-    # TODO: term2cats_jsonlの行数を数えてtqdmできるようにする
     term2cats_jsonl_line_count = sum(1 for _ in open(term2cats_jsonl))
     with open(term2cats_jsonl) as f_input:
         with open(inflected_term2cats_file, "w") as f_output:
@@ -51,11 +50,8 @@ def main(config: Term2CatsConfig):
                         f_output.write(json.dumps([expanded_term, cats]) + "\n")
 
     del term2cats
-    inflected_term2cats = DoubleArrayDict.load_from_jsonl_key_value_pairs(
-        inflected_term2cats_file
-    )
-    with open(output_path, "wb") as f:
-        pickle.dump(inflected_term2cats, f)
+    inflected_term2cats = DoubleArrayDictWithIterators(inflected_term2cats_file)
+    inflected_term2cats.save_to_disk(output_path)
 
     # TODO: ログを取れるようにする
     # log_term2cats(inflected_term2cats)
