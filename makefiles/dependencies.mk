@@ -1,7 +1,5 @@
 $(DATA_DIR):
 	mkdir $(DATA_DIR)
-$(DICT_DIR): $(DATA_DIR)
-	mkdir -p $(DICT_DIR)
 $(UMLS_DIR): $(DATA_DIR)
 	@echo "Please Download UMLS2021AA full from https://www.nlm.nih.gov/research/umls/licensedcontent/umlsknowledgesources.html"
 	@echo "You need UMLS Account, so please acces by web browser and mv the file into $(UMLS_DIR)"
@@ -30,7 +28,7 @@ $(TERM2CAT_DIR): $(DATA_DIR)
 	mkdir -p $(TERM2CAT_DIR)
 $(TERM2CATS_DIR): $(DATA_DIR)
 	mkdir -p $(TERM2CATS_DIR)
-$(TERM2CAT): $(TERM2CAT_DIR) $(DICT_FILES) $(TERM2CATS)
+$(TERM2CAT): $(TERM2CAT_DIR) $(TERM2CATS)
 	@echo TERM2CAT: $(TERM2CAT)
 	${PYTHON} -m cli.preprocess.load_term2cat \
 		term2cats=$(TERM2CATS) \
@@ -75,10 +73,6 @@ $(GOLD_TRAIN_MSC_DATA): $(GOLD_TRAIN_DATA)
 
 
 
-$(DICT_FILES): $(DICT_DIR) $(UMLS_DIR) $(DBPEDIA_DIR)
-	@echo make dict files $@
-	${PYTHON} -m cli.preprocess.load_terms --category $(notdir $@) --output $@
-
 $(RAW_CORPUS_DIR): $(DATA_DIR)
 	mkdir -p $(RAW_CORPUS_DIR)
 $(PUBMED): $(RAW_CORPUS_DIR)
@@ -93,7 +87,7 @@ $(RAW_CORPUS_OUT): $(SOURCE_TXT_DIR)
 	@echo raw corpus out dir: $(RAW_CORPUS_OUT)
 	${PYTHON} -m cli.preprocess.load_raw_corpus --raw-sentence-num $(RAW_SENTENCE_NUM) --source-txt-dir $(SOURCE_TXT_DIR) --output-dir $(RAW_CORPUS_OUT)
 
-$(PSEUDO_DATA_ON_GOLD): $(GOLD_DATA) $(DICT_FILES) $(PSEUDO_DATA_DIR) $(TERM2CAT) $(BUFFER_DIR)
+$(PSEUDO_DATA_ON_GOLD): $(GOLD_DATA) $(PSEUDO_DATA_DIR) $(TERM2CAT) $(BUFFER_DIR)
 	@echo make pseudo data on Gold dataset for comparison
 	@echo make from Gold: $(GOLD_DATA)
 	@echo focused categories: $(FOCUS_CATS)

@@ -1,7 +1,5 @@
 include ./makefiles/__init__.mk
 
-make_dict: $(DICT_FILES)
-	@echo DICT_FILES: $(DICT_FILES)
 make_gold_msmlc: $(GOLD_TRAIN_MSMLC_DATA)
 	@echo GOLD_TRAIN_MSMLC_DATA: $(GOLD_TRAIN_MSMLC_DATA)
 make_gold_multi_label_ner: $(GOLD_MULTI_LABEL_NER_DATA)

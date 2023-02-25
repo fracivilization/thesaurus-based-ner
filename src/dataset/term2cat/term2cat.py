@@ -30,7 +30,7 @@ class DictTerm2CatConfig(Term2CatConfig):
     focus_cats: str = MISSING
     # duplicate_cats: str = MISSING
     negative_cats: str = MISSING
-    dict_dir: str = os.path.join(os.getcwd(), "data/dict")
+    term2cats: str = MISSING
     # with_nc: bool = False
     remove_anomaly_suffix: bool = False  # remove suffix term (e.g. "migration": nc-T054 for "cell migration": T038)
     output: str = MISSING
