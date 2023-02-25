@@ -44,13 +44,13 @@ DBPedia_WD_alias = os.path.join(DBPedia_dir, "alias.ttl")
 
 
 @dataclass
-class Term2CatsConfig:
+class DictionaryFormTerm2CatsConfig:
     name: str = MISSING
     output: str = MISSING
 
 
 @dataclass
-class DictTerm2CatsConfig(Term2CatsConfig):
+class DictDictionaryFormTerm2CatsConfig(DictionaryFormTerm2CatsConfig):
     name: str = "dict"
     knowledge_base: str = "UMLS"
     remain_common_sense: bool = (
@@ -60,18 +60,20 @@ class DictTerm2CatsConfig(Term2CatsConfig):
 
 
 @dataclass
-class OracleTerm2CatsConfig(Term2CatsConfig):
+class OracleTerm2CatsConfig(DictionaryFormTerm2CatsConfig):
     name: str = "oracle"
     gold_dataset: str = MISSING
     output: str = MISSING
 
 
-def register_term2cat_configs(group="ner_model/typer/term2cat") -> None:
+def register_dictionary_form_term2cats_configs(
+    group="ner_model/typer/term2cat",
+) -> None:
     cs = ConfigStore.instance()
     cs.store(
         group=group,
         name="base_DictTerm2Cats_config",
-        node=DictTerm2CatsConfig,
+        node=DictDictionaryFormTerm2CatsConfig,
     )
     cs.store(
         group=group,
@@ -152,9 +154,9 @@ def expand_tuis(tuis: Set[str]) -> Set:
     return expanded_tuis
 
 
-def cuis2labels(cuis: List[str], config: DictTerm2CatsConfig):
+def cuis2labels(cuis: List[str], remain_common_sense: bool):
     cui2tuis = load_cui2tuis()
-    if config.remain_common_sense:
+    if remain_common_sense:
         labels = tui2ST.keys()
         # 各CUI:j は複数のラベルからなるラベル集合L_j={l_{ij}}を持つとしたときに
         # すべてのCUIのPATHSに含まれるラベル集合を取得する
@@ -165,7 +167,7 @@ def cuis2labels(cuis: List[str], config: DictTerm2CatsConfig):
 
     for cui in cuis:
         tuis = cui2tuis[cui]
-        if config.remain_common_sense:
+        if remain_common_sense:
             labels &= expand_tuis(tuis)
         else:
             labels |= expand_tuis(tuis)
@@ -300,14 +302,14 @@ def expand_dbpedia_cats(cats: Set[str]) -> Set:
     return expanded_cats
 
 
-def dbpedia_entities2labels(entities: Tuple[str], config: DictTerm2CatsConfig):
+def dbpedia_entities2labels(entities: Tuple[str], remain_common_sense):
     entity2cats = load_dbpedia_entity2cats()
     for i, entity in enumerate(entities):
         cats = entity2cats[entity]
         if i == 0:
             labels = expand_dbpedia_cats(cats)
         else:
-            if config.remain_common_sense:
+            if remain_common_sense:
                 # 各CUI:j は複数のラベルからなるラベル集合L_j={l_{ij}}を持つとしたときに
                 # すべてのCUIのPATHSに含まれるラベル集合を取得する
                 labels &= expand_dbpedia_cats(cats)
@@ -319,41 +321,51 @@ def dbpedia_entities2labels(entities: Tuple[str], config: DictTerm2CatsConfig):
     return labels
 
 
-def load_dict_term2cats_jsonl(
-    conf: DictTerm2CatsConfig, work_dir=tempfile.TemporaryDirectory()
+def load_dict_dictionary_form_term2cats_jsonl(
+    knowledge_base: str,
+    remain_common_sense: bool = True,
+    work_dir=tempfile.TemporaryDirectory(),
 ):
-    term2cats_file = Path(work_dir.name).joinpath("term2cats.jsonl")
-    if conf.knowledge_base == "UMLS":
+    dictionary_form_term2cats_file = Path(work_dir.name).joinpath("term2cats.jsonl")
+    if knowledge_base == "UMLS":
         # 1. 表層形からCUIへのマップを構築し
         print("load term2cuis")
-        term2cuis = load_term2cuis()
+        dictionary_form_term2cuis = load_term2cuis()
         # 2. CUI(の集合)からそれらの共通・合併成分をとる
         print("load intersection or union labels (tuis) for each cuis")
-        with open(term2cats_file, "w") as g:
-            for term, cuis in tqdm(term2cuis.items()):
-                cats = tuple(sorted(cuis2labels(cuis, conf)))
+        with open(dictionary_form_term2cats_file, "w") as g:
+            for term, cuis in tqdm(dictionary_form_term2cuis.items()):
+                cats = tuple(sorted(cuis2labels(cuis, remain_common_sense)))
                 if cats:
                     g.write(json.dumps([term, cats]) + "\n")
-    elif conf.knowledge_base == "DBPedia":
+    elif knowledge_base == "DBPedia":
         # 1. 表層形からOntologyへのマップを構築し
-        print("load term2entities")
-        term2entities_file = Path(work_dir.name).joinpath("term2entities.jsonl")
+        print("load dictionary_form_term2entities")
+        dictionary_form_term2entities_file = Path(work_dir.name).joinpath(
+            "term2entities.jsonl"
+        )
         print("load term2dbpedia_entities")
-        term2entities_file = load_term2dbpedia_entities(work_dir=work_dir)
+        dictionary_form_term2entities_file = load_term2dbpedia_entities(
+            work_dir=work_dir
+        )
         print("term2dbpedia_entities is loaded!")
         # 2. entity(の集合)からそれらの共通・合併成分をとる
         print("load intersection or union labels (ontology classes) for each entities")
-        term2entities_line_count = sum(1 for _ in open(term2entities_file))
-        with open(term2entities_file, "r") as f_in:
-            with open(term2cats_file, "w") as f_out:
-                for line in tqdm(f_in, total=term2entities_line_count):
+        dictionary_form_term2entities_line_count = sum(
+            1 for _ in open(dictionary_form_term2entities_file)
+        )
+        with open(dictionary_form_term2entities_file, "r") as f_in:
+            with open(dictionary_form_term2cats_file, "w") as f_out:
+                for line in tqdm(f_in, total=dictionary_form_term2entities_line_count):
                     term, entities = json.loads(line)
-                    cats = sorted(dbpedia_entities2labels(entities, conf))
+                    cats = sorted(
+                        dbpedia_entities2labels(entities, remain_common_sense)
+                    )
                     if cats:
                         f_out.write(json.dumps([term, cats]) + "\n")
     else:
         raise NotImplementedError
-    return term2cats_file
+    return dictionary_form_term2cats_file
 
 
 def load_oracle_term2cat(conf: OracleTerm2CatsConfig):
@@ -385,9 +397,13 @@ def load_oracle_term2cat(conf: OracleTerm2CatsConfig):
     return term2cat
 
 
-def load_term2cats_jsonl(conf: Term2CatsConfig, work_dir=tempfile.TemporaryDirectory()):
+def load_dictionary_form_term2cats_jsonl(
+    conf: DictionaryFormTerm2CatsConfig, work_dir=tempfile.TemporaryDirectory()
+):
     if conf.name == "dict":
-        term2cats_jsonl = load_dict_term2cats_jsonl(conf, work_dir=work_dir)
+        term2cats_jsonl = load_dict_dictionary_form_term2cats_jsonl(
+            conf, work_dir=work_dir
+        )
     elif conf.name == "oracle":
         # TODO: jsonlファイルを返すように修正する
         raise NotImplementedError

@@ -6,7 +6,7 @@ $(UMLS_DIR): $(DATA_DIR)
 	@echo "Plaese refer to README.md"
 $(DBPEDIA_DIR): $(DATA_DIR)
 	mkdir -p $(DBPEDIA_DIR)
-	# wget https://databus.dbpedia.org/ontologies/dbpedia.org/ontology--DEV/2021.07.09-070001/ontology--DEV_type=parsed_sorted.nt # DBPedia Ontlogy
+	# wget https://databus.dbpedia.org/ontologies/dbpedia.org/ontology--DEV/2023.02.21-124003/ontology--DEV_type=parsed_sorted.nt # DBPedia Ontlogy
 	# # Wikipedia in DBPedia
 	# wget https://databus.dbpedia.org/dbpedia/mappings/instance-types/2021.06.01/instance-types_lang=en_specific.ttl.bz2 # Wikipedia Articles Types
 	# wget https://databus.dbpedia.org/dbpedia/generic/labels/2021.06.01/labels_lang=en.ttl.bz2 # Wikipedia Article Label
@@ -43,12 +43,12 @@ $(PSEUDO_DATA_DIR): $(DATA_DIR)
 $(GOLD_DIR): $(DATA_DIR)
 	mkdir -p $(GOLD_DIR)
 $(MED_MENTIONS_DIR): $(GOLD_DIR)
-	git clone https://github.com/chanzuckerberg/MedMentions
-	for f in `find MedMentions/ | grep gz`; do gunzip $$f; done
-	mv MedMentions $(GOLD_DIR)/MedMentions
-	cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_trng.txt data/gold/MedMentions/st21pv/data/
-	cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_dev.txt data/gold/MedMentions/st21pv/data/
-	cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_test.txt data/gold/MedMentions/st21pv/data/
+	# git clone https://github.com/chanzuckerberg/MedMentions
+	# for f in `find MedMentions/ | grep gz`; do gunzip $$f; done
+	# mv MedMentions $(GOLD_DIR)/MedMentions
+	# cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_trng.txt data/gold/MedMentions/st21pv/data/
+	# cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_dev.txt data/gold/MedMentions/st21pv/data/
+	# cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_test.txt data/gold/MedMentions/st21pv/data/
 $(CONLL2003_DIR): $(GOLD_DIR)
 	@echo CONLL2003_DIR: $(CONLL2003_DIR)
 	@echo Please download from https://www.kaggle.com/datasets/alaakhaled/conll003-englishversion?resource=download
@@ -143,12 +143,17 @@ $(PSEUDO_MSMLC_DATA_ON_GOLD): $(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD)
 	+multi_label_ner_dataset=$(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD) \
 	+output_dir=$(PSEUDO_MSMLC_DATA_ON_GOLD)
 
-$(TERM2CATS): $(TERM2CATS_DIR) $(UMLS_DIR)
-	@echo TERM2CATS: $(TERM2CATS)
-	${PYTHON} -m cli.preprocess.load_term2cats \
-		++knowledge_base=$(KNOWLEDGE_BASE) \
-		++remain_common_sense=$(REMAIN_COMMON_SENSE_FOR_TERM2CATS) \
-		++output=$(TERM2CATS)
+$(DICTIONARY_FORM_TERM2CATS): $(TERM2CATS_DIR) $(UMLS_DIR)
+	@echo DICTIONARY_FORM_TERM2CATS: $(DICTIONARY_FORM_TERM2CATS)
+	${PYTHON} -m cli.preprocess.load_dictionary_form_term2cats \
+		--knowledge-base=$(KNOWLEDGE_BASE) \
+		--remain-common-sense=$(REMAIN_COMMON_SENSE_FOR_TERM2CATS) \
+		--output-dir=$(DICTIONARY_FORM_TERM2CATS)
+
+$(TERM2CATS): $(DICTIONARY_FORM_TERM2CATS)
+	${PYTHON} -m cli.preprocess.inflect_terms_of_term2cats \
+		--dictionary-form-term2cats-dir=$(DICTIONARY_FORM_TERM2CATS) \
+		--output-dir=$(TERM2CATS)
 
 $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL): $(PSEUDO_MSMLC_DATA_ON_GOLD)
 	$(TRAIN_MSMLC_BASE_CMD) \
