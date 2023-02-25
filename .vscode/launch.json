@@ -362,7 +362,7 @@
             "name": "Load Term2Cats",
             "type": "python",
             "request": "launch",
-            "module": "cli.preprocess.load_term2cats",
+            "module": "cli.preprocess.load_dictionary_form_term2cats",
             "justMyCode": false,
             "args": [
                 "++knowledge_base=DBPedia",

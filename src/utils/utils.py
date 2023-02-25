@@ -5,6 +5,7 @@ from tqdm import tqdm
 import dartsclone
 import json
 import os
+import shutil
 
 
 class UnionFind:
@@ -167,7 +168,7 @@ class FileBasedIterator:
     """ファイルから読み取った行をもとにしたイテレーター"""
 
     def __init__(self, file_path, func_for_each_line) -> None:
-        print("start calculating length")
+        # print("start calculating length")
         # self.length = sum(1 for _ in tqdm(open(file_path)))
         self.f = open(file_path, "r")
         self.func_for_each_line = func_for_each_line
@@ -234,10 +235,11 @@ class DoubleArrayDictWithIterators:
         os.makedirs(target_dir, exist_ok=True)
         medata_path = os.path.join(target_dir, "metadata.json")
         double_array_path = os.path.join(target_dir, "double_array.dic")
+        source_kv_pairs_path = os.path.join(target_dir, "source_key_value_pairs.jsnol")
+        shutil.copyfile(self.jsonl_key_value_pairs_file, source_kv_pairs_path)
         with open(medata_path, "w") as f:
             json.dump(
                 {
-                    "jsonl_key_valu_pairs_file": self.jsonl_key_value_pairs_file,
                     "value_labels": self.da_dict.value_labels,
                 },
                 f,
@@ -247,6 +249,7 @@ class DoubleArrayDictWithIterators:
     def load_from_disk(target_dir: Path):
         medata_path = os.path.join(target_dir, "metadata.json")
         double_array_path = os.path.join(target_dir, "double_array.dic")
+        source_kv_pairs_path = os.path.join(target_dir, "source_key_value_pairs.jsnol")
 
         with open(medata_path, "r") as f:
             metadata = json.load(f)
@@ -255,6 +258,4 @@ class DoubleArrayDictWithIterators:
         da_dict.double_array.clear()
         da_dict.double_array.open(double_array_path)
 
-        return DoubleArrayDictWithIterators(
-            metadata["jsonl_key_valu_pairs_file"], da_dict
-        )
+        return DoubleArrayDictWithIterators(source_kv_pairs_path, da_dict)
