@@ -433,11 +433,13 @@ def get_negative_cats_from_focus_cats(
         pass
     elif root_node_of_thesaurus.name == "<http://www.w3.org/2002/07/owl#Class>":
         for negative_cat_name in negative_cat_names:
-            assert dbpedia_ontology_pattern.match(negative_cat_name)
-        negative_cat_names = [
-            dbpedia_ontology_pattern.match(negatice_cat_name).group(1)
-            for negatice_cat_name in negative_cat_names
-        ]
+            assert dbpedia_ontology_pattern.match(
+                negative_cat_name
+            ) or negative_cat_name in {
+                "<http://www.w3.org/2002/07/owl#ObjectProperty>",
+                "<http://www.w3.org/1999/02/22-rdf-syntax-ns#Property>",
+                "<http://www.w3.org/2002/07/owl#DatatypeProperty>",
+            }
     else:
         raise NotImplementedError
     negative_cat_names.sort()
@@ -457,9 +459,6 @@ def get_umls_negative_cats_from_focus_cats(umls_focus_cat_tuis: List[str]):
 
 def get_dbpedia_negative_cats_from_focus_cats(focus_cats: List[str]):
     dbpedia_thesaurus = load_dbpedia_thesaurus()
-    focus_cats = set(
-        ["<http://dbpedia.org/ontology/%s>" % focus_cat for focus_cat in focus_cats]
-    )
 
     negative_cats = get_negative_cats_from_focus_cats(focus_cats, dbpedia_thesaurus)
     assert not focus_cats & set(negative_cats)

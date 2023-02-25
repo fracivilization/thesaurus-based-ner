@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List
 from seqeval.metrics.sequence_labeling import get_entities
 from .genia import load_term2cat as genia_load_term2cat
 from .twitter import load_twitter_main_dictionary, load_twitter_sibling_dictionary
@@ -12,8 +12,9 @@ from hydra.core.config_store import ConfigStore
 from datasets import DatasetDict
 from collections import Counter
 from prettytable import PrettyTable
-import pickle
-import json
+from src.utils.utils import DoubleArrayDictWithIterators
+from src.dataset.utils import load_dbpedia_thesaurus, get_negative_cats_from_focus_cats
+from tqdm import tqdm
 
 
 @dataclass
@@ -73,6 +74,34 @@ def get_anomaly_suffixes(term2cat):
     return anomaly_suffixes
 
 
+CategoryMapper = {
+    # NOTE: MISCはこれらいずれにも属さないカテゴリとする
+    "PER": {
+        "<http://dbpedia.org/ontology/Person>",
+        "<http://dbpedia.org/ontology/Name>",
+    },
+    "ORG": {"<http://dbpedia.org/ontology/Organisation>"},
+    "LOC": {"<http://dbpedia.org/ontology/Place>"},
+}
+
+
+def get_dbpedia_negative_cats_from_focus_cats(focus_cats: List[str]):
+    dbpedia_thesaurus = load_dbpedia_thesaurus()
+
+    negative_cats = get_negative_cats_from_focus_cats(focus_cats, dbpedia_thesaurus)
+    assert not focus_cats & set(negative_cats)
+    return negative_cats
+
+
+non_misc_categories = {
+    correspond_cat
+    for _, correspond_cats in CategoryMapper.items()
+    for correspond_cat in correspond_cats
+}
+misc_categories = get_dbpedia_negative_cats_from_focus_cats(non_misc_categories)
+CategoryMapper["MISC"] = misc_categories
+
+
 def load_dict_term2cat(conf: DictTerm2CatConfig):
     focus_cats = set(conf.focus_cats.split("_"))
     if conf.negative_cats:
@@ -80,14 +109,38 @@ def load_dict_term2cat(conf: DictTerm2CatConfig):
     else:
         negative_cats = set()
     target_cats = focus_cats | negative_cats
-    with open(to_absolute_path(conf.term2cats), "rb") as f:
-        term2cats = pickle.load(f)
+    # NOTE: PER, LOC, ORG, MISCなどKnowledgebaseと対応付ける必要があるカテゴリに対処する
+    target_knowledge_base_cats = set()
+    for target_cat in target_cats:
+        if target_cat in CategoryMapper:
+            for knowledge_base_cat in CategoryMapper[target_cat]:
+                target_knowledge_base_cats.add(knowledge_base_cat)
+        else:
+            target_knowledge_base_cats.add(target_cat)
+    knowledgebase_cat2target_cat = {
+        kb_cat: cat
+        for cat, knowledgebase_cats in CategoryMapper.items()
+        for kb_cat in knowledgebase_cats
+    }
+    term2cats = DoubleArrayDictWithIterators.load_from_disk(
+        to_absolute_path(conf.term2cats)
+    )
 
     term2cat = dict()
-    for term, cats in term2cats.items():
-        candidate_cats = set(json.loads(cats)) & target_cats
+    total_count = sum(1 for _ in term2cats.items())
+    for term, cats in tqdm(term2cats.items(), total=total_count):
+        candidate_knowledgebase_cats = set(cats) & target_knowledge_base_cats
+        candidate_cats = {
+            knowledgebase_cat2target_cat[kb_cat]
+            for kb_cat in candidate_knowledgebase_cats
+        }
         if len(candidate_cats) == 1:
-            cat = candidate_cats.pop()
+            knowledgebase_cat = candidate_cats.pop()
+            cat = (
+                knowledgebase_cat2target_cat[knowledgebase_cat]
+                if knowledgebase_cat in knowledgebase_cat2target_cat
+                else knowledgebase_cat
+            )
             if cat in negative_cats:
                 term2cat[term] = "nc-%s" % cat
             else:
