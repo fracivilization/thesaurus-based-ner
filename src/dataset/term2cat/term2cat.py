@@ -82,6 +82,18 @@ CategoryMapper = {
     },
     "ORG": {"<http://dbpedia.org/ontology/Organisation>"},
     "LOC": {"<http://dbpedia.org/ontology/Place>"},
+    # NOTE: DBPediaにはtime, day, ballなどの大量の一般名詞がふくまれるので、
+    #       PER, ORG, LOC以外とするのではなく、結局列挙する必要がありそう
+    "MISC": {
+        "<http://dbpedia.org/ontology/Work>",
+        "<http://dbpedia.org/ontology/Event>",
+        "<http://dbpedia.org/ontology/MeanOfTransportation>",
+        "<http://dbpedia.org/ontology/Device>",  # AK-47が含まれているので
+        "<http://dbpedia.org/ontology/Award>",  # ノーベル平和賞がふくまれているので
+        "<http://dbpedia.org/ontology/Disease>",
+        # NOTE:ethnicGroupは'/<http://www.w3.org/2002/07/owl#Class>/<http://www.w3.org/1999/02/22-rdf-syntax-ns#Property>/<http://dbpedia.org/ontology/ethnicGroup>' という箇所にある
+        "<http://dbpedia.org/ontology/ethnicGroup>",
+    },
 }
 
 
@@ -91,15 +103,6 @@ def get_dbpedia_negative_cats_from_focus_cats(focus_cats: List[str]):
     negative_cats = get_negative_cats_from_focus_cats(focus_cats, dbpedia_thesaurus)
     assert not focus_cats & set(negative_cats)
     return negative_cats
-
-
-non_misc_categories = {
-    correspond_cat
-    for _, correspond_cats in CategoryMapper.items()
-    for correspond_cat in correspond_cats
-}
-misc_categories = get_dbpedia_negative_cats_from_focus_cats(non_misc_categories)
-CategoryMapper["MISC"] = misc_categories
 
 
 def load_dict_term2cat(conf: DictTerm2CatConfig):
