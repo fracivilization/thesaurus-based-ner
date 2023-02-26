@@ -24,6 +24,7 @@ from functools import lru_cache
 import json
 from pathlib import Path
 import tempfile
+from src.utils.utils import DoubleArrayDict
 
 DBPedia_dir = "data/DBPedia"
 # DBPedia(Wikipedia)
@@ -318,6 +319,19 @@ def load_dbpedia_entity2cats() -> Dict:
             break
         unfound_redirects = remained_redirects
         # TODO: WeightedDoubleArrayDictで読み込むようにする
+    keys = []
+    indexed_values = []
+    values_labels = []
+    while entity2cats:
+        entity, cats = entity2cats.popitem()
+        cats = sorted(set(json.loads(cats)))
+        keys.append(entity)
+        if cats not in values_labels:
+            values_labels.append(cats)
+        indexed_values.append(values_labels.index(cats))
+    entity2cats = DoubleArrayDict.load_from_unsorted_unbinarized_key_and_indexed_values(
+        keys, indexed_values, values_labels
+    )
     return entity2cats
 
 
