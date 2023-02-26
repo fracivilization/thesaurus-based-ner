@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datasets import DatasetDict
 from datasets import load_dataset
 from dataclasses import dataclass
-from typing import Any, Dict, List, Callable
+from typing import Any, Dict, List, Callable, Set
 from more_itertools import powerset
 import os
 import re
@@ -16,6 +16,7 @@ NEGATIVE_CATEGORY_PREFIX = "nc"
 NEGATIVE_CATEGORY_TEMPLATE = f"{NEGATIVE_CATEGORY_PREFIX}-%s"
 PLURAL_RULES = [(re.compile(rule), replacement) for rule, replacement in PLURALS]
 SINGULAR_RULES = [(re.compile(rule), replacement) for rule, replacement in SINGULARS]
+dbpedia_ontology_pattern = re.compile("<http://dbpedia.org/ontology/([^>]+)>")
 
 
 def pluralize(word: str) -> str:
@@ -140,6 +141,101 @@ def load_umls_thesaurus() -> UMLSNode:
         return subtree_root_node
 
     return make_subtree(UMLS_ROOT_TUI, None)
+
+
+def dbpedia_name_patch(node="<http://dbpedia.org/ontology/Infrastucture>"):
+    dbpedia_name_patch = {
+        "<http://dbpedia.org/ontology/Infrastucture>": "<http://dbpedia.org/ontology/Infrastructure>",
+        "<http://dbpedia.org/ontology/TimeInterval>": "<http://dbpedia.org/ontology/TimePeriod>",
+    }
+    if node in dbpedia_name_patch:
+        return dbpedia_name_patch[node]
+    else:
+        return node
+
+
+def load_dbpedia_parent2descendants() -> Dict:
+    DBPedia_dir = "data/DBPedia"
+    DBPedia_ontology = os.path.join(DBPedia_dir, "ontology--DEV_type=parsed_sorted.nt")
+    # Get DBPedia Concepts
+    from rdflib import Graph, URIRef
+
+    g = Graph()
+    g.parse(to_absolute_path(DBPedia_ontology))
+    s, p, o = next(g.__iter__())
+    parent2children = defaultdict(set)
+    for s, p, o in g:
+        if isinstance(o, URIRef) and p.n3() in {
+            "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>",
+            "<http://www.w3.org/2000/01/rdf-schema#subClassOf>",
+        }:
+            parent2children[dbpedia_name_patch(o.n3())] |= {dbpedia_name_patch(s.n3())}
+    return parent2children
+
+
+@lru_cache(maxsize=None)
+def load_dbpedia_thesaurus() -> Node:
+    parent2children = load_dbpedia_parent2descendants()
+    import networkx as nx
+
+    parent_child_pair = [
+        (parent, child)
+        for parent, children in parent2children.items()
+        for child in children
+    ]
+    graph = nx.DiGraph(parent_child_pair)
+    reducted_graph = nx.transitive_reduction(graph)
+    # NOTE: ルートノードの候補として"<http://www.w3.org/2002/07/owl#Class>" と　"<http://www.w3.org/2002/07/owl#Thing>" がある
+    # NOTE: 前者にはElectricalSubstation, Holidayが余計に含まれている
+    # NOTE: そこでowl#Classを基準に利用しつつ、
+    # NOTE: もしowl#Class, owl#Thing以外の親クラスを持つ場合にはその親クラスに置き換えるという処理を行う。
+    candidate_classes = set(
+        list(reducted_graph.successors("<http://www.w3.org/2002/07/owl#Class>"))
+    )
+    top_classses = set()
+    root_classes = {
+        "<http://www.w3.org/2002/07/owl#Class>",
+        "<http://www.w3.org/2002/07/owl#Thing>",
+        # NOTE: 次のものも不要なので排除
+        "<http://www.ontologydesignpatterns.org/ont/dul/DUL.owl#TimeInterval>",
+    }
+    while candidate_classes:
+        candidates = candidate_classes.copy()
+        for candidate in candidates:
+            candidate_ancestors = nx.ancestors(reducted_graph, candidate)
+            candidate_ancestors -= root_classes
+            if candidate_ancestors:
+                candidate_ancestors -= top_classses
+                candidate_classes |= candidate_ancestors
+            else:
+                top_classses.add(candidate)
+            candidate_classes.remove(candidate)
+    parent2children["<http://www.w3.org/2002/07/owl#Class>"] = top_classses
+    parent2children["<http://www.w3.org/2002/07/owl#Class>"] = top_classses
+
+    def make_subtree(node_name: str, parent_node: UMLSNode):
+        subtree_root_node = Node(node_name, parent_node)
+        for child_tui in parent2children[node_name]:
+            make_subtree(child_tui, subtree_root_node)
+        return subtree_root_node
+
+    return make_subtree("<http://www.w3.org/2002/07/owl#Class>", None)
+
+
+@lru_cache(maxsize=None)
+def load_dbpedia_thesaurus_name2node() -> Dict[str, Node]:
+    dbpedia_thesaurus = load_dbpedia_thesaurus()
+    name2node = {node.name: node for node in dbpedia_thesaurus.descendants}
+    name2node[dbpedia_thesaurus.name] = dbpedia_thesaurus
+    name2node["<http://www.w3.org/2002/07/owl#Thing>"] = dbpedia_thesaurus
+    return name2node
+
+
+def get_ascendant_dbpedia_thesaurus_node(node_name: str) -> List[str]:
+    name2node = load_dbpedia_thesaurus_name2node()
+    ascendants = [node.name for node in name2node[node_name].ancestors]
+    # 自分自身を追加する。ただし、owl#Thing は owl#Classと同じとみなす
+    return ascendants + [name2node[node_name].name]
 
 
 @dataclass
@@ -316,26 +412,69 @@ def ranked_label2hierarchical_valid_labels(ranked_labels: List[str]):
     return hierarchical_valid_labels
 
 
+def get_negative_cats_from_focus_cats(
+    focus_cats: Set[str], root_node_of_thesaurus: Node
+):
+    def is_focus_cats(node: Node):
+        return node.name in focus_cats
+
+    def is_negative_cats(node: Node):
+        return not bool(
+            set([descendant.name for descendant in node.descendants]) & focus_cats
+        ) and not is_focus_cats(node)
+
+    negative_cat_nodes = root_node_of_thesaurus.breadth_first_search(
+        is_negative_cats, lambda node: is_focus_cats(node) or is_negative_cats(node)
+    )
+    negative_cat_names = [node.name for node in negative_cat_nodes]
+
+    # NOTE: DBPediaの場合のみURL部分を取り除く
+    if root_node_of_thesaurus.name == "T000":
+        pass
+    elif root_node_of_thesaurus.name == "<http://www.w3.org/2002/07/owl#Class>":
+        for negative_cat_name in negative_cat_names:
+            assert dbpedia_ontology_pattern.match(
+                negative_cat_name
+            ) or negative_cat_name in {
+                "<http://www.w3.org/2002/07/owl#ObjectProperty>",
+                "<http://www.w3.org/1999/02/22-rdf-syntax-ns#Property>",
+                "<http://www.w3.org/2002/07/owl#DatatypeProperty>",
+            }
+    else:
+        raise NotImplementedError
+    negative_cat_names.sort()
+    return negative_cat_names
+
+
 def get_umls_negative_cats_from_focus_cats(umls_focus_cat_tuis: List[str]):
     umls_thesaurus = load_umls_thesaurus()
     umls_focus_cat_tuis = set(umls_focus_cat_tuis)
 
-    def is_focus_cats(node: UMLSNode):
-        return node.tui in umls_focus_cat_tuis
-
-    def is_negative_cats(node: UMLSNode):
-        return not bool(
-            set([descendant.tui for descendant in node.descendants])
-            & umls_focus_cat_tuis
-        ) and not is_focus_cats(node)
-
-    negative_cat_nodes = umls_thesaurus.breadth_first_search(
-        is_negative_cats, lambda node: is_focus_cats(node) or is_negative_cats(node)
+    umls_negative_cat_tuis = get_negative_cats_from_focus_cats(
+        umls_focus_cat_tuis, umls_thesaurus
     )
-    umls_negative_cat_tuis = [node.tui for node in negative_cat_nodes]
-    umls_negative_cat_tuis.sort()
     assert not umls_focus_cat_tuis & set(umls_negative_cat_tuis)
     return umls_negative_cat_tuis
+
+
+def get_dbpedia_negative_cats_from_focus_cats(focus_cats: List[str]):
+    dbpedia_thesaurus = load_dbpedia_thesaurus()
+
+    negative_cats = get_negative_cats_from_focus_cats(focus_cats, dbpedia_thesaurus)
+    assert not focus_cats & set(negative_cats)
+    return negative_cats
+
+
+def load_DBPediaCategories():
+    dbpedia_thesaurus = load_dbpedia_thesaurus()
+    categories = []
+    for node in dbpedia_thesaurus.descendants:
+        matched = dbpedia_ontology_pattern.match(node.name)
+        assert matched
+        if matched:
+            categories.append(matched.group(1))
+    categories.sort()
+    return categories
 
 
 ST21pvSrc = {

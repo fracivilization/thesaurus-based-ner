@@ -21,6 +21,6 @@ negative_ratios=(5.0 6.0 7.0 8.0 9.0)
 
 for negative_ratio in ${negative_ratios[@]}; do
     echo "negative_ratio: ${negative_ratio}" >>${OUTPUT_DIR}/cout
-    MAKE="WITH_O=True FIRST_STAGE_CHUNKER=\"enumerated\" POSITIVE_RATIO_THR_OF_NEGATIVE_CAT=1.0 NEGATIVE_RATIO_OVER_POSITIVE=${negative_ratio} make"
+    MAKE="WITH_O=True FIRST_STAGE_CHUNKER=\"enumerated\" NEGATIVE_RATIO_OVER_POSITIVE=${negative_ratio} make"
     eval ${MAKE} train_on_gold -j$(nproc) >>${OUTPUT_DIR}/cout 2>>${OUTPUT_DIR}/cerr
 done

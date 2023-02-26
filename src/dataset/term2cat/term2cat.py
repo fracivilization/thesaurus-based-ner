@@ -1,27 +1,25 @@
 from typing import Dict, List
 from seqeval.metrics.sequence_labeling import get_entities
-from src.dataset import gold_dataset
 from .genia import load_term2cat as genia_load_term2cat
 from .twitter import load_twitter_main_dictionary, load_twitter_sibling_dictionary
-from hashlib import md5
 import os
-import json
 from dataclasses import dataclass
 from omegaconf import MISSING
-from .terms import DBPedia_categories, UMLS_Categories
-from hydra.utils import get_original_cwd
+from hydra.utils import get_original_cwd, to_absolute_path
 from collections import defaultdict
-import re
-from tqdm import tqdm
 from src.utils.string_match import ComplexKeywordTyper
 from hydra.core.config_store import ConfigStore
 from datasets import DatasetDict
 from collections import Counter
 from prettytable import PrettyTable
+from src.utils.utils import DoubleArrayDictWithIterators
+from src.dataset.utils import load_dbpedia_thesaurus, get_negative_cats_from_focus_cats
+from tqdm import tqdm
 
 
 @dataclass
 class Term2CatConfig:
+    term2cats: str = MISSING
     name: str = MISSING
     output: str = MISSING
 
@@ -32,11 +30,10 @@ class DictTerm2CatConfig(Term2CatConfig):
     focus_cats: str = MISSING
     # duplicate_cats: str = MISSING
     negative_cats: str = MISSING
-    dict_dir: str = os.path.join(os.getcwd(), "data/dict")
+    term2cats: str = MISSING
     # with_nc: bool = False
     remove_anomaly_suffix: bool = False  # remove suffix term (e.g. "migration": nc-T054 for "cell migration": T038)
     output: str = MISSING
-    positive_ratio_thr_of_negative_cat: float = 1.0
 
 
 @dataclass
@@ -61,11 +58,6 @@ def register_term2cat_configs(group="ner_model/typer/term2cat") -> None:
 
 
 def get_anomaly_suffixes(term2cat):
-    buffer_file = os.path.join(
-        get_original_cwd(),
-        "data/buffer/%s"
-        % md5(("anomaly_suffixes" + str(term2cat)).encode()).hexdigest(),
-    )
     anomaly_suffixes = set()
     complex_typer = ComplexKeywordTyper(term2cat)
     lowered2orig = defaultdict(list)
@@ -82,27 +74,35 @@ def get_anomaly_suffixes(term2cat):
     return anomaly_suffixes
 
 
-def log_duplication_between_positive_and_negative_cats(
-    cat2terms, positive_cats, negative_cats
-):
-    positive_terms = set()
-    negative_cat2duplicated_terms = defaultdict(set)
-    for cat in cat2terms:
-        if cat in positive_cats:
-            positive_terms |= cat2terms[cat]
-    for cat in cat2terms:
-        if cat in negative_cats:
-            negative_cat2duplicated_terms[cat] |= cat2terms[cat] & positive_terms
+CategoryMapper = {
+    # NOTE: MISCはこれらいずれにも属さないカテゴリとする
+    "PER": {
+        "<http://dbpedia.org/ontology/Person>",
+        "<http://dbpedia.org/ontology/Name>",
+    },
+    "ORG": {"<http://dbpedia.org/ontology/Organisation>"},
+    "LOC": {"<http://dbpedia.org/ontology/Place>"},
+    # NOTE: DBPediaにはtime, day, ballなどの大量の一般名詞がふくまれるので、
+    #       PER, ORG, LOC以外とするのではなく、結局列挙する必要がありそう
+    "MISC": {
+        "<http://dbpedia.org/ontology/Work>",
+        "<http://dbpedia.org/ontology/Event>",
+        "<http://dbpedia.org/ontology/MeanOfTransportation>",
+        "<http://dbpedia.org/ontology/Device>",  # AK-47が含まれているので
+        "<http://dbpedia.org/ontology/Award>",  # ノーベル平和賞がふくまれているので
+        "<http://dbpedia.org/ontology/Disease>",
+        # NOTE:ethnicGroupは'/<http://www.w3.org/2002/07/owl#Class>/<http://www.w3.org/1999/02/22-rdf-syntax-ns#Property>/<http://dbpedia.org/ontology/ethnicGroup>' という箇所にある
+        "<http://dbpedia.org/ontology/ethnicGroup>",
+    },
+}
 
-    tbl = PrettyTable(["cat", "count", "positive num", "positive ratio"])
-    negative_cat2positive_ratio = dict()
-    for cat, terms in negative_cat2duplicated_terms.items():
-        if len(cat2terms[cat]) > 0:
-            positive_ratio = len(terms) / len(cat2terms[cat])
-            tbl.add_row([cat, len(cat2terms[cat]), len(terms), positive_ratio])
-            negative_cat2positive_ratio[cat] = positive_ratio
-    print(tbl.get_string())
-    return negative_cat2positive_ratio
+
+def get_dbpedia_negative_cats_from_focus_cats(focus_cats: List[str]):
+    dbpedia_thesaurus = load_dbpedia_thesaurus()
+
+    negative_cats = get_negative_cats_from_focus_cats(focus_cats, dbpedia_thesaurus)
+    assert not focus_cats & set(negative_cats)
+    return negative_cats
 
 
 def load_dict_term2cat(conf: DictTerm2CatConfig):
@@ -111,41 +111,43 @@ def load_dict_term2cat(conf: DictTerm2CatConfig):
         negative_cats = set(conf.negative_cats.split("_"))
     else:
         negative_cats = set()
-    cats = focus_cats | negative_cats
-    cat2terms = dict()
-    for cat in cats:
-        buffer_file = os.path.join(get_original_cwd(), conf.dict_dir, cat)
-        with open(buffer_file) as f:
-            terms = []
-            for line in f:
-                term = line.strip()
-                if term:
-                    terms.append(term)
-        cat2terms[cat] = set(terms)
-    negative_cat2positive_ratio = log_duplication_between_positive_and_negative_cats(
-        cat2terms, positive_cats=focus_cats, negative_cats=negative_cats
+    target_cats = focus_cats | negative_cats
+    # NOTE: PER, LOC, ORG, MISCなどKnowledgebaseと対応付ける必要があるカテゴリに対処する
+    target_knowledge_base_cats = set()
+    for target_cat in target_cats:
+        if target_cat in CategoryMapper:
+            for knowledge_base_cat in CategoryMapper[target_cat]:
+                target_knowledge_base_cats.add(knowledge_base_cat)
+        else:
+            target_knowledge_base_cats.add(target_cat)
+    knowledgebase_cat2target_cat = {
+        kb_cat: cat
+        for cat, knowledgebase_cats in CategoryMapper.items()
+        for kb_cat in knowledgebase_cats
+    }
+    term2cats = DoubleArrayDictWithIterators.load_from_disk(
+        to_absolute_path(conf.term2cats)
     )
-    for cat, positive_ratio in negative_cat2positive_ratio.items():
-        if conf.positive_ratio_thr_of_negative_cat < positive_ratio:
-            del cat2terms[cat]
 
-    remove_terms = set()
-    # term2cats = defaultdict(set)
-    for i1, (c1, t1) in enumerate(cat2terms.items()):
-        for i2, (c2, t2) in enumerate(cat2terms.items()):
-            if i2 > i1:
-                duplicated = t1 & t2
-                if duplicated:
-                    remove_terms |= duplicated
-                    # for t in duplicated:
-                    # term2cats[t] |= {c1, c2}
     term2cat = dict()
-    for cat, terms in cat2terms.items():
-        for non_duplicated_term in terms - remove_terms:
+    total_count = sum(1 for _ in term2cats.items())
+    for term, cats in tqdm(term2cats.items(), total=total_count):
+        candidate_knowledgebase_cats = set(cats) & target_knowledge_base_cats
+        candidate_cats = {
+            knowledgebase_cat2target_cat[kb_cat]
+            for kb_cat in candidate_knowledgebase_cats
+        }
+        if len(candidate_cats) == 1:
+            knowledgebase_cat = candidate_cats.pop()
+            cat = (
+                knowledgebase_cat2target_cat[knowledgebase_cat]
+                if knowledgebase_cat in knowledgebase_cat2target_cat
+                else knowledgebase_cat
+            )
             if cat in negative_cats:
-                term2cat[non_duplicated_term] = "nc-%s" % cat
+                term2cat[term] = "nc-%s" % cat
             else:
-                term2cat[non_duplicated_term] = cat
+                term2cat[term] = cat
 
     if conf.remove_anomaly_suffix:
         anomaly_suffixes = get_anomaly_suffixes(term2cat)
@@ -213,7 +215,6 @@ def load_twitter_dictionary(
     sibling_compression: str = "none",
     only_fake: bool = True,
 ):
-    args = str(with_sibilling) + str(sibling_compression) + str(only_fake)
     term2cat = dict()
     main_dictionary = load_twitter_main_dictionary()
     term2cat.update({k: v for k, v in main_dictionary.items() if v != "product"})

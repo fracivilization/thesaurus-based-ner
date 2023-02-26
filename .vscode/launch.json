@@ -46,21 +46,6 @@
             ],
         },
         {
-            "name": "Load Misguidance Pseudo NER",
-            "type": "python",
-            "request": "launch",
-            "module": "cli.preprocess.load_pseudo_ner",
-            "justMyCode": false,
-            "args": [
-                "+raw_corpus=data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3",
-                "++ner_model.typer.term2cat.focus_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
-                "++ner_model.typer.term2cat.duplicate_cats=GeneLocation_Species_Disease_Work_SportsSeason_Device_Media_SportCompetitionResult_EthnicGroup_Protocol_Award_Demographics_MeanOfTransportation_FileSystem_Medicine_Area_Flag_UnitOfWork_MedicalSpecialty_GrossDomesticProduct_Biomolecule_Identifier_Blazon_PersonFunction_List_TimePeriod_Event_Relationship_Altitude_TopicalConcept_Spreadsheet_Currency_Cipher_Browser_Tank_Food_Depth_Population_Statistic_StarCluster_Language_GrossDomesticProductPerCapita_ChemicalSubstance_ElectionDiagram_Diploma_Place_Algorithm_ChartsPlacements_Unknown_Activity_PublicService_Agent_Name_AnatomicalStructure_Colour",
-                "+output_dir=data/pseudo/366383a6bcf8a6c6a60ff33c498794b4e93d90af",
-                "+gold_corpus=data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3",
-                "++mark_misguided_fn=True",
-            ],
-        },
-        {
             "name": "Load MSC",
             "type": "python",
             "request": "launch",
@@ -81,11 +66,10 @@
             "module": "cli.preprocess.load_term2cat",
             "justMyCode": false,
             "args": [
-                "output=data/term2cat/325509798c66cd7e5ed070da51c7eccb51e9873b.pkl",
-                "focus_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
-                // "negative_cats=T002_T004_T054_T055_T056_T064_T065_T066_T068_T075_T079_T080_T081_T099_T100_T101_T102_T171_T194_T200",
-                "negative_cats=T002_T004_T054_T055_T056_T064_T065_T066_T068_T075_T079_T080_T081_T099_T100_T101_T102_T171_T194_T200_GeneLocation_Species_Disease_Work_SportsSeason_Device_Media_SportCompetitionResult_EthnicGroup_Protocol_Award_Demographics_MeanOfTransportation_FileSystem_Medicine_Area_Flag_UnitOfWork_MedicalSpecialty_GrossDomesticProduct_Biomolecule_Identifier_Blazon_PersonFunction_List_TimePeriod_Event_Relationship_Altitude_TopicalConcept_Spreadsheet_Currency_Cipher_Browser_Tank_Food_Depth_Population_Statistic_StarCluster_Language_GrossDomesticProductPerCapita_ChemicalSubstance_ElectionDiagram_Diploma_Place_Algorithm_ChartsPlacements_Unknown_Activity_PublicService_Agent_Name_AnatomicalStructure_Colour",
-                "++positive_ratio_thr_of_negative_cat=0.1",
+                "term2cats=data/term2cats/88ba83ce32822dd55dd70928bbacd6e5d87a0708",
+                "output=data/term2cat/69f5b6fafbacf1caa2498b6c4c60eb02f51a4bb6.pkl",
+                "focus_cats=PER_LOC_ORG_MISC",
+                "negative_cats=",
             ],
         },
         {
@@ -108,29 +92,27 @@
             ],
         },
         {
-            "name": "Load Terms (UMLS)",
+            "name": "Load Terms",
             "type": "python",
             "request": "launch",
             "module": "cli.preprocess.load_terms",
             "justMyCode": false,
             "args": [
+                // UMLS
+                // "--category",
+                // "T000",
+                // "--output",
+                // "data/dict/T000",
+                // DBPedia
+                // "--category",
+                // "Activity",
+                // "--output",
+                // "data/dict/Activity",
+                // CoNLL2003
                 "--category",
-                "T000",
+                "PER",
                 "--output",
-                "data/dict/T000",
-            ],
-        },
-        {
-            "name": "Load Terms (DBPedia)",
-            "type": "python",
-            "request": "launch",
-            "module": "cli.preprocess.load_terms",
-            "justMyCode": false,
-            "args": [
-                "--category",
-                "Activity",
-                "--output",
-                "data/dict/Activity",
+                "data/dict/PER",
             ],
         },
         {
@@ -162,7 +144,6 @@
                 "ner_model.typer.train_args.per_device_eval_batch_size=16",
                 "ner_model.typer.train_args.do_train=False",
                 "ner_model.typer.train_args.overwrite_output_dir=True",
-                "testor.baseline_typer.term2cat=data/term2cat/4a346fc7708eff30dc3a5a0bd47df4b3cb61823a.pkl",
                 "ner_model.typer.msc_datasets=data/gold/e28f210f0623e8c9ac34e4e40c60851b4160cec2",
             ],
         },
@@ -180,7 +161,6 @@
                 "ner_model.typer.train_args.per_device_eval_batch_size=32",
                 "ner_model.typer.train_args.do_train=True",
                 "ner_model.typer.train_args.overwrite_output_dir=True",
-                "testor.baseline_typer.term2cat=data/term2cat/e04122e7582b6bf5c6c447b6069f8be77b17620f.pkl",
                 "ner_model.typer.msc_datasets=data/pseudo/f69f14306e76a12012ce1928021021a72d418c1d",
             ],
         },
@@ -194,7 +174,6 @@
                 "ner_model=PseudoTwoStage",
                 "++dataset.name_or_path=data/gold/836053d1bd47c7cf824672a17714a61a354af8e9",
                 "+ner_model.typer.term2cat=data/term2cat/4a346fc7708eff30dc3a5a0bd47df4b3cb61823a.pkl",
-                "+testor.baseline_typer.term2cat=data/term2cat/4a346fc7708eff30dc3a5a0bd47df4b3cb61823a.pkl",
             ],
         },
         {
@@ -212,7 +191,6 @@
                 "ner_model.typer.train_args.per_device_eval_batch_size=16",
                 "ner_model.typer.train_args.do_train=True",
                 "ner_model.typer.train_args.overwrite_output_dir=True",
-                "testor.baseline_typer.term2cat=data/term2cat/e04122e7582b6bf5c6c447b6069f8be77b17620f.pkl",
                 "ner_model.typer.msc_datasets=data/gold/d9202dcfe78419d1d05039ad1c00f00635eb3dae",
             ],
         },
@@ -275,25 +253,24 @@
             "justMyCode": false
         },
         {
-            "name": "Get UMLS Negative Cats",
-            "type": "python",
-            "request": "launch",
-            "module": "cli.get_umls_negative_cats",
-            "justMyCode": false,
-            "args": [
-                "--focus-cats",
-                "T005"
-            ],
-        },
-        {
             "name": "Get MultiLabelNER Gold Dataset",
             "type": "python",
             "request": "launch",
             "module": "cli.preprocess.load_gold_multi_label_ner",
             "justMyCode": false,
             "args": [
+                // "--evaluation-data",
+                // "MedMentions",
+                // "--input-dir",
+                // "data/gold/MedMentions/full/data",
+                // "--output-dir",
+                // "data/gold/MedMentions_multi_label_ner",
+                "--evaluation-data",
+                "CoNLL2003",
+                "--input-dir",
+                "data/gold/CoNLL2003",
                 "--output-dir",
-                "data/gold/multi_label_ner"
+                "data/gold/CoNLL2003_multi_label_ner"
             ],
         },
         {
@@ -385,10 +362,12 @@
             "name": "Load Term2Cats",
             "type": "python",
             "request": "launch",
-            "module": "cli.preprocess.load_term2cats",
+            "module": "cli.preprocess.load_dictionary_form_term2cats",
             "justMyCode": false,
             "args": [
-                "output=data/term2cats/d8f23e25ae9fd1286c54c41e20dc9e373e933159.pkl",
+                "++knowledge_base=DBPedia",
+                "++remain_common_sense=True",
+                "++output=data/term2cats/88ba83ce32822dd55dd70928bbacd6e5d87a0708",
             ],
         },
         {
@@ -404,7 +383,6 @@
                 "+ner_model/multi_label_ner_model/chunker=enumerated",
                 "+ner_model/multi_label_ner_model/multi_label_typer=enumerated",
                 "++msmlc_datasets=data/gold/776996445f60149f6a6397d0106dbf8465b87eec",
-                "testor.baseline_typer.term2cat=data/term2cat/8a23fbd2bc56b5182ab677063f52af0497d1d5c6.pkl",
                 // "++ner_model.multi_label_ner_model.multi_label_typer.model_args.saved_param_path=outputs/2022-02-16/12-30-34/checkpoint-2000",
                 "++ner_model.multi_label_ner_model.multi_label_typer.train_args.do_train=False",
                 "++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=data/pseudo/4c1983f8b55322f5d75b371a07cfe132ff4a13a3",
@@ -427,7 +405,6 @@
                 "+ner_model/multi_label_ner_model/chunker=enumerated",
                 "+ner_model/multi_label_ner_model/multi_label_typer=enumerated",
                 "++msmlc_datasets=data/gold/776996445f60149f6a6397d0106dbf8465b87eec",
-                "testor.baseline_typer.term2cat=data/term2cat/8a23fbd2bc56b5182ab677063f52af0497d1d5c6.pkl",
                 "++ner_model.multi_label_ner_model.multi_label_typer.model_args.saved_param_path=data/buffer/debug",
                 "++ner_model.multi_label_ner_model.multi_label_typer.train_args.do_train=False",
                 "++ner_model.multi_label_ner_model.multi_label_typer.train_args.num_train_epochs=3.0",
@@ -452,7 +429,6 @@
                 "ner_model/multi_label_ner_model=two_stage",
                 "+ner_model/multi_label_ner_model/chunker=enumerated",
                 "+ner_model/multi_label_ner_model/multi_label_typer=enumerated",
-                "testor.baseline_typer.term2cat=data/term2cat/e04122e7582b6bf5c6c447b6069f8be77b17620f.pkl",
                 "++ner_model.multi_label_ner_model.multi_label_typer.train_args.do_train=False",
                 "++ner_model.multi_label_ner_model.multi_label_typer.model_output_path=\"no_output\"",
                 "++msmlc_datasets=data/gold/bb7f6bdfa26f7893f68b0466becf7b54d39d1496",
@@ -461,20 +437,19 @@
                 "++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=data/gold/bb7f6bdfa26f7893f68b0466becf7b54d39d1496"
             ],
         },
-        // {
-        //     "name": "Eval (Gold MultiLabelTwoStage)",
-        //     "type": "python",
-        //     "request": "launch",
-        //     "module": "cli.train",
-        //     "justMyCode": false,
-        //     "args": [
-        //         "ner_model=PseudoMultiLabelTwoStage",
-        //         "ner_model.focus_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
-        //         "ner_model.multi_label_typer.term2cats=data/term2cat/d8f23e25ae9fd1286c54c41e20dc9e373e933159.pkl",
-        //         "++dataset.name_or_path=data/gold/836053d1bd47c7cf824672a17714a61a354af8e9",
-        //         "+testor.baseline_typer.term2cat=data/term2cat/4a346fc7708eff30dc3a5a0bd47df4b3cb61823a.pkl",
-        //     ],
-        // },
+        {
+            "name": "Load Negative Categories",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.preprocess.load_negative_categories",
+            "justMyCode": false,
+            "args": [
+                "--focus-categories",
+                "T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
+                "--with-negative_categories",
+                "True",
+            ],
+        },
         {
             "name": "Eval (Gold MultiLabelTwoStage)",
             "type": "python",
@@ -492,7 +467,6 @@
                 // "++ner_model.multi_label_ner_model.multi_label_typer.train_args.num_train_epochs=10.0",
                 "++ner_model.multi_label_ner_model.multi_label_typer.train_args.do_train=False",
                 "++ner_model.multi_label_ner_model.multi_label_typer.prediction_threshold=0.97",
-                "testor.baseline_typer.term2cat=data/term2cat/8a23fbd2bc56b5182ab677063f52af0497d1d5c6.pkl",
             ],
         },
         {

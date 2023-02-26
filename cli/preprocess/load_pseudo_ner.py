@@ -43,7 +43,6 @@ def main(cfg: PseudoAnnoConfig):
         raw_corpus = Dataset.load_from_disk(
             os.path.join(get_original_cwd(), cfg.raw_corpus)
         )
-        assert not cfg.remove_fp_instance
     ner_model: NERModel = ner_model_builder(cfg.ner_model)
     pseudo_dataset = load_pseudo_dataset(raw_corpus, ner_model, cfg)
     gold_corpus = DatasetDict.load_from_disk(
