@@ -107,7 +107,7 @@ class ComplexKeywordTyper:
         """
         reversed_chunk = "".join(reversed(chunk))
         common_suffixes = self.reversed_case_sensitive_darts.common_prefix_search(
-            reversed_chunk.lower().encode("utf-8")
+            reversed_chunk.encode("utf-8")
         )
         common_suffixes += self.reversed_case_insensitive_darts.common_prefix_search(
             reversed_chunk.lower().encode("utf-8")
@@ -139,7 +139,7 @@ class ComplexKeywordTyper:
                 reversed_substring = substring[::-1]
                 common_suffixes = (
                     self.reversed_case_sensitive_darts.common_prefix_search(
-                        reversed_substring.lower().encode("utf-8")
+                        reversed_substring.encode("utf-8")
                     )
                 )
                 common_suffixes += (
