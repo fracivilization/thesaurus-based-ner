@@ -36,6 +36,9 @@ def main(dictionary_form_term2cats_dir, output_dir):
                     expanded_terms.add(new_term)
 
             for expanded_term in expanded_terms:
+                if expanded_term == "":
+                    # NOTE: 元の単語が's'の場合拡張することによって空文字になる可能性がある
+                    break
                 if expanded_term not in dictionary_form_term2cats:
                     f_output.write(json.dumps([expanded_term, cats]) + "\n")
 
