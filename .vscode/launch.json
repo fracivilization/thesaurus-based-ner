@@ -171,9 +171,9 @@
             "module": "cli.train",
             "justMyCode": false,
             "args": [
-                "ner_model=PseudoTwoStage",
-                "++dataset.name_or_path=data/gold/836053d1bd47c7cf824672a17714a61a354af8e9",
-                "+ner_model.typer.term2cat=data/term2cat/4a346fc7708eff30dc3a5a0bd47df4b3cb61823a.pkl",
+                "ner_model=CoNLL2003PseudoTwoStage",
+                "++dataset.name_or_path=data/gold/97c2ffa7954f4b7c25938f068276f0224d3d5c12",
+                "+ner_model.typer.term2cat=data/term2cat/7807a110a4f996c878076328304ae39948772c62.pkl"
             ],
         },
         {

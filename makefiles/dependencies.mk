@@ -114,7 +114,7 @@ $(TRAIN_ON_GOLD_OUT): $(GOLD_TRAIN_MSC_DATA) $(GOLD_DATA)
 $(PSEUDO_OUT): $(GOLD_DATA) $(TERM2CAT)
 ifeq ($(REMAIN_COMMON_SENSE_FOR_TERM2CATS),False)
 	${PYTHON} -m cli.train \
-		ner_model=PseudoTwoStage \
+		ner_model=$(EVAL_DATASET)PseudoTwoStage \
 		++dataset.name_or_path=$(GOLD_DATA) \
 		+ner_model.typer.term2cat=$(TERM2CAT) 2>&1 | tee ${PSEUDO_OUT}
 else
