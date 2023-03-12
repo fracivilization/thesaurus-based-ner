@@ -470,7 +470,6 @@ def load_DBPediaCategories():
     categories = []
     for node in dbpedia_thesaurus.descendants:
         matched = dbpedia_ontology_pattern.match(node.name)
-        assert matched
         if matched:
             categories.append(matched.group(1))
     categories.sort()
