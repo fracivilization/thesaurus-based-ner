@@ -133,10 +133,12 @@ def load_dict_term2cat(conf: DictTerm2CatConfig):
     total_count = sum(1 for _ in term2cats.items())
     for term, cats in tqdm(term2cats.items(), total=total_count):
         candidate_knowledgebase_cats = set(cats) & target_knowledge_base_cats
-        candidate_cats = {
-            knowledgebase_cat2target_cat[kb_cat]
-            for kb_cat in candidate_knowledgebase_cats
-        }
+        candidate_cats = set()
+        for kb_cat in candidate_knowledgebase_cats:
+            if kb_cat in knowledgebase_cat2target_cat:
+                candidate_cats.add(knowledgebase_cat2target_cat[kb_cat])
+            else:
+                candidate_cats.add(kb_cat)
         if len(candidate_cats) == 1:
             knowledgebase_cat = candidate_cats.pop()
             cat = (
