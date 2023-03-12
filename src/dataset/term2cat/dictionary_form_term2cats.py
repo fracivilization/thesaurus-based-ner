@@ -103,7 +103,7 @@ def get_anomaly_suffixes(term2cat):
 def load_term2cuis():
     term2cuis = defaultdict(set)
     # 相対パスではうまくとれないのでプロジェクトルートから取れるようにする
-    with open(os.path.join(get_original_cwd(), MRCONSO)) as f:
+    with open(MRCONSO) as f:
         for line in tqdm(f, total=16132274):
             (
                 cui,
@@ -136,7 +136,7 @@ def load_cui2tuis() -> Dict:
     cui2tuis = defaultdict(set)
     cui_loc = 0
     tui_loc = 1
-    with open(os.path.join(get_original_cwd(), MRSTY)) as f:
+    with open(MRSTY) as f:
         for line in f:
             line = line.strip().split("|")
             cui = line[cui_loc]
