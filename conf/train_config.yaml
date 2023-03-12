@@ -1,14 +1,9 @@
 defaults:
   - base_train_config
   - dataset: base_dataset_config
-  # - ner_model: BERT
-  # - ner_model: BOND
   - ner_model: TwoStage
-  # - ner_model: matcher
-  # - ner_model: PseudoTwoStage
   - testor: base_NERTestor_config
 
 dataset:
-  # name_or_path: "conll2003"
   name_or_path: "data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3"
 
