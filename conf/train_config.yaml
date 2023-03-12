@@ -5,5 +5,5 @@ defaults:
   - testor: base_NERTestor_config
 
 dataset:
-  name_or_path: "data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3"
+  name_or_path: MISSING
 
