@@ -24,6 +24,9 @@ class DictMatchTyperConfig(TyperConfig):
     typer_name: str = "DictMatchTyper"
     term2cat: str = MISSING  # path for pickled term2cat
     label_names: str = "non_initialized"  # this variable is dinamically decided
+    case_sensitive: bool = (
+        False  # Falseであっても、大文字・小文字の違いによってtypeが異なる場合にはcase_sensitiveなマッチをする
+    )
 
 
 class DictMatchTyper(Typer):
@@ -34,7 +37,9 @@ class DictMatchTyper(Typer):
         self.conf = conf
         # keyword extractorを追加する
         # argumentを追加する...後でいいか...
-        self.keyword_processor = ComplexKeywordTyper(self.term2cat)
+        self.keyword_processor = ComplexKeywordTyper(
+            self.term2cat, case_sensitive=conf.case_sensitive
+        )
         self.label_names = ["nc-O"] + list(set(self.term2cat.values()))
 
     def predict(
