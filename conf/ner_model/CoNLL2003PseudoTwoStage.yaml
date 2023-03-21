@@ -4,7 +4,5 @@ defaults:
   - typer: dict_match
   # - typer: enumerated
 
-# typer:
-#   train_args:
-#     do_train: True
-#     overwrite_output_dir: True
+typer:
+  case_sensitive: True
