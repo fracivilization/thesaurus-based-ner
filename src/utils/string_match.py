@@ -159,13 +159,34 @@ class ComplexKeywordTyper:
                 )
         return confirmed_common_suffixes
 
-    def type_chunk(self, chunk: str, **kwargs) -> str:
-        common_suffixes = self.get_confirmed_common_suffixes(chunk)
-        if common_suffixes:
-            cats, starts = zip(*common_suffixes)
-            return cats[starts.index(min(starts))]
+    def exact_type_chunk(self, chunk: str) -> str:
+        type_of_chunk = "nc-O"
+        # double array trie で完全一致するものを探す
+        reversed_chunk = "".join(reversed(chunk))
+        value_index, _ = self.reversed_case_sensitive_darts.exact_match_search(
+            reversed_chunk.encode("utf-8")
+        )
+        if value_index != -1:
+            type_of_chunk = self.cat_labels[value_index]
+        if not self.case_sensitive:
+            value_index, _ = self.reversed_case_insensitive_darts.exact_match_search(
+                reversed_chunk.lower().encode("utf-8")
+            )
+            # NOTE: ２つのdartsの両方でマッチすることはないはず
+            if value_index != -1:
+                type_of_chunk = self.cat_labels[value_index]
+        return type_of_chunk
+
+    def type_chunk(self, chunk: str, exact=False) -> str:
+        if exact:
+            return self.exact_type_chunk(chunk)
         else:
-            return "nc-O"
+            common_suffixes = self.get_confirmed_common_suffixes(chunk)
+            if common_suffixes:
+                cats, starts = zip(*common_suffixes)
+                return cats[starts.index(min(starts))]
+            else:
+                return "nc-O"
 
     def detect_and_labels(self, snt: str):
         labeled_chunks = []

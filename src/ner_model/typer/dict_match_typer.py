@@ -27,6 +27,7 @@ class DictMatchTyperConfig(TyperConfig):
     case_sensitive: bool = (
         False  # Falseであっても、大文字・小文字の違いによってtypeが異なる場合にはcase_sensitiveなマッチをする
     )
+    exact: bool = False  # Trueであれば、完全一致のみを許す
 
 
 class DictMatchTyper(Typer):
@@ -51,7 +52,7 @@ class DictMatchTyper(Typer):
             labels = []
             for start, end in zip(starts, ends):
                 term = " ".join(tokens[start:end])
-                label = self.keyword_processor.type_chunk(term)
+                label = self.keyword_processor.type_chunk(term, exact=self.conf.exact)
                 labels.append(label)
             label_ids = np.array([self.label_names.index(l) for l in labels])
             probs = np.eye(len(self.label_names))[label_ids]
