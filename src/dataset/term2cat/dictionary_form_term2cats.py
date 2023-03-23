@@ -364,7 +364,7 @@ def dbpedia_entities2labels(entities: Tuple[str], remain_common_sense):
     return labels
 
 
-def load_dict_dictionary_form_term2cats_jsonl(
+def load_dictionary_form_term2cats_jsonl(
     knowledge_base: str,
     remain_common_sense: bool = True,
     work_dir=tempfile.TemporaryDirectory(),
@@ -444,9 +444,7 @@ def load_dictionary_form_term2cats_jsonl(
     conf: DictionaryFormTerm2CatsConfig, work_dir=tempfile.TemporaryDirectory()
 ):
     if conf.name == "dict":
-        term2cats_jsonl = load_dict_dictionary_form_term2cats_jsonl(
-            conf, work_dir=work_dir
-        )
+        term2cats_jsonl = load_dictionary_form_term2cats_jsonl(conf, work_dir=work_dir)
     elif conf.name == "oracle":
         # TODO: jsonlファイルを返すように修正する
         raise NotImplementedError
