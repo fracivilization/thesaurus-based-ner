@@ -66,9 +66,9 @@
             "module": "cli.preprocess.load_term2cat",
             "justMyCode": false,
             "args": [
-                "term2cats=data/term2cats/af4eba2564499e6cf42046363111d8ebb34b669b",
-                "output=data/term2cat/1493b72ef68a399f0f04e63e6992712680b1208c.pkl",
-                "focus_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
+                "term2cats=data/term2cats/inflected-test-output.db",
+                "output=data/term2cat/conll-test-out.pkl",
+                "focus_cats=PER_LOC_ORG_MISC",
                 "negative_cats="
             ],
         },

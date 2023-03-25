@@ -12,7 +12,7 @@ from hydra.core.config_store import ConfigStore
 from datasets import DatasetDict
 from collections import Counter
 from prettytable import PrettyTable
-from src.utils.utils import DoubleArrayDictWithIterators
+from src.utils.utils import WeightedSQliteDict
 from src.dataset.utils import load_dbpedia_thesaurus, get_negative_cats_from_focus_cats
 from tqdm import tqdm
 
@@ -125,20 +125,21 @@ def load_dict_term2cat(conf: DictTerm2CatConfig):
         for cat, knowledgebase_cats in CategoryMapper.items()
         for kb_cat in knowledgebase_cats
     }
-    term2cats = DoubleArrayDictWithIterators.load_from_disk(
-        to_absolute_path(conf.term2cats)
-    )
+    term2cats = WeightedSQliteDict.load_from_disk(to_absolute_path(conf.term2cats))
 
     term2cat = dict()
-    total_count = sum(1 for _ in term2cats.items())
-    for term, cats in tqdm(term2cats.items(), total=total_count):
-        candidate_knowledgebase_cats = set(cats) & target_knowledge_base_cats
+    total_count = len(term2cats)
+    for term, weighted_cats in tqdm(term2cats.items(), total=total_count):
+        candidate_knowledgebase_cats = (
+            set(weighted_cats.values) & target_knowledge_base_cats
+        )
         candidate_cats = set()
         for kb_cat in candidate_knowledgebase_cats:
             if kb_cat in knowledgebase_cat2target_cat:
                 candidate_cats.add(knowledgebase_cat2target_cat[kb_cat])
             else:
                 candidate_cats.add(kb_cat)
+
         if len(candidate_cats) == 1:
             knowledgebase_cat = candidate_cats.pop()
             cat = (
@@ -146,10 +147,43 @@ def load_dict_term2cat(conf: DictTerm2CatConfig):
                 if knowledgebase_cat in knowledgebase_cat2target_cat
                 else knowledgebase_cat
             )
-            if cat in negative_cats:
-                term2cat[term] = "nc-%s" % cat
+        elif len(candidate_cats) > 1:
+            kb_cat2weight = {
+                cat: weight
+                for cat, weight in zip(weighted_cats.values, weighted_cats.weights)
+            }
+            candidate_cat2weight = defaultdict(lambda: 0)
+            for candidate_cat in candidate_cats:
+                if candidate_cat in CategoryMapper:
+                    for correspond_kb_cat in CategoryMapper[candidate_cat]:
+                        if correspond_kb_cat in kb_cat2weight:
+                            candidate_cat2weight[candidate_cat] = max(
+                                kb_cat2weight[correspond_kb_cat],
+                                candidate_cat2weight[candidate_cat],
+                            )
+                else:
+                    candidate_cat2weight[candidate_cat] = max(
+                        kb_cat2weight[candidate_cat],
+                        candidate_cat2weight[candidate_cat],
+                    )
+            highest_weight = max(candidate_cat2weight.values())
+            highest_weighted_cats = [
+                cat
+                for cat, weight in candidate_cat2weight.items()
+                if weight == highest_weight
+            ]
+            if len(highest_weighted_cats) == 1:
+                cat = highest_weighted_cats[0]
+                assert False
             else:
-                term2cat[term] = cat
+                continue
+        else:
+            continue
+
+        if cat in negative_cats:
+            term2cat[term] = "nc-%s" % cat
+        else:
+            term2cat[term] = cat
 
     if conf.remove_anomaly_suffix:
         anomaly_suffixes = get_anomaly_suffixes(term2cat)
