@@ -376,9 +376,9 @@
             "module": "cli.preprocess.load_dictionary_form_term2cats",
             "justMyCode": false,
             "args": [
-                "++knowledge_base=DBPedia",
-                "++remain_common_sense=True",
-                "++output=data/term2cats/88ba83ce32822dd55dd70928bbacd6e5d87a0708",
+                "--knowledge-base=DBPedia",
+                "--remain-common-sense=True",
+                "--output-dir=data/term2cats/test-output",
             ],
         },
         {
@@ -388,8 +388,8 @@
             "module": "cli.preprocess.inflect_terms_of_term2cats",
             "justMyCode": false,
             "args": [
-                "--dictionary-form-term2cats-dir=data/term2cats/eace866e2871812cf612db1fb2f24a4866e71c9a",
-                "--output-dir=data/term2cats/af4eba2564499e6cf42046363111d8ebb34b669b",
+                "--dictionary-form-term2cats-dir=data/term2cats/test-output",
+                "--output-path=data/term2cats/inflected-test-output.db",
             ],
         },
         {

@@ -380,7 +380,8 @@ def load_dictionary_form_term2cats_jsonl(
             for term, cuis in tqdm(dictionary_form_term2cuis.items()):
                 cats = tuple(sorted(cuis2labels(cuis, remain_common_sense)))
                 if cats:
-                    g.write(json.dumps([term, cats]) + "\n")
+                    weights = [1.0] * len(cats)
+                    g.write(json.dumps([term, cats, weights]) + "\n")
     elif knowledge_base == "DBPedia":
         # 1. 表層形からOntologyへのマップを構築し
         print("load dictionary_form_term2entities")
@@ -405,7 +406,8 @@ def load_dictionary_form_term2cats_jsonl(
                         dbpedia_entities2labels(entities, remain_common_sense)
                     )
                     if cats:
-                        f_out.write(json.dumps([term, cats]) + "\n")
+                        weights = [1.0] * len(cats)
+                        f_out.write(json.dumps([term, cats, weights]) + "\n")
     else:
         raise NotImplementedError
     return dictionary_form_term2cats_file
@@ -438,20 +440,6 @@ def load_oracle_term2cat(conf: OracleTerm2CatsConfig):
         for non_duplicated_term in terms - remove_terms:
             term2cat[non_duplicated_term] = cat
     return term2cat
-
-
-def load_dictionary_form_term2cats_jsonl(
-    conf: DictionaryFormTerm2CatsConfig, work_dir=tempfile.TemporaryDirectory()
-):
-    if conf.name == "dict":
-        term2cats_jsonl = load_dictionary_form_term2cats_jsonl(conf, work_dir=work_dir)
-    elif conf.name == "oracle":
-        # TODO: jsonlファイルを返すように修正する
-        raise NotImplementedError
-        term2cats_jsonl = load_oracle_term2cat(conf)
-    else:
-        raise NotImplementedError
-    return term2cats_jsonl
 
 
 def log_term2cats(term2cats: Dict):

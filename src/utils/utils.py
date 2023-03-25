@@ -6,6 +6,12 @@ import dartsclone
 import json
 import os
 import shutil
+import numpy as np
+import copy
+import sqlite3
+import tempfile
+from dataclasses import dataclass
+from typing import List
 
 
 class UnionFind:
@@ -259,3 +265,148 @@ class DoubleArrayDictWithIterators:
         da_dict.double_array.open(double_array_path)
 
         return DoubleArrayDictWithIterators(source_kv_pairs_path, da_dict)
+
+
+@dataclass
+class WeightedValues:
+    values: List[str]
+    weights: List[float]
+
+
+class WeightedSQliteDict:
+    def __init__(
+        self,
+        db_file_path: Path,
+        commit_when_set_item: bool = True,
+    ) -> None:
+        self.db_file_path = db_file_path
+        self.commit_when_set_item = commit_when_set_item
+        self.con = sqlite3.connect(db_file_path)
+        cur = self.con.cursor()
+        cur.execute(
+            "CREATE TABLE IF NOT EXISTS key_value_weight_triples (key text, value text, weight text)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS key_index ON key_value_weight_triples (key)"
+        )
+        self.con.commit()
+
+        cur.close()
+
+    def load_from_jsonl_key_value_weight_triples_file(
+        jsonl_key_value_weight_triples_file_path: Path,
+    ):
+        work_dir = tempfile.TemporaryDirectory()
+        db_file_path = os.path.join(work_dir.name, "db.sqlite3")
+        con = sqlite3.connect(db_file_path)
+        cur = con.cursor()
+        cur.execute(
+            "CREATE TABLE IF NOT EXISTS key_value_weight_triples (key text, value text, weight text)"
+        )
+        total_key_value_count = 0
+        for line in tqdm(open(jsonl_key_value_weight_triples_file_path)):
+            total_key_value_count += 1
+            if line:
+                term, values, weights = json.loads(line.strip())
+                cur.execute(
+                    "INSERT INTO key_value_weight_triples VALUES (?, ?, ?)",
+                    (term, json.dumps(values), json.dumps(weights)),
+                )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS key_index ON key_value_weight_triples (key)"
+        )
+        con.commit()
+
+        cur.close()
+        con.close()
+        this = WeightedSQliteDict(db_file_path)
+        this.work_dir = work_dir
+        return this
+
+    def save_to_disk(self, target_path: Path):
+        if self.db_file_path == target_path:
+            self.commit()
+        else:
+            shutil.copyfile(self.db_file_path, target_path)
+
+    def load_from_disk(target_path: Path):
+        return WeightedSQliteDict(target_path)
+
+    def items(self):
+        cur = self.con.cursor()
+        chunk_size = 100000
+        offset = 0
+        while True:
+            cur.execute(
+                "SELECT key, value, weight FROM key_value_weight_triples LIMIT ? OFFSET ?",
+                (chunk_size, offset),
+            )
+            rows = cur.fetchall()
+            if not rows:
+                break
+
+            for key, value, weight in rows:
+                yield key, WeightedValues(json.loads(value), json.loads(weight))
+
+            offset += chunk_size
+        cur.close()
+
+    def keys(self):
+        cur = self.con.cursor()
+        chunk_size = 100000
+        offset = 0
+        while True:
+            cur.execute(
+                "SELECT key FROM key_value_weight_triples LIMIT ? OFFSET ?",
+                (chunk_size, offset),
+            )
+            rows = cur.fetchall()
+            if not rows:
+                break
+
+            for key in rows:
+                yield key
+
+            offset += chunk_size
+        cur.close()
+
+    def values(self):
+        cur = self.con.cursor()
+        cur.execute("SELECT value, weight FROM key_value_weight_triples")
+        for value, weight in cur.fetchall():
+            yield WeightedValues(json.loads(value), json.loads(weight))
+
+    def __setitem__(self, key: str, value: WeightedValues):
+        assert isinstance(value, WeightedValues)
+        cur = self.con.cursor()
+        cur.execute(
+            "INSERT INTO key_value_weight_triples VALUES (?, ?, ?)",
+            (key, json.dumps(value.values), json.dumps(value.weights)),
+        )
+        if self.commit_when_set_item:
+            self.con.commit()
+
+    def __getitem__(self, key: str) -> WeightedValues:
+        cur = self.con.cursor()
+        cur.execute(
+            "SELECT value, weight FROM key_value_weight_triples WHERE key = ?",
+            (key,),
+        )
+        value, weight = cur.fetchone()
+        return WeightedValues(json.loads(value), json.loads(weight))
+
+    def __contains__(self, key: str):
+        cur = self.con.cursor()
+        cur.execute(
+            "SELECT value, weight FROM key_value_weight_triples WHERE key = ?",
+            (key,),
+        )
+        return cur.fetchone() is not None
+
+    def commit(self):
+        self.con.commit()
+
+    def __len__(self):
+        cur = self.con.cursor()
+        cur.execute("SELECT COUNT(*) FROM key_value_weight_triples")
+        return cur.fetchone()[0]
