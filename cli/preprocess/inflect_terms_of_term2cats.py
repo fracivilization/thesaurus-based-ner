@@ -1,13 +1,7 @@
 import click
-import tempfile
-from src.utils.utils import WeightedSQliteDict, WeightedValues
-import os
+from src.utils.utils import WeightedSQliteDict
 from tqdm import tqdm
-import json
 from src.dataset.utils import singularize, pluralize
-from src.dataset.term2cat.dictionary_form_term2cats import (
-    log_term2cats,
-)
 
 
 @click.command()
