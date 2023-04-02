@@ -157,15 +157,11 @@ def load_dict_term2cat(conf: DictTerm2CatConfig):
                 if candidate_cat in CategoryMapper:
                     for correspond_kb_cat in CategoryMapper[candidate_cat]:
                         if correspond_kb_cat in kb_cat2weight:
-                            candidate_cat2weight[candidate_cat] = max(
-                                kb_cat2weight[correspond_kb_cat],
-                                candidate_cat2weight[candidate_cat],
-                            )
+                            candidate_cat2weight[candidate_cat] += kb_cat2weight[
+                                correspond_kb_cat
+                            ]
                 else:
-                    candidate_cat2weight[candidate_cat] = max(
-                        kb_cat2weight[candidate_cat],
-                        candidate_cat2weight[candidate_cat],
-                    )
+                    candidate_cat2weight[candidate_cat] += kb_cat2weight[candidate_cat]
             highest_weight = max(candidate_cat2weight.values())
             highest_weighted_cats = [
                 cat
