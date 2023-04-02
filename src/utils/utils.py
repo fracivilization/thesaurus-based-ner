@@ -169,6 +169,30 @@ class DoubleArrayDict:
             keys, values, cats_list
         )
 
+    def save_to_disk(self, target_dir):
+        os.makedirs(target_dir, exist_ok=True)
+        medata_path = os.path.join(target_dir, "metadata.json")
+        with open(medata_path, "w") as f:
+            json.dump(
+                {
+                    "value_labels": self.value_labels,
+                },
+                f,
+            )
+        double_array_path = os.path.join(target_dir, "double_array.dic")
+        self.double_array.save(double_array_path)
+
+    def load_from_disk(target_dir):
+        medata_path = os.path.join(target_dir, "metadata.json")
+        with open(medata_path, "r") as f:
+            metadata = json.load(f)
+
+        da_dict = DoubleArrayDict([], [], metadata["value_labels"])
+        da_dict.double_array.clear()
+        double_array_path = os.path.join(target_dir, "double_array.dic")
+        da_dict.double_array.open(double_array_path)
+        return da_dict
+
 
 class FileBasedIterator:
     """ファイルから読み取った行をもとにしたイテレーター"""
@@ -239,23 +263,18 @@ class DoubleArrayDictWithIterators:
 
     def save_to_disk(self, target_dir: Path):
         os.makedirs(target_dir, exist_ok=True)
-        medata_path = os.path.join(target_dir, "metadata.json")
-        double_array_path = os.path.join(target_dir, "double_array.dic")
         source_kv_pairs_path = os.path.join(target_dir, "source_key_value_pairs.jsnol")
         shutil.copyfile(self.jsonl_key_value_pairs_file, source_kv_pairs_path)
-        with open(medata_path, "w") as f:
-            json.dump(
-                {
-                    "value_labels": self.da_dict.value_labels,
-                },
-                f,
-            )
-        self.da_dict.double_array.save(double_array_path)
+        double_array_dir = os.path.join(target_dir, "double_array")
+        self.da_dict.save_to_disk(double_array_dir)
 
     def load_from_disk(target_dir: Path):
-        medata_path = os.path.join(target_dir, "metadata.json")
-        double_array_path = os.path.join(target_dir, "double_array.dic")
         source_kv_pairs_path = os.path.join(target_dir, "source_key_value_pairs.jsnol")
+        double_array_dir = os.path.join(target_dir, "double_array")
+        da_dict = DoubleArrayDict.load_from_disk(double_array_dir)
+
+        return DoubleArrayDictWithIterators(source_kv_pairs_path, da_dict)
+
 
 class SQliteJsonDict:
     def __init__(
