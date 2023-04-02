@@ -159,7 +159,7 @@ $(TERM2CATS): $(DICTIONARY_FORM_TERM2CATS)
 ifeq ($(wildcard $(TERM2CATS)),)
 	${PYTHON} -m cli.preprocess.inflect_terms_of_term2cats \
 		--dictionary-form-term2cats-dir=$(DICTIONARY_FORM_TERM2CATS) \
-		--output-dir=$(TERM2CATS)
+		--output-path=$(TERM2CATS)
 else
 	echo "既にTERM2CATSは存在します"
 	echo "TERM2CATS: $(TERM2CATS)"
