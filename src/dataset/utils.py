@@ -233,6 +233,8 @@ def load_dbpedia_thesaurus_name2node() -> Dict[str, Node]:
 
 def get_ascendant_dbpedia_thesaurus_node(node_name: str) -> List[str]:
     name2node = load_dbpedia_thesaurus_name2node()
+    if node_name not in name2node:
+        return []
     ascendants = [node.name for node in name2node[node_name].ancestors]
     # 自分自身を追加する。ただし、owl#Thing は owl#Classと同じとみなす
     return ascendants + [name2node[node_name].name]
