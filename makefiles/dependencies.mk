@@ -144,7 +144,7 @@ $(PSEUDO_MSMLC_DATA_ON_GOLD): $(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD)
 	+output_dir=$(PSEUDO_MSMLC_DATA_ON_GOLD)
 
 $(DICTIONARY_FORM_TERM2CATS): $(TERM2CATS_DIR) $(UMLS_DIR)
-ifeq ($(wildcard $(DICTIONARY_FORM_TERM2CATS)), "")
+ifeq ($(wildcard $(DICTIONARY_FORM_TERM2CATS)),)
 	@echo DICTIONARY_FORM_TERM2CATS: $(DICTIONARY_FORM_TERM2CATS)
 	${PYTHON} -m cli.preprocess.load_dictionary_form_term2cats \
 		--knowledge-base=$(KNOWLEDGE_BASE) \
@@ -152,15 +152,17 @@ ifeq ($(wildcard $(DICTIONARY_FORM_TERM2CATS)), "")
 		--output-dir=$(DICTIONARY_FORM_TERM2CATS)
 else
 	echo "既にDICTIONARY_FORM_TERM2CATSは存在します"
+	echo "DICTIONARY_FORM_TERM2CATS: $(DICTIONARY_FORM_TERM2CATS)"
 endif
 
 $(TERM2CATS): $(DICTIONARY_FORM_TERM2CATS)
-ifeq ($(wildcard $(TERM2CATS)), "")
+ifeq ($(wildcard $(TERM2CATS)),)
 	${PYTHON} -m cli.preprocess.inflect_terms_of_term2cats \
 		--dictionary-form-term2cats-dir=$(DICTIONARY_FORM_TERM2CATS) \
 		--output-dir=$(TERM2CATS)
 else
 	echo "既にTERM2CATSは存在します"
+	echo "TERM2CATS: $(TERM2CATS)"
 endif
 
 $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL): $(PSEUDO_MSMLC_DATA_ON_GOLD)
