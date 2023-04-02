@@ -169,8 +169,7 @@ def load_dict_term2cat(conf: DictTerm2CatConfig):
                 if weight == highest_weight
             ]
             if len(highest_weighted_cats) == 1:
-                cat = highest_weighted_cats[0]
-                assert False
+                cat = highest_weighted_cats.pop()
             else:
                 continue
         else:
