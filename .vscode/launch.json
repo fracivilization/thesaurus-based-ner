@@ -171,8 +171,11 @@
             "args": [
                 "ner_model=CoNLL2003PseudoTwoStage",
                 "++dataset.name_or_path=data/gold/97c2ffa7954f4b7c25938f068276f0224d3d5c12",
-                "+ner_model.typer.term2cat=data/term2cat/7807a110a4f996c878076328304ae39948772c62.pkl",
-                // "ner_model.typer.case_sensitive=True",
+                // "+ner_model.typer.term2cat=data/term2cat/7807a110a4f996c878076328304ae39948772c62.pkl",
+                "ner_model.chunker.chunker_name=SpacyNPChunker",
+                "+ner_model.typer.term2cat=data/term2cat/conll-test-out.pkl",
+                "ner_model.typer.exact=False",
+                "ner_model.typer.case_sensitive=True",
             ],
         },
         {
@@ -376,7 +379,7 @@
             "module": "cli.preprocess.load_dictionary_form_term2cats",
             "justMyCode": false,
             "args": [
-                "--knowledge-base=DBPedia",
+                "--knowledge-base=WikipediaAnchorText",
                 "--remain-common-sense=True",
                 "--output-dir=data/term2cats/test-output",
             ],

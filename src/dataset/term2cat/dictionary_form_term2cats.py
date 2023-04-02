@@ -327,6 +327,11 @@ def load_dictionary_form_term_cats_weights(
                 if cats:
                     weights = [1.0] * len(cats)
                     yield term, cats, weights
+    elif knowledge_base == "WikipediaAnchorText":
+        anchor_text_term2cats_db = AnchorTextTerm2CatsDB()
+        for term, cats, weights in anchor_text_term2cats_db.term_cats_and_weights():
+            if cats:
+                yield term, cats, weights
     else:
         raise NotImplementedError
     return dictionary_form_term2cats_file
