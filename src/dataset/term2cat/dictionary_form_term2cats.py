@@ -270,9 +270,12 @@ def load_term2dbpedia_entities(work_dir=tempfile.TemporaryDirectory()):
 
 def dbpedia_entities2labels(entities: Tuple[str], remain_common_sense):
     entity2cats = load_dbpedia_entity2cats()
-    for i, entity in enumerate(entities):
+    labels = None
+    for entity in entities:
+        if entity not in entity2cats:
+            continue
         cats = entity2cats[entity]
-        if i == 0:
+        if labels is None:
             labels = expand_dbpedia_cats(cats)
         else:
             if remain_common_sense:
@@ -284,6 +287,8 @@ def dbpedia_entities2labels(entities: Tuple[str], remain_common_sense):
                 # いずれかのCUIのPATHSに含まれるラベル集合を取得する
                 labels |= expand_dbpedia_cats(cats)
     del entity2cats
+    if labels is None:
+        return []
     return labels
 
 
