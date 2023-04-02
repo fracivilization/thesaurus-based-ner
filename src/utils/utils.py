@@ -453,20 +453,25 @@ class WeightedSQliteDict:
     def items(self):
         cur = self.con.cursor()
         chunk_size = 100000
-        offset = 0
+        last_key = None
         while True:
-            cur.execute(
-                "SELECT key, value, weight FROM key_value_weight_triples LIMIT ? OFFSET ?",
-                (chunk_size, offset),
-            )
+            if last_key:
+                cur.execute(
+                    "SELECT key, value, weight FROM key_value_weight_triples WHERE key > ? ORDER BY key LIMIT ?",
+                    (last_key, chunk_size),
+                )
+            else:
+                cur.execute(
+                    "SELECT key, value, weight FROM key_value_weight_triples ORDER BY key LIMIT ?",
+                    (chunk_size,),
+                )
             rows = cur.fetchall()
             if not rows:
                 break
 
             for key, value, weight in rows:
                 yield key, WeightedValues(json.loads(value), json.loads(weight))
-
-            offset += chunk_size
+            last_key = key
         cur.close()
 
     def keys(self):
