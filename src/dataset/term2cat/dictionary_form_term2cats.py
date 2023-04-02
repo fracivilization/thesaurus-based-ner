@@ -287,7 +287,7 @@ def dbpedia_entities2labels(entities: Tuple[str], remain_common_sense):
     return labels
 
 
-def load_dictionary_form_term2cats_jsonl(
+def load_dictionary_form_term_cats_weights(
     knowledge_base: str,
     remain_common_sense: bool = True,
     work_dir=tempfile.TemporaryDirectory(),
@@ -299,12 +299,11 @@ def load_dictionary_form_term2cats_jsonl(
         dictionary_form_term2cuis = load_term2cuis()
         # 2. CUI(の集合)からそれらの共通・合併成分をとる
         print("load intersection or union labels (tuis) for each cuis")
-        with open(dictionary_form_term2cats_file, "w") as g:
-            for term, cuis in tqdm(dictionary_form_term2cuis.items()):
-                cats = tuple(sorted(cuis2labels(cuis, remain_common_sense)))
-                if cats:
-                    weights = [1.0] * len(cats)
-                    g.write(json.dumps([term, cats, weights]) + "\n")
+        for term, cuis in tqdm(dictionary_form_term2cuis.items()):
+            cats = tuple(sorted(cuis2labels(cuis, remain_common_sense)))
+            if cats:
+                weights = [1.0] * len(cats)
+                yield term, cats, weights
     elif knowledge_base == "DBPedia":
         # 1. 表層形からOntologyへのマップを構築し
         print("load dictionary_form_term2entities")
@@ -322,15 +321,12 @@ def load_dictionary_form_term2cats_jsonl(
             1 for _ in open(dictionary_form_term2entities_file)
         )
         with open(dictionary_form_term2entities_file, "r") as f_in:
-            with open(dictionary_form_term2cats_file, "w") as f_out:
-                for line in tqdm(f_in, total=dictionary_form_term2entities_line_count):
-                    term, entities = json.loads(line)
-                    cats = sorted(
-                        dbpedia_entities2labels(entities, remain_common_sense)
-                    )
-                    if cats:
-                        weights = [1.0] * len(cats)
-                        f_out.write(json.dumps([term, cats, weights]) + "\n")
+            for line in tqdm(f_in, total=dictionary_form_term2entities_line_count):
+                term, entities = json.loads(line)
+                cats = sorted(dbpedia_entities2labels(entities, remain_common_sense))
+                if cats:
+                    weights = [1.0] * len(cats)
+                    yield term, cats, weights
     else:
         raise NotImplementedError
     return dictionary_form_term2cats_file
