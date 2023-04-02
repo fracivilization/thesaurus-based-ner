@@ -257,14 +257,113 @@ class DoubleArrayDictWithIterators:
         double_array_path = os.path.join(target_dir, "double_array.dic")
         source_kv_pairs_path = os.path.join(target_dir, "source_key_value_pairs.jsnol")
 
-        with open(medata_path, "r") as f:
-            metadata = json.load(f)
+class SQliteJsonDict:
+    def __init__(
+        self,
+        db_file_path: Path,
+        commit_when_set_item: bool = True,
+    ) -> None:
+        self.db_file_path = db_file_path
+        self.commit_when_set_item = commit_when_set_item
+        self.con = sqlite3.connect(db_file_path)
+        cur = self.con.cursor()
+        cur.execute("CREATE TABLE IF NOT EXISTS key_value (key text, value text)")
+        cur.execute("CREATE INDEX IF NOT EXISTS key_index ON key_value (key)")
+        self.con.commit()
 
-        da_dict = DoubleArrayDict([], [], metadata["value_labels"])
-        da_dict.double_array.clear()
-        da_dict.double_array.open(double_array_path)
+        cur.close()
 
-        return DoubleArrayDictWithIterators(source_kv_pairs_path, da_dict)
+    def save_to_disk(self, target_path: Path):
+        if self.db_file_path == target_path:
+            self.commit()
+        else:
+            shutil.copyfile(self.db_file_path, target_path)
+
+    def load_from_disk(target_path: Path):
+        return SQliteJsonDict(target_path)
+
+    def items(self):
+        cur = self.con.cursor()
+        chunk_size = 100000
+        last_key = None
+        while True:
+            if last_key:
+                cur.execute(
+                    "SELECT key, value FROM key_value WHERE key > ? ORDER BY key LIMIT ?",
+                    (last_key, chunk_size),
+                )
+            else:
+                cur.execute(
+                    "SELECT key, value FROM key_value ORDER BY key LIMIT ?",
+                    (chunk_size,),
+                )
+            rows = cur.fetchall()
+            if not rows:
+                break
+
+            for key, value in rows:
+                yield json.loads(key), json.loads(value)
+            last_key = key
+        cur.close()
+
+    def keys(self):
+        cur = self.con.cursor()
+        chunk_size = 100000
+        offset = 0
+        while True:
+            cur.execute(
+                "SELECT key FROM key_value LIMIT ? OFFSET ?",
+                (chunk_size, offset),
+            )
+            rows = cur.fetchall()
+            if not rows:
+                break
+
+            for key in rows:
+                yield json.loads(key)
+
+            offset += chunk_size
+        cur.close()
+
+    def values(self):
+        cur = self.con.cursor()
+        cur.execute("SELECT value FROM key_value_weight_triples")
+        for value in cur.fetchall():
+            yield json.loads(value)
+
+    def __setitem__(self, key, value):
+        cur = self.con.cursor()
+        cur.execute(
+            "INSERT INTO key_value VALUES (?, ?)",
+            (json.dumps(key), json.dumps(value)),
+        )
+        if self.commit_when_set_item:
+            self.con.commit()
+
+    def __getitem__(self, key):
+        cur = self.con.cursor()
+        cur.execute(
+            "SELECT value FROM key_value WHERE key = ?",
+            (json.dumps(key),),
+        )
+        value = cur.fetchone()[0]
+        return json.loads(value)
+
+    def __contains__(self, key: str):
+        cur = self.con.cursor()
+        cur.execute(
+            "SELECT value FROM key_value WHERE key = ?",
+            (json.dumps(key),),
+        )
+        return cur.fetchone() is not None
+
+    def commit(self):
+        self.con.commit()
+
+    def __len__(self):
+        cur = self.con.cursor()
+        cur.execute("SELECT COUNT(*) FROM key_value")
+        return cur.fetchone()[0]
 
 
 @dataclass
