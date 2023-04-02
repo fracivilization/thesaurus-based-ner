@@ -17,24 +17,25 @@ from src.dataset.utils import (
     MRCONSO,
     MRSTY,
     get_ascendant_tuis,
-    get_ascendant_dbpedia_thesaurus_node,
 )
 from src.dataset.utils import ST21pvSrc
 from functools import lru_cache
 import json
 from pathlib import Path
 import tempfile
-from src.utils.utils import DoubleArrayDict
+from src.kb_loader.db_pedia import (
+    AnchorTextTerm2CatsDB,
+    load_dbpedia_entity2cats,
+    expand_dbpedia_cats,
+)
 
 DBPedia_dir = "data/DBPedia"
 # DBPedia(Wikipedia)
 DBPedia_ontology = os.path.join(DBPedia_dir, "ontology--DEV_type=parsed_sorted.nt")
-DBPedia_instance_type = os.path.join(DBPedia_dir, "instance-types_lang=en_specific.ttl")
 DBPedia_mapping_literals = os.path.join(
     DBPedia_dir, "mappingbased-literals_lang=en.ttl"
 )
 DBPedia_infobox = os.path.join(DBPedia_dir, "infobox-properties_lang=en.ttl")
-DBPedia_redirect = os.path.join(DBPedia_dir, "redirects_lang=en.ttl")
 DBPedia_disambiguate = os.path.join(DBPedia_dir, "disambiguations_lang=en.ttl")
 DBPedia_labels = os.path.join(DBPedia_dir, "labels_lang=en.ttl")
 # DBPedia (Wikidata)
@@ -265,84 +266,6 @@ def load_term2dbpedia_entities(work_dir=tempfile.TemporaryDirectory()):
     del entity2term
     del ambiguous2monosemies
     return output_file
-
-
-@lru_cache(maxsize=None)
-def load_dbpedia_entity2cats() -> Dict:
-    entity2cats = dict()
-    with open(to_absolute_path(DBPedia_instance_type)) as f:
-        for line in tqdm(f, total=7636009):
-            # 例: line = "<http://dbpedia.org/resource/'Ara'ir> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://dbpedia.org/ontology/Settlement> ."
-            line = line.strip().split()
-            assert len(line) == 4
-            assert line[1] == "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>"
-            entity, _, cat, _ = line
-            if entity in entity2cats:
-                cats = json.loads(entity2cats[entity])
-                cats.append(cat)
-                entity2cats[entity] = json.dumps(cats)
-            else:
-                entity2cats[entity] = json.dumps([cat])
-    # Expand Wikipedia Articles using Redirect
-    unfound_redirects = []
-    with open(to_absolute_path(DBPedia_redirect)) as f:
-        for line in tqdm(f, total=10338969):
-            line = line.strip().split()
-            assert len(line) == 4
-            assert line[1] == "<http://dbpedia.org/ontology/wikiPageRedirects>"
-            entity, _, redirect, _ = line
-            if redirect in entity2cats:
-                new_cats = json.loads(entity2cats[redirect])
-                if entity in entity2cats:
-                    old_cats = json.loads(entity2cats[entity])
-                    cats = list(set(old_cats + new_cats))
-                    entity2cats[entity] = json.dumps(cats)
-                else:
-                    entity2cats[entity] = json.dumps(new_cats)
-            else:
-                unfound_redirects.append((entity, redirect))
-    while unfound_redirects:
-        print("unfound redirects num: ", len(unfound_redirects))
-        remained_redirects = []
-        for entity, redirect in unfound_redirects:
-            if redirect in entity2cats:
-                new_cats = json.loads(entity2cats[redirect])
-                if entity in entity2cats:
-                    old_cats = json.loads(entity2cats[entity])
-                    cats = list(set(old_cats + new_cats))
-                    entity2cats[entity] = json.dumps(cats)
-                else:
-                    entity2cats[entity] = json.dumps(new_cats)
-            else:
-                remained_redirects.append((entity, redirect))
-        if len(unfound_redirects) == len(remained_redirects):
-            break
-        unfound_redirects = remained_redirects
-        # TODO: WeightedDoubleArrayDictで読み込むようにする
-    keys = []
-    indexed_values = []
-    values_labels = []
-    while entity2cats:
-        entity, cats = entity2cats.popitem()
-        cats = sorted(set(json.loads(cats)))
-        keys.append(entity)
-        if cats not in values_labels:
-            values_labels.append(cats)
-        indexed_values.append(values_labels.index(cats))
-    entity2cats = DoubleArrayDict.load_from_unsorted_unbinarized_key_and_indexed_values(
-        keys, indexed_values, values_labels
-    )
-    return entity2cats
-
-
-def expand_dbpedia_cats(cats: Set[str]) -> Set:
-    # 1. シソーラスの構造に応じてラベル集合L={l_i}_iをパスに展開
-    #    各ラベルまでのパス上にあるノードをすべて集める
-    #    PATHS = {l \in PATH(l_i)}_{i in L}
-    expanded_cats = set()
-    for cat in cats:
-        expanded_cats |= set(get_ascendant_dbpedia_thesaurus_node(cat))
-    return expanded_cats
 
 
 def dbpedia_entities2labels(entities: Tuple[str], remain_common_sense):
