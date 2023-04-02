@@ -3,7 +3,7 @@ from src.dataset.term2cat.dictionary_form_term2cats import (
     load_dictionary_form_term2cats_jsonl,
 )
 import tempfile
-from src.utils.utils import WeightedSQliteDict
+from src.utils.utils import WeightedSQliteDict, WeightedValues
 
 
 @click.command()
@@ -12,13 +12,11 @@ from src.utils.utils import WeightedSQliteDict
 @click.option("--output-dir", type=str)
 def main(knowledge_base: str, remain_common_sense: str, output_dir: str):
     work_dir = tempfile.TemporaryDirectory()
-    term2cats_jsonl = load_dictionary_form_term2cats_jsonl(
+    term2cats = WeightedSQliteDict(output_dir, commit_when_set_item=False)
+    for term, cats, weights in load_dictionary_form_term2cats_jsonl(
         knowledge_base, remain_common_sense, work_dir=work_dir
-    )
-    print("term2cats_jsonl is loaded")
-    term2cats = WeightedSQliteDict.load_from_jsonl_key_value_weight_triples_file(
-        term2cats_jsonl
-    )
+    ):
+        term2cats[term] = WeightedValues(cats, weights)
     term2cats.save_to_disk(output_dir)
 
 
