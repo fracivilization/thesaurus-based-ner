@@ -1,4 +1,5 @@
 PSEUDO_DATA_BASE_CMD := ${PYTHON} -m cli.preprocess.load_pseudo_ner \
+		ner_model=$(EVAL_DATASET)PseudoTwoStage \
 		++ner_model.typer.term2cat=$(TERM2CAT) \
         +gold_corpus=$(GOLD_DATA)
 MSC_DATA_BASE_CMD := ${PYTHON} -m cli.preprocess.load_msc_dataset chunker=$(FIRST_STAGE_CHUNKER) ++with_o=$(WITH_O) 
