@@ -4,15 +4,8 @@ import hydra
 from hydra.core.config_store import ConfigStore
 from dataclasses import dataclass
 from src.ner_model.abstract_model import NERModel, NERModelConfig
-from src.ner_model.two_stage import TwoStageConfig
-from src.ner_model.chunker.spacy_model import SpacyNPChunkerConfig
-from src.ner_model.typer.dict_match_typer import DictMatchTyperConfig
-from src.dataset.utils import DatasetConfig
-from omegaconf import MISSING, OmegaConf
 from src.ner_model import ner_model_builder
 import logging
-from src.ner_model.evaluator import NERTestor
-import json
 from datasets import Dataset
 import os
 from src.dataset.pseudo_dataset.pseudo_dataset import (
@@ -20,7 +13,7 @@ from src.dataset.pseudo_dataset.pseudo_dataset import (
     load_pseudo_dataset,
     join_pseudo_and_gold_dataset,
 )
-from hydra.utils import get_original_cwd, to_absolute_path
+from hydra.utils import get_original_cwd
 
 logger = logging.getLogger(__name__)
 
