@@ -175,7 +175,7 @@
                 "ner_model.chunker.chunker_name=SpacyNPChunker",
                 "+ner_model.typer.term2cat=data/term2cat/conll-test-out.pkl",
                 "ner_model.typer.exact=False",
-                "ner_model.typer.case_sensitive=True",
+                "ner_model.typer.case_sensitive=False",
             ],
         },
         {
@@ -379,9 +379,12 @@
             "module": "cli.preprocess.load_dictionary_form_term2cats",
             "justMyCode": false,
             "args": [
-                "--knowledge-base=WikipediaAnchorText",
-                "--remain-common-sense=True",
-                "--output-dir=data/term2cats/test-output",
+                // "--knowledge-base=WikipediaAnchorText",
+                // "--remain-common-sense=True",
+                // "--output-dir=data/term2cats/test-output",
+                "--knowledge-base=DBPedia",
+                "--remain-common-sense=False",
+                "--output-dir=data/term2cats/622459f392ccfc10c2c0f4e1e9619c7a9bf221c1"
             ],
         },
         {
