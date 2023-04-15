@@ -1,14 +1,12 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from datasets import DatasetDict
-from datasets import load_dataset
 from dataclasses import dataclass
 from typing import Any, Dict, List, Callable, Set
 from more_itertools import powerset
 import os
 import re
 from inflection import UNCOUNTABLES, PLURALS, SINGULARS
-from hydra.utils import get_original_cwd, to_absolute_path
+from hydra.utils import to_absolute_path
 from functools import lru_cache
 
 CATEGORY_SEPARATOR = "_"
@@ -17,6 +15,30 @@ NEGATIVE_CATEGORY_TEMPLATE = f"{NEGATIVE_CATEGORY_PREFIX}-%s"
 PLURAL_RULES = [(re.compile(rule), replacement) for rule, replacement in PLURALS]
 SINGULAR_RULES = [(re.compile(rule), replacement) for rule, replacement in SINGULARS]
 dbpedia_ontology_pattern = re.compile("<http://dbpedia.org/ontology/([^>]+)>")
+
+CoNLL2003CategoryMapper = {
+    # NOTE: MISCはこれらいずれにも属さないカテゴリとする
+    "PER": {
+        "<http://dbpedia.org/ontology/Person>",
+        "<http://dbpedia.org/ontology/Name>",
+    },
+    "ORG": {"<http://dbpedia.org/ontology/Organisation>"},
+    "LOC": {"<http://dbpedia.org/ontology/Place>"},
+    # NOTE: DBPediaにはtime, day, ballなどの大量の一般名詞がふくまれるので、
+    #       PER, ORG, LOC以外とするのではなく、結局列挙する必要がありそう
+    "MISC": {
+        "<http://dbpedia.org/ontology/Work>",
+        "<http://dbpedia.org/ontology/Event>",
+        "<http://dbpedia.org/ontology/MeanOfTransportation>",
+        "<http://dbpedia.org/ontology/Device>",  # AK-47が含まれているので
+        "<http://dbpedia.org/ontology/Award>",  # ノーベル平和賞がふくまれているので
+        "<http://dbpedia.org/ontology/Disease>",
+        # # NOTE:ethnicGroupは'/<http://www.w3.org/2002/07/owl#Class>/<http://www.w3.org/1999/02/22-rdf-syntax-ns#Property>/<http://dbpedia.org/ontology/ethnicGroup>' という箇所にある
+        # "<http://dbpedia.org/ontology/ethnicGroup>",
+        # NOTE: 属性としてのethnicGroupと名称としてのEthnicGroupの両方があるらしい
+        "<http://dbpedia.org/ontology/EthnicGroup>",
+    },
+}
 
 
 def pluralize(word: str) -> str:
@@ -448,19 +470,24 @@ def get_negative_cats_from_focus_cats(
     return negative_cat_names
 
 
-def get_umls_negative_cats_from_focus_cats(umls_focus_cat_tuis: List[str]):
-    umls_thesaurus = load_umls_thesaurus()
-    umls_focus_cat_tuis = set(umls_focus_cat_tuis)
+def get_umls_negative_cats_from_focus_cats(focus_cats: List[str]):
+    thesaurus = load_umls_thesaurus()
+    focus_cats = set(focus_cats)
 
-    umls_negative_cat_tuis = get_negative_cats_from_focus_cats(
-        umls_focus_cat_tuis, umls_thesaurus
-    )
-    assert not umls_focus_cat_tuis & set(umls_negative_cat_tuis)
-    return umls_negative_cat_tuis
+    negative_cats = get_negative_cats_from_focus_cats(focus_cats, thesaurus)
+    assert not focus_cats & set(negative_cats)
+    return negative_cats
 
 
 def get_dbpedia_negative_cats_from_focus_cats(focus_cats: List[str]):
     dbpedia_thesaurus = load_dbpedia_thesaurus()
+    new_focus_cats = []
+    for focus_cat in focus_cats:
+        if focus_cat in CoNLL2003CategoryMapper:
+            new_focus_cats.extend(CoNLL2003CategoryMapper[focus_cat])
+        else:
+            new_focus_cats.append(focus_cat)
+    focus_cats = set(new_focus_cats)
 
     negative_cats = get_negative_cats_from_focus_cats(focus_cats, dbpedia_thesaurus)
     assert not focus_cats & set(negative_cats)

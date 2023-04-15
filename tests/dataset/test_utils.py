@@ -1,5 +1,5 @@
 from src.dataset.utils import (
-    get_umls_negative_cats_from_focus_cats,
+    get_negative_cats_from_focus_cats,
     get_dbpedia_negative_cats_from_focus_cats,
     load_DBPediaCategories,
 )
@@ -7,7 +7,7 @@ from src.dataset.utils import (
 
 def test_get_umls_negative_cats_from_focus_cats():
     focus_cats = ["T005"]
-    negative_cats = get_umls_negative_cats_from_focus_cats(focus_cats)
+    negative_cats = get_negative_cats_from_focus_cats(focus_cats)
     assert [
         "T007",
         "T017",

@@ -472,9 +472,11 @@
             "justMyCode": false,
             "args": [
                 "--focus-categories",
-                "T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
+                "PER_LOC_ORG_MISC",
                 "--with-negative_categories",
                 "True",
+                "--eval-dataset",
+                "CoNLL2003",
             ],
         },
         {
