@@ -13,7 +13,11 @@ from datasets import DatasetDict
 from collections import Counter
 from prettytable import PrettyTable
 from src.utils.utils import WeightedSQliteDict
-from src.dataset.utils import load_dbpedia_thesaurus, get_negative_cats_from_focus_cats
+from src.dataset.utils import (
+    load_dbpedia_thesaurus,
+    get_negative_cats_from_focus_cats,
+    CoNLL2003CategoryMapper,
+)
 from tqdm import tqdm
 
 
@@ -74,29 +78,6 @@ def get_anomaly_suffixes(term2cat):
     return anomaly_suffixes
 
 
-CategoryMapper = {
-    # NOTE: MISCはこれらいずれにも属さないカテゴリとする
-    "PER": {
-        "<http://dbpedia.org/ontology/Person>",
-        "<http://dbpedia.org/ontology/Name>",
-    },
-    "ORG": {"<http://dbpedia.org/ontology/Organisation>"},
-    "LOC": {"<http://dbpedia.org/ontology/Place>"},
-    # NOTE: DBPediaにはtime, day, ballなどの大量の一般名詞がふくまれるので、
-    #       PER, ORG, LOC以外とするのではなく、結局列挙する必要がありそう
-    "MISC": {
-        "<http://dbpedia.org/ontology/Work>",
-        "<http://dbpedia.org/ontology/Event>",
-        "<http://dbpedia.org/ontology/MeanOfTransportation>",
-        "<http://dbpedia.org/ontology/Device>",  # AK-47が含まれているので
-        "<http://dbpedia.org/ontology/Award>",  # ノーベル平和賞がふくまれているので
-        "<http://dbpedia.org/ontology/Disease>",
-        # NOTE:ethnicGroupは'/<http://www.w3.org/2002/07/owl#Class>/<http://www.w3.org/1999/02/22-rdf-syntax-ns#Property>/<http://dbpedia.org/ontology/ethnicGroup>' という箇所にある
-        "<http://dbpedia.org/ontology/ethnicGroup>",
-    },
-}
-
-
 def get_dbpedia_negative_cats_from_focus_cats(focus_cats: List[str]):
     dbpedia_thesaurus = load_dbpedia_thesaurus()
 
@@ -115,14 +96,14 @@ def load_dict_term2cat(conf: DictTerm2CatConfig):
     # NOTE: PER, LOC, ORG, MISCなどKnowledgebaseと対応付ける必要があるカテゴリに対処する
     target_knowledge_base_cats = set()
     for target_cat in target_cats:
-        if target_cat in CategoryMapper:
-            for knowledge_base_cat in CategoryMapper[target_cat]:
+        if target_cat in CoNLL2003CategoryMapper:
+            for knowledge_base_cat in CoNLL2003CategoryMapper[target_cat]:
                 target_knowledge_base_cats.add(knowledge_base_cat)
         else:
             target_knowledge_base_cats.add(target_cat)
     knowledgebase_cat2target_cat = {
         kb_cat: cat
-        for cat, knowledgebase_cats in CategoryMapper.items()
+        for cat, knowledgebase_cats in CoNLL2003CategoryMapper.items()
         for kb_cat in knowledgebase_cats
     }
     term2cats = WeightedSQliteDict.load_from_disk(to_absolute_path(conf.term2cats))
@@ -154,8 +135,8 @@ def load_dict_term2cat(conf: DictTerm2CatConfig):
             }
             candidate_cat2weight = defaultdict(lambda: 0)
             for candidate_cat in candidate_cats:
-                if candidate_cat in CategoryMapper:
-                    for correspond_kb_cat in CategoryMapper[candidate_cat]:
+                if candidate_cat in CoNLL2003CategoryMapper:
+                    for correspond_kb_cat in CoNLL2003CategoryMapper[candidate_cat]:
                         if correspond_kb_cat in kb_cat2weight:
                             candidate_cat2weight[candidate_cat] = max(
                                 kb_cat2weight[correspond_kb_cat],

@@ -295,7 +295,6 @@
             "justMyCode": false,
             "args": [
                 "+chunker=enumerated",
-                "++under_sample=False",
                 "++with_o=True",
                 "+multi_label_ner_dataset=data/gold/multi_label_ner",
                 "+output_dir=data/gold/776996445f60149f6a6397d0106dbf8465b87eec"
