@@ -367,7 +367,7 @@
                 "++multi_label_typer.model_output_path=data/buffer/30c347f526562c1c62b2ed931e13e61c00a84d8f",
                 "++msmlc_datasets=data/gold/776996445f60149f6a6397d0106dbf8465b87eec",
                 "++multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss",
-                "++ner_model.multi_label_ner_model.multi_label_typer.data_args.pn_ratio_equivalence=True",
+                "++ner_model.multi_label_ner_model.multi_label_typer.data_args.static_pn_ratio_equivalence=True",
                 "++ner_model.multi_label_ner_model.multi_label_typer.data_args.negative_ratio_over_positive=2.0",
             ],
         },

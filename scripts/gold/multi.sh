@@ -21,7 +21,7 @@ negative_ratios=(1.0 4.0 16.0 64.0 128.0)
 # negative_ratios=(32.0 64.0 128.0)
 for negative_ratio in ${negative_ratios[@]}; do
     echo "negative_ratio: ${negative_ratio}" >>${OUTPUT_DIR}/cout
-    MAKE="MSMLC_PN_RATIO_EQUIVALENCE=True MSMLC_NEGATIVE_RATIO_OVER_POSITIVE=${negative_ratio} make"
+    MAKE="MSMLC_STATIC_PN_RATIO_EQUIVALENCE=True MSMLC_NEGATIVE_RATIO_OVER_POSITIVE=${negative_ratio} make"
     eval ${MAKE} eval_flatten_marginal_softmax_gold -j$(nproc) >>${OUTPUT_DIR}/cout 2>>${OUTPUT_DIR}/cerr
     # eval ${MAKE} -n train_flattern_multilabel_ner_gold
 done

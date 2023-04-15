@@ -90,7 +90,7 @@ class MultiLabelEnumeratedModelArguments:
             "help": "loss_fucntion of model: BCEWithLogitsLoss or MarginalCrossEntropyLoss"
         },
     )
-    pn_ratio_equivalence: bool = field(
+    static_pn_ratio_equivalence: bool = field(
         default=False,
         metadata={
             "help": "Make positive and negative ratio equal for each category by label mask.(statically: not on running)"
@@ -471,7 +471,7 @@ class MultiLabelEnumeratedTyperPreprocessor:
                 ret_snt_labels = []
                 ret_snt_label_mask = []
                 for span_labels in snt_labels:
-                    if self.model_args.pn_ratio_equivalence:
+                    if self.model_args.static_pn_ratio_equivalence:
                         if self.model_args.loss_func == "MarginalCrossEntropyLoss":
                             if -1 in span_labels:
                                 span_labels = padded_labels
@@ -637,7 +637,10 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                 "validation": msml_datasets["validation"],
             }
         )
-        if model_args.pn_ratio_equivalence or model_args.dynamic_pn_ratio_equivalence:
+        if (
+            model_args.static_pn_ratio_equivalence
+            or model_args.dynamic_pn_ratio_equivalence
+        ):
             if self.model_args.loss_func == "MarginalCrossEntropyLoss":
                 train_dataset = msml_datasets["train"]
                 label_names = train_dataset.features["labels"].feature.feature.names
