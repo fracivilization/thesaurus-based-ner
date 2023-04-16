@@ -15,7 +15,7 @@ from prettytable import PrettyTable
 from src.utils.utils import WeightedSQliteDict
 from src.dataset.utils import (
     load_dbpedia_thesaurus,
-    get_negative_cats_from_focus_cats,
+    get_negative_cats_from_positive_cats,
     CoNLL2003CategoryMapper,
 )
 from tqdm import tqdm
@@ -31,11 +31,9 @@ class Term2CatConfig:
 @dataclass
 class DictTerm2CatConfig(Term2CatConfig):
     name: str = "dict"
-    focus_cats: str = MISSING
-    # duplicate_cats: str = MISSING
+    positive_cats: str = MISSING
     negative_cats: str = MISSING
     term2cats: str = MISSING
-    # with_nc: bool = False
     remove_anomaly_suffix: bool = False  # remove suffix term (e.g. "migration": nc-T054 for "cell migration": T038)
     output: str = MISSING
 
@@ -78,21 +76,21 @@ def get_anomaly_suffixes(term2cat):
     return anomaly_suffixes
 
 
-def get_dbpedia_negative_cats_from_focus_cats(focus_cats: List[str]):
+def get_dbpedia_negative_cats_from_positive_cats(positive_cats: List[str]):
     dbpedia_thesaurus = load_dbpedia_thesaurus()
 
-    negative_cats = get_negative_cats_from_focus_cats(focus_cats, dbpedia_thesaurus)
-    assert not focus_cats & set(negative_cats)
+    negative_cats = get_negative_cats_from_positive_cats(positive_cats, dbpedia_thesaurus)
+    assert not positive_cats & set(negative_cats)
     return negative_cats
 
 
 def load_dict_term2cat(conf: DictTerm2CatConfig):
-    focus_cats = set(conf.focus_cats.split("_"))
+    positive_cats = set(conf.positive_cats.split("_"))
     if conf.negative_cats:
         negative_cats = set(conf.negative_cats.split("_"))
     else:
         negative_cats = set()
-    target_cats = focus_cats | negative_cats
+    target_cats = positive_cats | negative_cats
     # NOTE: PER, LOC, ORG, MISCなどKnowledgebaseと対応付ける必要があるカテゴリに対処する
     target_knowledge_base_cats = set()
     for target_cat in target_cats:

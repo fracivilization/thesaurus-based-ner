@@ -16,7 +16,7 @@ from .multi_label import register_multi_label_ner_model, multi_label_ner_model_b
 class FlattenMultiLabelNERModelConfig(NERModelConfig):
     ner_model_name: str = "FlattenMultiLabelNER"
     multi_label_ner_model: MultiLabelNERModelConfig = MISSING
-    focus_cats: str = MISSING
+    positive_cats: str = MISSING
 
 
 class FlattenMultiLabelNERModel(NERModel):
@@ -27,14 +27,14 @@ class FlattenMultiLabelNERModel(NERModel):
         self.multi_label_ner_model: MultiLabelNERModel = multi_label_ner_model_builder(
             conf.multi_label_ner_model
         )  # 後で追加する
-        self.focus_cats = self.conf.focus_cats.split("_")
+        self.positive_cats = self.conf.positive_cats.split("_")
         self.focus_label_ids = np.array(
             [
                 label_id
                 for label_id, label in enumerate(
                     self.multi_label_ner_model.multi_label_typer.label_names
                 )
-                if label == "nc-O" or label in self.focus_cats
+                if label == "nc-O" or label in self.positive_cats
             ]
         )
 
@@ -61,7 +61,7 @@ class FlattenMultiLabelNERModel(NERModel):
         starts, ends, outputs = self.multi_label_ner_model.batch_predict(tokens)
         label_names = self.multi_label_ner_model.label_names
         ner_tags = []
-        focus_cats = set(self.focus_cats)
+        positive_cats = set(self.positive_cats)
         for snt_tokens, snt_starts, snt_ends, snt_outputs in zip(
             tokens, starts, ends, outputs
         ):
@@ -70,9 +70,9 @@ class FlattenMultiLabelNERModel(NERModel):
             remained_labels = []
             max_logits = []
             for s, e, o in zip(snt_starts, snt_ends, snt_outputs):
-                # focus_catsが何かしら出力されているスパンのみ残す
+                # positive_catsが何かしら出力されているスパンのみ残す
                 # 更に残っている場合は最大確率のものを残す
-                candidate_cats = set(o.labels) & focus_cats
+                candidate_cats = set(o.labels) & positive_cats
                 if candidate_cats:
                     candidate_cats = list(candidate_cats)
                     candidate_logits = [

@@ -5,16 +5,16 @@ PYTHON ?= .venv/bin/python
 KNOWLEDGE_BASE ?= DBPedia# or UMLS or WikipediaAnchorText
 ## 評価に利用するデータセット
 EVAL_DATASET ?= CoNLL2003# or MedMentions
-## EVAL_DATASET==MedMentionsの時のデフォルトFOCUS_CATS
-# FOCUS_CATS ?= T005 T007 T017 T022 T031 T033 T037 T038 T058 T062 T074 T082 T091 T092 T097 T098 T103 T168 T170 T201 T204
-## EVAL_DATASET==CoNLL2003の時のデフォルトFOCUS_CATS
-FOCUS_CATS ?= PER LOC ORG MISC
+## EVAL_DATASET==MedMentionsの時のデフォルトPOSITIVE_CATS
+# POSITIVE_CATS ?= T005 T007 T017 T022 T031 T033 T037 T038 T058 T062 T074 T082 T091 T092 T097 T098 T103 T168 T170 T201 T204
+## EVAL_DATASET==CoNLL2003の時のデフォルトPOSITIVE_CATS
+POSITIVE_CATS ?= PER LOC ORG MISC
 ## 負例のカテゴリを追加して利用するかどうか
 WITH_NEGATIVE_CATEGORIES ?= False
 ## 一つの単語に対して複数のentityが存在する場合に、複数のentityで共通するカテゴリ飲みを利用する
 REMAIN_COMMON_SENSE_FOR_TERM2CATS ?= True # 着目カテゴリ鹿利用しない場合（通常のDS NERと同じ場合）は、term2cats計算時に複数のエンティティの持つ共通の意味に限定して利用しない
 ## 補完カテゴリ
-NEGATIVE_CATS ?= $(shell ${PYTHON} -m cli.preprocess.load_negative_categories --focus-categories $(subst $() ,_,$(FOCUS_CATS)) --with-negative_categories $(WITH_NEGATIVE_CATEGORIES) --eval-dataset $(EVAL_DATASET))
+NEGATIVE_CATS ?= $(shell ${PYTHON} -m cli.preprocess.load_negative_categories --focus-categories $(subst $() ,_,$(POSITIVE_CATS)) --with-negative_categories $(WITH_NEGATIVE_CATEGORIES) --eval-dataset $(EVAL_DATASET))
 ## Oラベルを使う
 WITH_O ?= True
 ## ２段階モデルの１段階目 擬似データの際のChunkerを意味しない

@@ -22,7 +22,7 @@ from more_itertools import chunked
 class FlattenMarginalSoftmaxNERModelConfig(NERModelConfig):
     ner_model_name: str = "FlattenMarginalSoftmaxNER"
     multi_label_ner_model: MultiLabelNERModelConfig = MISSING
-    focus_cats: str = MISSING
+    positive_cats: str = MISSING
     negative_cats: Optional[str] = None
     hierarchical_valid: bool = True
 
@@ -34,7 +34,7 @@ def postprocess_for_output(example):
     outputs = example["outputs"]
     hierarchical_valid: bool = example["hierarchical_valid"]
     label_names: List[str] = example["label_names"]
-    focus_cats: List[str] = example["focus_cats"]
+    positive_cats: List[str] = example["positive_cats"]
     negative_cats: List[str] = example["negative_cats"]
     focus_and_negative_cats: List[str] = example["focus_and_negative_cats"]
     focus_and_negative_label_ids: List[str] = example["focus_and_negative_label_ids"]
@@ -44,12 +44,12 @@ def postprocess_for_output(example):
     remained_labels = []
     max_probs = []
     for s, e, o in zip(starts, ends, outputs):
-        # focus_catsが何かしら出力されているスパンのみ残す
+        # positive_catsが何かしら出力されているスパンのみ残す
         # 更に残っている場合は最大確率のものを残す
         if hierarchical_valid:
             ranked_labels = [label_names[i] for i in (-o.logits).argsort()]
             valid_labels = ranked_label2hierarchical_valid_labels(ranked_labels)
-            focus_labels = set(valid_labels) & set(focus_cats)
+            focus_labels = set(valid_labels) & set(positive_cats)
             prob = softmax(o.logits)
             if focus_labels:
                 assert len(focus_labels) == 1
@@ -107,9 +107,9 @@ class FlattenMarginalSoftmaxNERModel(NERModel):
             self.negative_cats = self.conf.negative_cats.split("_")
         else:
             self.negative_cats = []
-        self.focus_cats = self.conf.focus_cats.split("_")
+        self.positive_cats = self.conf.positive_cats.split("_")
         self.focus_and_negative_cats = (
-            ["nc-O"] + self.conf.focus_cats.split("_") + self.negative_cats
+            ["nc-O"] + self.conf.positive_cats.split("_") + self.negative_cats
         )
         self.focus_and_negative_label_ids = np.array(
             [
@@ -141,7 +141,6 @@ class FlattenMarginalSoftmaxNERModel(NERModel):
         starts, ends, outputs = self.multi_label_ner_model.batch_predict(tokens)
         label_names = self.multi_label_ner_model.label_names
         ner_tags = []
-        focus_cats = set(self.focus_and_negative_cats)
         logits = []
         examples = [
             {
@@ -151,7 +150,7 @@ class FlattenMarginalSoftmaxNERModel(NERModel):
                 "outputs": snt_outputs,
                 "hierarchical_valid": self.conf.hierarchical_valid,
                 "label_names": label_names,
-                "focus_cats": self.focus_cats,
+                "positive_cats": self.positive_cats,
                 "negative_cats": self.negative_cats,
                 "focus_and_negative_cats": self.focus_and_negative_cats,
                 "focus_and_negative_label_ids": self.focus_and_negative_label_ids,

@@ -436,19 +436,19 @@ def ranked_label2hierarchical_valid_labels(ranked_labels: List[str]):
     return hierarchical_valid_labels
 
 
-def get_negative_cats_from_focus_cats(
-    focus_cats: Set[str], root_node_of_thesaurus: Node
+def get_negative_cats_from_positive_cats(
+    positive_cats: Set[str], root_node_of_thesaurus: Node
 ):
-    def is_focus_cats(node: Node):
-        return node.name in focus_cats
+    def is_positive_cats(node: Node):
+        return node.name in positive_cats
 
     def is_negative_cats(node: Node):
         return not bool(
-            set([descendant.name for descendant in node.descendants]) & focus_cats
-        ) and not is_focus_cats(node)
+            set([descendant.name for descendant in node.descendants]) & positive_cats
+        ) and not is_positive_cats(node)
 
     negative_cat_nodes = root_node_of_thesaurus.breadth_first_search(
-        is_negative_cats, lambda node: is_focus_cats(node) or is_negative_cats(node)
+        is_negative_cats, lambda node: is_positive_cats(node) or is_negative_cats(node)
     )
     negative_cat_names = [node.name for node in negative_cat_nodes]
 
@@ -470,27 +470,27 @@ def get_negative_cats_from_focus_cats(
     return negative_cat_names
 
 
-def get_umls_negative_cats_from_focus_cats(focus_cats: List[str]):
+def get_umls_negative_cats_from_positive_cats(positive_cats: List[str]):
     thesaurus = load_umls_thesaurus()
-    focus_cats = set(focus_cats)
+    positive_cats = set(positive_cats)
 
-    negative_cats = get_negative_cats_from_focus_cats(focus_cats, thesaurus)
-    assert not focus_cats & set(negative_cats)
+    negative_cats = get_negative_cats_from_positive_cats(positive_cats, thesaurus)
+    assert not positive_cats & set(negative_cats)
     return negative_cats
 
 
-def get_dbpedia_negative_cats_from_focus_cats(focus_cats: List[str]):
+def get_dbpedia_negative_cats_from_positive_cats(positive_cats: List[str]):
     dbpedia_thesaurus = load_dbpedia_thesaurus()
-    new_focus_cats = []
-    for focus_cat in focus_cats:
-        if focus_cat in CoNLL2003CategoryMapper:
-            new_focus_cats.extend(CoNLL2003CategoryMapper[focus_cat])
+    new_positive_cats = []
+    for positive_cat in positive_cats:
+        if positive_cat in CoNLL2003CategoryMapper:
+            new_positive_cats.extend(CoNLL2003CategoryMapper[positive_cat])
         else:
-            new_focus_cats.append(focus_cat)
-    focus_cats = set(new_focus_cats)
+            new_positive_cats.append(positive_cat)
+    positive_cats = set(new_positive_cats)
 
-    negative_cats = get_negative_cats_from_focus_cats(focus_cats, dbpedia_thesaurus)
-    assert not focus_cats & set(negative_cats)
+    negative_cats = get_negative_cats_from_positive_cats(positive_cats, dbpedia_thesaurus)
+    assert not positive_cats & set(negative_cats)
     return negative_cats
 
 

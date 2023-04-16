@@ -33,7 +33,7 @@ $(TERM2CAT): $(TERM2CAT_DIR) $(TERM2CATS)
 	${PYTHON} -m cli.preprocess.load_term2cat \
 		term2cats=$(TERM2CATS) \
 		output=$(TERM2CAT) \
-		focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
+		positive_cats=$(subst $() ,_,$(POSITIVE_CATS)) \
 		negative_cats=$(subst $() ,_,$(NEGATIVE_CATS))
 
 $(PSEUDO_DATA_DIR): $(DATA_DIR)
@@ -56,13 +56,13 @@ $(CONLL2003_DIR): $(GOLD_DIR)
 $(GOLD_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	@echo "Gold Data"
 	@echo GOLD_MULTI_LABEL_NER_DATA: $(GOLD_MULTI_LABEL_NER_DATA)
-	@echo PYTHON -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
-	${PYTHON} -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	@echo PYTHON -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(POSITIVE_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	${PYTHON} -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(POSITIVE_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
 $(GOLD_TRAIN_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	@echo "Gold Data"
 	@echo GOLD_MULTI_LABEL_NER_DATA: $(GOLD_MULTI_LABEL_NER_DATA)
-	@echo PYTHON -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
-	${PYTHON} -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	@echo PYTHON -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(POSITIVE_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	${PYTHON} -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(POSITIVE_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
 $(GOLD_TRAIN_MSC_DATA): $(GOLD_TRAIN_DATA)
 	@echo GOLD_TRAIN_MSC_DATA_ON_GOLD: $(GOLD_TRAIN_MSC_DATA)
 	$(MSC_DATA_BASE_CMD) \
@@ -90,7 +90,7 @@ $(RAW_CORPUS_OUT): $(SOURCE_TXT_DIR)
 $(PSEUDO_DATA_ON_GOLD): $(GOLD_DATA) $(PSEUDO_DATA_DIR) $(TERM2CAT) $(BUFFER_DIR)
 	@echo make pseudo data on Gold dataset for comparison
 	@echo make from Gold: $(GOLD_DATA)
-	@echo focused categories: $(FOCUS_CATS)
+	@echo positive categories: $(POSITIVE_CATS)
 	@echo negative categories: $(NEGATIVE_CATS)
 	@echo PSEUDO_DATA_ON_GOLD: $(PSEUDO_DATA_ON_GOLD)
 	$(PSEUDO_DATA_BASE_CMD) \

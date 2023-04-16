@@ -36,8 +36,6 @@ class PseudoAnnoConfig:
     output_dir: str = MISSING
     raw_corpus: str = MISSING
     gold_corpus: str = MISSING
-    # duplicate_cats: str = MISSING
-    # focus_cats: str = MISSING
 
 
 def remove_fp_ents(pred_tags: List[str], gold_tags: List[str]):

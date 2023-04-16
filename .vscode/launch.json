@@ -39,7 +39,7 @@
                 "ner_model/typer/term2cat=oracle",
                 "+ner_model.typer.term2cat.gold_dataset=data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3",
                 "+raw_corpus=data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3",
-                "++ner_model.typer.term2cat.focus_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
+                "++ner_model.typer.term2cat.positive_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
                 "++ner_model.typer.term2cat.duplicate_cats=GeneLocation_Species_Disease_Work_SportsSeason_Device_Media_SportCompetitionResult_EthnicGroup_Protocol_Award_Demographics_MeanOfTransportation_FileSystem_Medicine_Area_Flag_UnitOfWork_MedicalSpecialty_GrossDomesticProduct_Biomolecule_Identifier_Blazon_PersonFunction_List_TimePeriod_Event_Relationship_Altitude_TopicalConcept_Spreadsheet_Currency_Cipher_Browser_Tank_Food_Depth_Population_Statistic_StarCluster_Language_GrossDomesticProductPerCapita_ChemicalSubstance_ElectionDiagram_Diploma_Place_Algorithm_ChartsPlacements_Unknown_Activity_PublicService_Agent_Name_AnatomicalStructure_Colour",
                 "+output_dir=data/pseudo/a412731863aba3f960167cc6d91d2c115d11da2c",
                 "+gold_corpus=data/gold/6c65d7f80d7360db4020a9a2987bb195929256c3",
@@ -68,7 +68,7 @@
             "args": [
                 "term2cats=data/term2cats/inflected-test-output.db",
                 "output=data/term2cat/conll-test-out.pkl",
-                "focus_cats=PER_LOC_ORG_MISC",
+                "positive_cats=PER_LOC_ORG_MISC",
                 "negative_cats="
             ],
         },
@@ -405,7 +405,7 @@
             "justMyCode": false,
             "args": [
                 "ner_model=flatten_ner",
-                "ner_model.focus_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
+                "ner_model.positive_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
                 "ner_model/multi_label_ner_model=two_stage",
                 "+ner_model/multi_label_ner_model/chunker=enumerated",
                 "+ner_model/multi_label_ner_model/multi_label_typer=enumerated",
@@ -426,7 +426,7 @@
             "justMyCode": false,
             "args": [
                 "ner_model=flatten_marginal_softmax_ner",
-                "ner_model.focus_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
+                "ner_model.positive_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
                 "ner_model.negative_cats=T054_T055_T056_T064_T065_T066_T068_T075_T079_T080_T081_T099_T100_T101_T102_T171_T194_T200",
                 "ner_model/multi_label_ner_model=two_stage",
                 "+ner_model/multi_label_ner_model/chunker=enumerated",
@@ -450,7 +450,7 @@
             "justMyCode": false,
             "args": [
                 "ner_model=flatten_marginal_softmax_ner",
-                "ner_model.focus_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
+                "ner_model.positive_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
                 "ner_model.negative_cats=",
                 "ner_model.hierarchical_valid=True",
                 "ner_model/multi_label_ner_model=two_stage",
@@ -487,7 +487,7 @@
             "justMyCode": false,
             "args": [
                 "ner_model=flatten_ner",
-                "ner_model.focus_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
+                "ner_model.positive_cats=T005_T007_T017_T022_T031_T033_T037_T038_T058_T062_T074_T082_T091_T092_T097_T098_T103_T168_T170_T201_T204",
                 "ner_model/multi_label_ner_model=two_stage",
                 "+ner_model/multi_label_ner_model/chunker=enumerated",
                 "+ner_model/multi_label_ner_model/multi_label_typer=enumerated",

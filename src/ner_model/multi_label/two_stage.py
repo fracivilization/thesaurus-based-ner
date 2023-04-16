@@ -19,7 +19,6 @@ class MultiLabelTwoStageConfig(MultiLabelNERModelConfig):
     multi_label_ner_model_name: str = "MultiLabelTwoStage"
     chunker: ChunkerConfig = MISSING
     multi_label_typer: MultiLabelTyperConfig = MISSING
-    # focus_cats: str = MISSING
 
 
 def register_multi_label_two_stage_configs(group="multi_label_ner_model") -> None:

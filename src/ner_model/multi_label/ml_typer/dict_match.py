@@ -21,7 +21,6 @@ class MultiLabelDictMatchTyperConfig(MultiLabelTyperConfig):
     multi_label_typer_name: str = "MultiLabelDictMatchTyper"
     term2cats: str = MISSING  # path for picled term2cat
     label_names: str = "non_initialized"  # this variable is dinamically decided
-    # focus_cats: str = MISSING
 
 
 class MultiLabelDictMatchTyper(MultiLabelTyper):
