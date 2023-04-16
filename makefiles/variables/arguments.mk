@@ -14,7 +14,7 @@ WITH_NEGATIVE_CATEGORIES ?= False
 ## 一つの単語に対して複数のentityが存在する場合に、複数のentityで共通するカテゴリ飲みを利用する
 REMAIN_COMMON_SENSE_FOR_TERM2CATS ?= True # 着目カテゴリ鹿利用しない場合（通常のDS NERと同じ場合）は、term2cats計算時に複数のエンティティの持つ共通の意味に限定して利用しない
 ## 補完カテゴリ
-NEGATIVE_CATS ?= $(shell ${PYTHON} -m cli.preprocess.load_negative_categories --positive-categories $(subst $() ,_,$(POSITIVE_CATS)) --with-negative_categories $(WITH_NEGATIVE_CATEGORIES) --eval-dataset $(EVAL_DATASET))
+NEGATIVE_CATS ?= "$(shell ${PYTHON} -m cli.preprocess.load_negative_categories --positive-categories $(subst $() ,_,$(POSITIVE_CATS)) --with-negative_categories $(WITH_NEGATIVE_CATEGORIES) --eval-dataset $(EVAL_DATASET))"
 ## Oラベルを使う
 WITH_O ?= True
 ## ２段階モデルの１段階目 擬似データの際のChunkerを意味しない
