@@ -34,7 +34,8 @@ $(TERM2CAT): $(TERM2CAT_DIR) $(TERM2CATS)
 		term2cats=$(TERM2CATS) \
 		output=$(TERM2CAT) \
 		positive_cats=$(subst $() ,_,$(POSITIVE_CATS)) \
-		negative_cats=$(subst $() ,_,$(NEGATIVE_CATS))
+		eval_dataset=$(EVAL_DATASET) \
+		with_negative_categories=$(WITH_NEGATIVE_CATEGORIES)
 
 $(PSEUDO_DATA_DIR): $(DATA_DIR)
 	echo $(PSEUDO_DATA_DIR)

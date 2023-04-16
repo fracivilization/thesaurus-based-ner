@@ -17,6 +17,7 @@ from src.dataset.utils import (
     load_dbpedia_thesaurus,
     get_negative_cats_from_positive_cats,
     CoNLL2003CategoryMapper,
+    load_negative_cats_from_positive_cats,
 )
 from tqdm import tqdm
 
@@ -32,7 +33,8 @@ class Term2CatConfig:
 class DictTerm2CatConfig(Term2CatConfig):
     name: str = "dict"
     positive_cats: str = MISSING
-    negative_cats: str = MISSING
+    with_negative_categories: bool = MISSING
+    eval_dataset: str = MISSING
     term2cats: str = MISSING
     remove_anomaly_suffix: bool = False  # remove suffix term (e.g. "migration": nc-T054 for "cell migration": T038)
     output: str = MISSING
@@ -79,15 +81,19 @@ def get_anomaly_suffixes(term2cat):
 def get_dbpedia_negative_cats_from_positive_cats(positive_cats: List[str]):
     dbpedia_thesaurus = load_dbpedia_thesaurus()
 
-    negative_cats = get_negative_cats_from_positive_cats(positive_cats, dbpedia_thesaurus)
+    negative_cats = get_negative_cats_from_positive_cats(
+        positive_cats, dbpedia_thesaurus
+    )
     assert not positive_cats & set(negative_cats)
     return negative_cats
 
 
 def load_dict_term2cat(conf: DictTerm2CatConfig):
     positive_cats = set(conf.positive_cats.split("_"))
-    if conf.negative_cats:
-        negative_cats = set(conf.negative_cats.split("_"))
+    if conf.with_negative_categories:
+        negative_cats = set(
+            load_negative_cats_from_positive_cats(positive_cats, conf.eval_dataset)
+        )
     else:
         negative_cats = set()
     target_cats = positive_cats | negative_cats

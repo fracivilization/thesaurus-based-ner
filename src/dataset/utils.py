@@ -470,6 +470,20 @@ def get_negative_cats_from_positive_cats(
     return negative_cat_names
 
 
+def load_negative_cats_from_positive_cats(
+    positive_categories: List[str], eval_dataset: str
+):
+    if eval_dataset == "MedMentions":
+        negative_cats = get_umls_negative_cats_from_positive_cats(
+            positive_categories, eval_dataset
+        )
+    elif eval_dataset == "CoNLL2003":
+        negative_cats = get_dbpedia_negative_cats_from_positive_cats(
+            positive_categories
+        )
+    return negative_cats
+
+
 def get_umls_negative_cats_from_positive_cats(positive_cats: List[str]):
     thesaurus = load_umls_thesaurus()
     positive_cats = set(positive_cats)
@@ -489,7 +503,9 @@ def get_dbpedia_negative_cats_from_positive_cats(positive_cats: List[str]):
             new_positive_cats.append(positive_cat)
     positive_cats = set(new_positive_cats)
 
-    negative_cats = get_negative_cats_from_positive_cats(positive_cats, dbpedia_thesaurus)
+    negative_cats = get_negative_cats_from_positive_cats(
+        positive_cats, dbpedia_thesaurus
+    )
     assert not positive_cats & set(negative_cats)
     return negative_cats
 

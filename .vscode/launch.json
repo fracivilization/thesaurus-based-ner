@@ -66,10 +66,11 @@
             "module": "cli.preprocess.load_term2cat",
             "justMyCode": false,
             "args": [
-                "term2cats=data/term2cats/inflected-test-output.db",
-                "output=data/term2cat/conll-test-out.pkl",
+                "term2cats=data/term2cats/92dcd363a2761a3e99417fb46d1592652c8e35a3",
+                "output=data/term2cat/0f4e57ade2ff1ec4ee743b36063a3e52d3ccfced.pkl",
                 "positive_cats=PER_LOC_ORG_MISC",
-                "negative_cats="
+                "eval_dataset=CoNLL2003",
+                "with_negative_categories=True"
             ],
         },
         {
