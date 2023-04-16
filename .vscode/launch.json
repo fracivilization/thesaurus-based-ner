@@ -471,7 +471,7 @@
             "module": "cli.preprocess.load_negative_categories",
             "justMyCode": false,
             "args": [
-                "--focus-categories",
+                "--positive-categories",
                 "PER_LOC_ORG_MISC",
                 "--with-negative_categories",
                 "True",
