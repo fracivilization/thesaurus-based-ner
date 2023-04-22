@@ -488,7 +488,7 @@ class WeightedSQliteDict:
                 break
 
             for key in rows:
-                yield key
+                yield key[0]
 
             offset += chunk_size
         cur.close()
@@ -498,6 +498,9 @@ class WeightedSQliteDict:
         cur.execute("SELECT value, weight FROM key_value_weight_triples")
         for value, weight in cur.fetchall():
             yield WeightedValues(json.loads(value), json.loads(weight))
+
+    def __iter__(self):
+        return self.keys()
 
     def __setitem__(self, key: str, value: WeightedValues):
         assert isinstance(value, WeightedValues)

@@ -18,7 +18,8 @@ class MultiLabelTyperOutput:
     labels: List[List[str]]
     # max_probs: np.array  # prediction probability for label
     # probs: np.array  # prediction probability for labels
-    logits: np.array # (span_num, label_num)
+    logits: np.array  # (span_num, label_num)
+    weights: List[List[float]] = None
 
 
 class MultiLabelTyper:
