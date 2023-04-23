@@ -16,6 +16,7 @@ from p_tqdm import p_map
 from more_itertools import chunked
 from src.dataset.utils import CoNLL2003CategoryMapper
 from collections import defaultdict
+import copy
 
 
 @dataclass
@@ -63,10 +64,12 @@ def postprocess_for_output(example):
                         cat = category_mapper[cat]
                     cat_id = category_mapped_focus_and_negative_cats.index(cat)
                     category_mapped_probs[cat_id] += prob
-            used_logit_label_names = category_mapped_focus_and_negative_cats
+            label_names = category_mapped_focus_and_negative_cats
             focus_and_negative_prob = np.array(category_mapped_probs)
+        else:
+            label_names = used_logit_label_names
         max_prob = focus_and_negative_prob.max()
-        label = used_logit_label_names[focus_and_negative_prob.argmax()]
+        label = label_names[focus_and_negative_prob.argmax()]
         if label in negative_cats:
             remained_labels.append("nc-%s" % label)
         else:
@@ -172,14 +175,16 @@ class FlattenMarginalSoftmaxNERModel(NERModel):
                 "label_names": label_names,
                 "positive_cats": self.positive_cats,
                 "negative_cats": self.negative_cats,
-                "used_logit_label_names": self.used_logit_label_names,
-                "used_logit_label_ids": self.used_logit_label_ids,
+                "used_logit_label_names": copy.deepcopy(self.used_logit_label_names),
+                "used_logit_label_ids": copy.deepcopy(self.used_logit_label_ids),
                 "category_mapper": self.category_mapper,
             }
             for snt_tokens, snt_starts, snt_ends, snt_outputs in zip(
                 tokens, starts, ends, outputs
             )
         ]
+        for example in examples:
+            postprocess_for_output(example)
         chunked_examples = list(
             chunked(examples, n=len(examples) // (3 * multiprocessing.cpu_count()))
         )
