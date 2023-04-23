@@ -1,5 +1,4 @@
 import uuid
-from matplotlib.pyplot import axis
 from .abstract_model import NERModelConfig, NERModel
 from dataclasses import dataclass
 from .multi_label.abstract_model import MultiLabelNERModelConfig
@@ -11,11 +10,12 @@ from scipy.special import softmax
 from hydra.core.config_store import ConfigStore
 from .multi_label import register_multi_label_ner_model, multi_label_ner_model_builder
 from datasets import Dataset
-from src.dataset.utils import ranked_label2hierarchical_valid_labels
-from tqdm import tqdm
+from src.dataset.utils import load_negative_cats_from_positive_cats
 import multiprocessing
 from p_tqdm import p_map
 from more_itertools import chunked
+from src.dataset.utils import CoNLL2003CategoryMapper
+from collections import defaultdict
 
 
 @dataclass
@@ -23,8 +23,8 @@ class FlattenMarginalSoftmaxNERModelConfig(NERModelConfig):
     ner_model_name: str = "FlattenMarginalSoftmaxNER"
     multi_label_ner_model: MultiLabelNERModelConfig = MISSING
     positive_cats: str = MISSING
-    negative_cats: Optional[str] = None
-    hierarchical_valid: bool = True
+    eval_dataset: str = MISSING  # CoNLL2003 or MedMentions
+    with_negative_categories: bool = True
 
 
 def postprocess_for_output(example):
@@ -32,13 +32,20 @@ def postprocess_for_output(example):
     starts = example["starts"]
     ends = example["ends"]
     outputs = example["outputs"]
-    hierarchical_valid: bool = example["hierarchical_valid"]
-    label_names: List[str] = example["label_names"]
-    positive_cats: List[str] = example["positive_cats"]
     negative_cats: List[str] = example["negative_cats"]
-    focus_and_negative_cats: List[str] = example["focus_and_negative_cats"]
-    focus_and_negative_label_ids: List[str] = example["focus_and_negative_label_ids"]
+    used_logit_label_names: List[str] = example["used_logit_label_names"]
+    used_logit_label_ids: List[str] = example["used_logit_label_ids"]
+    category_mapper: dict = example["category_mapper"]
 
+    category_mapped_focus_and_negative_cats = []
+    for cat in used_logit_label_names:
+        if cat in category_mapper:
+            category_mapped_focus_and_negative_cats.append(category_mapper[cat])
+        else:
+            category_mapped_focus_and_negative_cats.append(cat)
+    category_mapped_focus_and_negative_cats = list(
+        sorted(set(category_mapped_focus_and_negative_cats))
+    )
     remained_starts = []
     remained_ends = []
     remained_labels = []
@@ -46,28 +53,24 @@ def postprocess_for_output(example):
     for s, e, o in zip(starts, ends, outputs):
         # positive_catsが何かしら出力されているスパンのみ残す
         # 更に残っている場合は最大確率のものを残す
-        if hierarchical_valid:
-            ranked_labels = [label_names[i] for i in (-o.logits).argsort()]
-            valid_labels = ranked_label2hierarchical_valid_labels(ranked_labels)
-            focus_labels = set(valid_labels) & set(positive_cats)
-            prob = softmax(o.logits)
-            if focus_labels:
-                assert len(focus_labels) == 1
-                label = focus_labels.pop()
-            else:
-                label = "nc-O"
-            remained_labels.append(label)
-            focus_and_negative_prob = softmax(o.logits[focus_and_negative_label_ids])
-            max_prob = focus_and_negative_prob[focus_and_negative_cats.index(label)]
+        focus_and_negative_prob = softmax(o.logits[used_logit_label_ids])
+        if category_mapper:
+            category_mapped_probs = [0] * len(category_mapped_focus_and_negative_cats)
+            assert len(used_logit_label_names) == len(focus_and_negative_prob)
+            for cat, prob in zip(used_logit_label_names, focus_and_negative_prob):
+                if category_mapper:
+                    if cat in category_mapper:
+                        cat = category_mapper[cat]
+                    cat_id = category_mapped_focus_and_negative_cats.index(cat)
+                    category_mapped_probs[cat_id] += prob
+            used_logit_label_names = category_mapped_focus_and_negative_cats
+            focus_and_negative_prob = np.array(category_mapped_probs)
+        max_prob = focus_and_negative_prob.max()
+        label = used_logit_label_names[focus_and_negative_prob.argmax()]
+        if label in negative_cats:
+            remained_labels.append("nc-%s" % label)
         else:
-            focus_and_negative_prob = softmax(o.logits[focus_and_negative_label_ids])
-            max_prob = focus_and_negative_prob.max()
-            max_prob = max(focus_and_negative_prob)
-            label = focus_and_negative_cats[focus_and_negative_prob.argmax()]
-            if label in negative_cats:
-                remained_labels.append("nc-%s" % label)
-            else:
-                remained_labels.append(label)
+            remained_labels.append(label)
         remained_starts.append(s)
         remained_ends.append(e)
         max_probs.append(max_prob)
@@ -103,20 +106,38 @@ class FlattenMarginalSoftmaxNERModel(NERModel):
         self.multi_label_ner_model: MultiLabelNERModel = multi_label_ner_model_builder(
             conf.multi_label_ner_model
         )  # 後で追加する
-        if self.conf.negative_cats:
-            self.negative_cats = self.conf.negative_cats.split("_")
+        label_names = self.multi_label_ner_model.multi_label_typer.label_names
+        self.positive_cats = [
+            cat for cat in self.conf.positive_cats.split("_") if cat in label_names
+        ]
+        if self.conf.with_negative_categories:
+            self.negative_cats = []
+            for cat in sorted(
+                load_negative_cats_from_positive_cats(
+                    self.positive_cats, conf.eval_dataset
+                )
+            ):
+                if cat in label_names:
+                    self.negative_cats.append(cat)
         else:
             self.negative_cats = []
-        self.positive_cats = self.conf.positive_cats.split("_")
-        self.focus_and_negative_cats = (
-            ["nc-O"] + self.conf.positive_cats.split("_") + self.negative_cats
-        )
-        self.focus_and_negative_label_ids = np.array(
-            [
-                self.multi_label_ner_model.multi_label_typer.label_names.index(label)
-                for label in self.focus_and_negative_cats
-            ]
-        )
+        focus_and_negative_cats = ["nc-O"] + self.positive_cats + self.negative_cats
+        self.category_mapper = dict()
+        used_logit_label_names = []
+        used_logit_label_ids = []
+        for label in focus_and_negative_cats:
+            if label in CoNLL2003CategoryMapper:
+                for category in CoNLL2003CategoryMapper[label]:
+                    # NOTE: 学習データ中に出現しなかったラベルは無視する
+                    self.category_mapper[category] = label
+                    used_logit_label_names.append(category)
+                    used_logit_label_ids.append(label_names.index(category))
+            # NOTE: 学習データ中に出現しなかったラベルは無視する
+            else:
+                used_logit_label_names.append(label)
+                used_logit_label_ids.append(label_names.index(label))
+        self.used_logit_label_names = used_logit_label_names
+        self.used_logit_label_ids = np.array(used_logit_label_ids)
 
     def predict(self, tokens: List[str]) -> List[str]:
         """predict class
@@ -148,12 +169,12 @@ class FlattenMarginalSoftmaxNERModel(NERModel):
                 "starts": snt_starts,
                 "ends": snt_ends,
                 "outputs": snt_outputs,
-                "hierarchical_valid": self.conf.hierarchical_valid,
                 "label_names": label_names,
                 "positive_cats": self.positive_cats,
                 "negative_cats": self.negative_cats,
-                "focus_and_negative_cats": self.focus_and_negative_cats,
-                "focus_and_negative_label_ids": self.focus_and_negative_label_ids,
+                "used_logit_label_names": self.used_logit_label_names,
+                "used_logit_label_ids": self.used_logit_label_ids,
+                "category_mapper": self.category_mapper,
             }
             for snt_tokens, snt_starts, snt_ends, snt_outputs in zip(
                 tokens, starts, ends, outputs

@@ -57,13 +57,13 @@ $(CONLL2003_DIR): $(GOLD_DIR)
 $(GOLD_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	@echo "Gold Data"
 	@echo GOLD_MULTI_LABEL_NER_DATA: $(GOLD_MULTI_LABEL_NER_DATA)
-	@echo PYTHON -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(POSITIVE_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
-	${PYTHON} -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(POSITIVE_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	@echo PYTHON -m cli.preprocess.load_gold_ner --positive-cats $(subst $() ,_,$(POSITIVE_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	${PYTHON} -m cli.preprocess.load_gold_ner --positive-cats $(subst $() ,_,$(POSITIVE_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
 $(GOLD_TRAIN_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	@echo "Gold Data"
 	@echo GOLD_MULTI_LABEL_NER_DATA: $(GOLD_MULTI_LABEL_NER_DATA)
-	@echo PYTHON -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(POSITIVE_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
-	${PYTHON} -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(POSITIVE_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	@echo PYTHON -m cli.preprocess.load_gold_ner --positive-cats $(subst $() ,_,$(POSITIVE_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	${PYTHON} -m cli.preprocess.load_gold_ner --positive-cats $(subst $() ,_,$(POSITIVE_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
 $(GOLD_TRAIN_MSC_DATA): $(GOLD_TRAIN_DATA)
 	@echo GOLD_TRAIN_MSC_DATA_ON_GOLD: $(GOLD_TRAIN_MSC_DATA)
 	$(MSC_DATA_BASE_CMD) \
