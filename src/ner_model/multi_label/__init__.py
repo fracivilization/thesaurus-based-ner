@@ -13,6 +13,7 @@ def multi_label_ner_model_builder(
     else:
         raise NotImplementedError
     return ner_model
+
 def register_multi_label_ner_model(group="multi_label_ner_model"):
     register_multi_label_two_stage_configs(group=group)
     pass
