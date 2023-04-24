@@ -20,6 +20,7 @@ class MultiLabelDictMatchTyperConfig(MultiLabelTyperConfig):
     multi_label_typer_name: str = "MultiLabelDictMatchTyper"
     term2cats: str = MISSING  # path for picled term2cat
     label_names: str = "non_initialized"  # this variable is dinamically decided
+    case_sensitive: bool = False
 
 
 class MultiLabelDictMatchTyper(MultiLabelTyper):
@@ -36,7 +37,9 @@ class MultiLabelDictMatchTyper(MultiLabelTyper):
                 for cat in weighted_cats.values
             )
         )
-        self.keyword_processor = ComplexKeywordTyper(self.term2cats)
+        self.keyword_processor = ComplexKeywordTyper(
+            self.term2cats, case_sensitive=conf.case_sensitive
+        )
 
     def predict(
         self, tokens: List[str], starts: List[str], ends: List[str]

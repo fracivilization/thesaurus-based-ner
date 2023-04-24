@@ -16,7 +16,7 @@ class ComplexKeywordTyper:
         buffer_dir = Path(get_original_cwd()).joinpath(
             "data",
             "buffer",
-            self.load_hash_value_for_term2value(term2value),
+            self.load_hash_value_for_term2value(term2value, case_sensitive),
         )
         term2value = copy.copy(term2value)  # pythonでは参照渡しが行われるため
         self.term2value = term2value
@@ -67,18 +67,23 @@ class ComplexKeywordTyper:
                 str(buffer_dir.joinpath("reversed_case_insensitive_darts"))
             )
 
-    def load_hash_value_for_term2value(self, term2value: Dict):
+    def load_hash_value_for_term2value(self, term2value: Dict, case_sensitive: bool):
         if isinstance(term2value, dict):
             return md5(
                 (
                     "ComplexKeywordProcessor from "
                     + str(sorted(term2value.keys()))
                     + str(sorted(set(term2value.values())))
+                    + str(case_sensitive)
                 ).encode()
             ).hexdigest()
         elif isinstance(term2value, WeightedSQliteDict):
             return md5(
-                ("ComplexKeywordProcessor from " + term2value.db_file_path).encode()
+                (
+                    "ComplexKeywordProcessor from "
+                    + term2value.db_file_path
+                    + str(case_sensitive)
+                ).encode()
             ).hexdigest()
         else:
             raise NotImplementedError

@@ -1,0 +1,4 @@
+defaults:
+  - MultiLabelDictMatchTyper
+
+case_sensitive: True

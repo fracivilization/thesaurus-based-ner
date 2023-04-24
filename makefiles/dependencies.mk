@@ -135,6 +135,7 @@ $(GOLD_TRAIN_MSMLC_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 
 $(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD): $(TERM2CATS) $(GOLD_MULTI_LABEL_NER_DATA) $(PSEUDO_DATA_DIR)
 	${PYTHON} -m cli.preprocess.load_pseudo_multi_label_ner \
+		+multi_label_ner_model/multi_label_typer=$(EVAL_DATASET)DictMatch \
 		++multi_label_ner_model.multi_label_typer.term2cats=$(TERM2CATS) \
 		+gold_corpus=$(GOLD_MULTI_LABEL_NER_DATA) \
 		+raw_corpus=$(GOLD_MULTI_LABEL_NER_DATA) \
