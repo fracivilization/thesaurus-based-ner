@@ -43,10 +43,10 @@ class MultiLabelDictMatchTyper(MultiLabelTyper):
 
     def predict(
         self, tokens: List[str], starts: List[str], ends: List[str]
-    ) -> MultiLabelTyperOutput:
+    ) -> List[MultiLabelTyperOutput]:
         assert len(starts) == len(ends)
         if not starts:
-            return MultiLabelTyperOutput(labels=[], logits=np.array([]), weights=[])
+            return []
         else:
             weighted_labels = []
             for start, end in zip(starts, ends):
@@ -57,9 +57,7 @@ class MultiLabelDictMatchTyper(MultiLabelTyper):
                 else:
                     weighted_labels.append(label)
             # label_ids = np.array([self.label_names.index(l) for l in labels])
-            logits = []
-            labels = []
-            weights = []
+            outputs = []
             for span_weighted_labels in weighted_labels:
                 if span_weighted_labels:
                     span_labels = span_weighted_labels.values
@@ -74,16 +72,16 @@ class MultiLabelDictMatchTyper(MultiLabelTyper):
                     span_labels = []
                     span_weights = []
                     logit = np.zeros(len(self.label_names))
-                labels.append(span_labels)
-                weights.append(span_weights)
-                logits.append(logit)
 
-            logits = np.array(logits)
-            return MultiLabelTyperOutput(
-                labels=labels,
-                logits=logits,
-                weights=weights,
-            )
+                outputs.append(
+                    MultiLabelTyperOutput(
+                        labels=span_labels,
+                        weights=span_weights,
+                        logits=logit
+                    )
+                )
+
+            return outputs
 
     def train(self):
         pass

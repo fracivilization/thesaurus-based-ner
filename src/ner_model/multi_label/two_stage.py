@@ -65,31 +65,19 @@ class MultiLabelTwoStageModel(MultiLabelNERModel):
         ):
             snt_starts = []
             snt_ends = []
-            snt_labels = []
-            snt_weights = []
-            snt_logits = []
-            for s, e, labels, weight, logit in zip(
+            snt_outputs = []
+            for s, e, o in zip(
                 snt_input_starts,
                 snt_input_ends,
-                snt_input_outputs.labels,
-                snt_input_outputs.weights,
-                snt_input_outputs.logits,
+                snt_input_outputs
             ):
-                if labels:
+                if o.labels:
                     snt_starts.append(s)
                     snt_ends.append(e)
-                    snt_labels.append(labels)
-                    snt_weights.append(weight)
-                    snt_logits.append(logit)
+                    snt_outputs.append(o)
             starts.append(snt_starts)
             ends.append(snt_ends)
-            outputs.append(
-                MultiLabelTyperOutput(
-                    labels=snt_labels,
-                    weights=snt_weights,
-                    logits=np.array(snt_logits),
-                )
-            )
+            outputs.append(snt_outputs)
         return starts, ends, outputs
 
     def batch_predict(

@@ -862,16 +862,19 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         for snt_logit, span_num in tqdm(zip(logits, map(len, starts))):
             snt_logit = snt_logit[:span_num]
             labels = [[]] * span_num
+            weights = [[]] * span_num
             for span_id, label_id in zip(
                 *np.where(expit(snt_logit) > self.conf.prediction_threshold)
             ):
                 labels[span_id] = labels[span_id] + [self.label_names[label_id]]
+                weights[span_id] += [expit(snt_logit[span_id, label_id])]
             snt_ret_list = []
-            for span_logit, span_labels in zip(snt_logit, labels):
+            for span_logit, span_labels, span_weights in zip(snt_logit, labels, weights):
                 snt_ret_list.append(
                     MultiLabelTyperOutput(
                         labels=span_labels,
                         logits=span_logit,
+                        weights=span_weights
                     )
                 )
             ret_list.append(snt_ret_list)
