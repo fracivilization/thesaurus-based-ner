@@ -120,7 +120,7 @@ def load_msml_pseudo_dataset(
                 ret_snt_starts.append(start)
                 ret_snt_ends.append(end)
                 ret_snt_labels.append(output.labels)
-                ret_snt_labels.append(output.weights)
+                ret_snt_weights.append(output.weights)
         ret_tokens.append(snt_tokens)
         ret_starts.append(ret_snt_starts)
         ret_ends.append(ret_snt_ends)
