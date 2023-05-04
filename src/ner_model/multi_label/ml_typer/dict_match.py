@@ -75,9 +75,7 @@ class MultiLabelDictMatchTyper(MultiLabelTyper):
 
                 outputs.append(
                     MultiLabelTyperOutput(
-                        labels=span_labels,
-                        weights=span_weights,
-                        logits=logit
+                        labels=span_labels, weights=span_weights, logits=logit
                     )
                 )
 
