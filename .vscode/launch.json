@@ -581,6 +581,28 @@
             "args": [],
         },
         {
+            "name": "Print Multi Label DatasetDict",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.analysis.print_multi_label_ner",
+            "justMyCode": false,
+            "args": [
+                "--input-dataset-dict",
+                "data/pseudo/ae9c16b8d44253903cc211915bf7eb18b70af513"
+            ],
+        },
+        {
+            "name": "Print NER DatasetDict",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.analysis.print_ner_dataset_dict",
+            "justMyCode": false,
+            "args": [
+                "--input-dataset-dict",
+                "data/pseudo/0d350abf3708f3b48921c37a102cfb87c5ee4ddc",
+            ],
+        },
+        {
             "name": "Python: Debug Test",
             "type": "python",
             "request": "launch",
