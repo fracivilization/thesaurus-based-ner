@@ -114,12 +114,18 @@ def load_msml_pseudo_dataset(
     for snt_tokens, snt_starts, snt_ends, snt_outputs in zip(
         tokens, starts, ends, outputs
     ):
-        if snt_outputs:
-            ret_tokens.append(snt_tokens)
-            ret_starts.append(snt_starts)
-            ret_ends.append(snt_ends)
-            ret_labels.append(snt_outputs.labels)
-            ret_weights.append(snt_outputs.weights)
+        ret_snt_starts, ret_snt_ends, ret_snt_labels, ret_snt_weights = [], [], [], []
+        for start, end, output in zip(snt_starts, snt_ends, snt_outputs):
+            if output.labels:
+                ret_snt_starts.append(start)
+                ret_snt_ends.append(end)
+                ret_snt_labels.append(output.labels)
+                ret_snt_labels.append(output.weights)
+        ret_tokens.append(snt_tokens)
+        ret_starts.append(ret_snt_starts)
+        ret_ends.append(ret_snt_ends)
+        ret_labels.append(ret_snt_labels)
+        ret_weights.append(ret_snt_weights)
 
     features = get_msml_dataset_features(label_names, with_weitht=True)
     pseudo_dataset = Dataset.from_dict(
