@@ -63,9 +63,7 @@ class MultiLabelDictMatchTyper(MultiLabelTyper):
             for span_weighted_labels in weighted_labels:
                 if span_weighted_labels:
                     span_labels = span_weighted_labels.values
-                    labels.append(span_labels)
                     span_weights = np.array(span_weighted_labels.weights)
-                    weights.append(span_weighted_labels.weights)
                     label_ids = np.array(
                         [self.label_names.index(label) for label in span_labels]
                     )
@@ -73,7 +71,11 @@ class MultiLabelDictMatchTyper(MultiLabelTyper):
                         span_weights[:, None] * np.eye(len(self.label_names))[label_ids]
                     ).sum(axis=0)
                 else:
+                    span_labels = []
+                    span_weights = []
                     logit = np.zeros(len(self.label_names))
+                labels.append(span_labels)
+                weights.append(span_weights)
                 logits.append(logit)
 
             logits = np.array(logits)

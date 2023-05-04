@@ -51,6 +51,47 @@ class MultiLabelTwoStageModel(MultiLabelNERModel):
     def predict(self, tokens: List[str]) -> List[str]:
         raise NotImplementedError
 
+    def remove_null_chunk(
+        self,
+        input_starts: List[List[str]],
+        input_ends: List[List[str]],
+        input_outputs: List[List[MultiLabelTyperOutput]],
+    ) -> Tuple[List[List[str]], List[List[str]], List[List[MultiLabelTyperOutput]]]:
+        starts = []
+        ends = []
+        outputs = []
+        for snt_input_starts, snt_input_ends, snt_input_outputs in zip(
+            input_starts, input_ends, input_outputs
+        ):
+            snt_starts = []
+            snt_ends = []
+            snt_labels = []
+            snt_weights = []
+            snt_logits = []
+            for s, e, labels, weight, logit in zip(
+                snt_input_starts,
+                snt_input_ends,
+                snt_input_outputs.labels,
+                snt_input_outputs.weights,
+                snt_input_outputs.logits,
+            ):
+                if labels:
+                    snt_starts.append(s)
+                    snt_ends.append(e)
+                    snt_labels.append(labels)
+                    snt_weights.append(weight)
+                    snt_logits.append(logit)
+            starts.append(snt_starts)
+            ends.append(snt_ends)
+            outputs.append(
+                MultiLabelTyperOutput(
+                    labels=snt_labels,
+                    weights=snt_weights,
+                    logits=np.array(snt_logits),
+                )
+            )
+        return starts, ends, outputs
+
     def batch_predict(
         self, tokens: List[List[str]]
     ) -> Tuple[List[List[int]], List[List[int]], List[List[MultiLabelTyperOutput]]]:
@@ -58,6 +99,7 @@ class MultiLabelTwoStageModel(MultiLabelNERModel):
         starts = [[s for s, e in snt] for snt in chunks]
         ends = [[e for s, e in snt] for snt in chunks]
         outputs = self.multi_label_typer.batch_predict(tokens, starts, ends)
+        starts, ends, outputs = self.remove_null_chunk(starts, ends, outputs)
         return starts, ends, outputs
 
     def train(self):
