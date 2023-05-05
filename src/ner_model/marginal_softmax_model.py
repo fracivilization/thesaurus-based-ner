@@ -183,8 +183,6 @@ class FlattenMarginalSoftmaxNERModel(NERModel):
                 tokens, starts, ends, outputs
             )
         ]
-        for example in examples:
-            postprocess_for_output(example)
         chunked_examples = list(
             chunked(examples, n=len(examples) // (3 * multiprocessing.cpu_count()))
         )
