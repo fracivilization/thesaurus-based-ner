@@ -17,7 +17,7 @@ export http_proxy=$MY_PROXY_URL
 export https_proxy=$MY_PROXY_URL
 export ftp_proxy=$MY_PROXY_URL
 
-negative_ratios=(0.5 0.3 0.1 0.05 0.01 0.005)
+negative_ratios=(0.5 1.0 4.0 8.0 16.0)
 for negative_ratio in ${negative_ratios[@]}; do
     echo "negative_ratio: ${negative_ratio}" >>${OUTPUT_DIR}/cout
     MAKE="EVAL_DATASET=${EVAL_DATASET} MSMLC_DYNAMIC_PN_RATIO_EQUIVALENCE=True MSMLC_NEGATIVE_RATIO_OVER_POSITIVE=${negative_ratio} make"
