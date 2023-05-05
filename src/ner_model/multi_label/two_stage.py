@@ -19,6 +19,7 @@ class MultiLabelTwoStageConfig(MultiLabelNERModelConfig):
     multi_label_ner_model_name: str = "MultiLabelTwoStage"
     chunker: ChunkerConfig = MISSING
     multi_label_typer: MultiLabelTyperConfig = MISSING
+    remove_null_chunk: bool = False
 
 
 def register_multi_label_two_stage_configs(group="multi_label_ner_model") -> None:
@@ -39,13 +40,13 @@ class MultiLabelTwoStageModel(MultiLabelNERModel):
         config: MultiLabelTwoStageConfig,
         writer: MlflowWriter,
     ) -> None:
-        self.conf = config
         self.writer = writer
         self.chunker = chunker_builder(config.chunker)
         self.multi_label_typer = multi_label_typer_builder(
             config.multi_label_typer, writer
         )
         super().__init__(config, label_names=self.multi_label_typer.label_names)
+        self.conf = config
         # self.datasets = datasets
 
     def predict(self, tokens: List[str]) -> List[str]:
@@ -87,7 +88,8 @@ class MultiLabelTwoStageModel(MultiLabelNERModel):
         starts = [[s for s, e in snt] for snt in chunks]
         ends = [[e for s, e in snt] for snt in chunks]
         outputs = self.multi_label_typer.batch_predict(tokens, starts, ends)
-        starts, ends, outputs = self.remove_null_chunk(starts, ends, outputs)
+        if self.conf.remove_null_chunk:
+            starts, ends, outputs = self.remove_null_chunk(starts, ends, outputs)
         return starts, ends, outputs
 
     def train(self):

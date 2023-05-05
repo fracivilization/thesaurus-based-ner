@@ -137,6 +137,7 @@ $(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD): $(TERM2CATS) $(GOLD_MULTI_LABEL_NER_DATA
 	${PYTHON} -m cli.preprocess.load_pseudo_multi_label_ner \
 		+multi_label_ner_model/multi_label_typer=$(EVAL_DATASET)DictMatch \
 		++multi_label_ner_model.multi_label_typer.term2cats=$(TERM2CATS) \
+		++multi_label_ner_model.remove_null_chunk=True \
 		+gold_corpus=$(GOLD_MULTI_LABEL_NER_DATA) \
 		+raw_corpus=$(GOLD_MULTI_LABEL_NER_DATA) \
 		+output_dir=$(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD)
