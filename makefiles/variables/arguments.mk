@@ -13,8 +13,6 @@ POSITIVE_CATS ?= PER LOC ORG MISC
 WITH_NEGATIVE_CATEGORIES ?= False
 ## 一つの単語に対して複数のentityが存在する場合に、複数のentityで共通するカテゴリ飲みを利用する
 REMAIN_COMMON_SENSE_FOR_TERM2CATS ?= True # 着目カテゴリ鹿利用しない場合（通常のDS NERと同じ場合）は、term2cats計算時に複数のエンティティの持つ共通の意味に限定して利用しない
-## 補完カテゴリ
-NEGATIVE_CATS ?= "$(shell ${PYTHON} -m cli.preprocess.load_negative_categories --positive-categories $(subst $() ,_,$(POSITIVE_CATS)) --with-negative_categories $(WITH_NEGATIVE_CATEGORIES) --eval-dataset $(EVAL_DATASET))"
 ## Oラベルを使う
 WITH_O ?= True
 ## ２段階モデルの１段階目 擬似データの際のChunkerを意味しない
@@ -35,6 +33,11 @@ TRAIN_BATCH_SIZE ?= 16
 EVAL_BATCH_SIZE ?= 32
 
 
+# 中間変数
+## 補完カテゴリ
+NEGATIVE_CATS := "$(shell ${PYTHON} -m cli.preprocess.load_negative_categories --positive-categories $(subst $() ,_,$(POSITIVE_CATS)) --with-negative_categories $(WITH_NEGATIVE_CATEGORIES) --eval-dataset $(EVAL_DATASET))"
+## 事前学習モデル名
+MODEL_NAME := $($(EVAL_DATASET)_MODEL_NAME)
 ## MultiSpanClassifierで利用する引数群
 MSC_ARGS := "WITH_O: $(WITH_O) FIRST_STAGE_CHUNKER: $(FIRST_STAGE_CHUNKER) NEGATIVE_RATIO_OVER_POSITIVE: $(NEGATIVE_RATIO_OVER_POSITIVE)"
 ## MultiSpanMultiLabelClassifierで利用する引数群

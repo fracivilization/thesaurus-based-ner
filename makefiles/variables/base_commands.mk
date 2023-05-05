@@ -14,11 +14,13 @@ FLATTEN_MARGINAL_SOFTMAX_NER_BASE_CMD := $(TRAIN_COMMON_BASE_CMD) \
 		ner_model/multi_label_ner_model=two_stage \
 		+ner_model/multi_label_ner_model/chunker=$(FIRST_STAGE_CHUNKER) \
 		+ner_model/multi_label_ner_model/multi_label_typer=enumerated \
+		++ner_model.multi_label_ner_model.multi_label_typer.model_args.model_name_or_path=$(MODEL_NAME) \
 		++ner_model.multi_label_ner_model.multi_label_typer.train_args.do_train=False \
 		++ner_model.multi_label_ner_model.multi_label_typer.model_output_path="no_output" \
 		++msmlc_datasets=$(GOLD_TRAIN_MSMLC_DATA) \
 		++ner_model.multi_label_ner_model.multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss
 TRAIN_MSMLC_BASE_CMD := ${PYTHON} -m cli.train_msmlc +multi_label_typer=enumerated \
+		++multi_label_typer.model_args.model_name_or_path=$(MODEL_NAME) \
 		++multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss \
 		++multi_label_typer.model_args.dynamic_pn_ratio_equivalence=$(MSMLC_DYNAMIC_PN_RATIO_EQUIVALENCE) \
 		++multi_label_typer.model_args.static_pn_ratio_equivalence=$(MSMLC_STATIC_PN_RATIO_EQUIVALENCE) \
@@ -29,6 +31,7 @@ TRAIN_MSMLC_BASE_CMD := ${PYTHON} -m cli.train_msmlc +multi_label_typer=enumerat
 
 TRAIN_BASE_CMD := $(TRAIN_COMMON_BASE_CMD) \
 		ner_model/chunker=$(FIRST_STAGE_CHUNKER) \
+		ner_model.typer.model_name_or_path=$(MODEL_NAME) \
 		ner_model.typer.model_args.negative_ratio_over_positive=$(NEGATIVE_RATIO_OVER_POSITIVE) \
 		ner_model.typer.train_args.per_device_train_batch_size=$(TRAIN_BATCH_SIZE) \
 		ner_model.typer.train_args.per_device_eval_batch_size=$(EVAL_BATCH_SIZE) \
