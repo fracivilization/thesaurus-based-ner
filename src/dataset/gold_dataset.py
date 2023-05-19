@@ -25,7 +25,7 @@ nlp = spacy.load("en_core_sci_sm")
 
 
 def singularize_by_target_cats(
-    multi_label_ner_dataset: Dataset, focus_cats: List[str], negative_cats: List[str]
+    multi_label_ner_dataset: Dataset, positive_cats: List[str], negative_cats: List[str]
 ) -> List[Dict]:
     """着目クラスに応じてマルチクラスデータセットをシングルクラスに変換する
     返り値はconll形式の辞書のリストで返す
@@ -39,7 +39,7 @@ def singularize_by_target_cats(
         "labels": [["PER", "lawyer], ["Fruit"]]
 
     }
-    focus_cats: ["PER"]
+    positive_cats: ["PER"]
 
     出力
     {
@@ -48,7 +48,7 @@ def singularize_by_target_cats(
     }
     """
     ret_conll = []
-    target_cats = set(focus_cats + negative_cats)
+    target_cats = set(positive_cats + negative_cats)
     label_names = multi_label_ner_dataset.features["labels"].feature.feature.names
     for snt in multi_label_ner_dataset:
         ner_tags = ["O"] * len(snt["tokens"])
@@ -275,17 +275,17 @@ def remove_span_duplication(docs: List[str]):
 
 
 def load_gold_datasets(
-    focus_cats: str, negative_cats: str, input_dir: str, train_snt_num: int
+    positive_cats: str, negative_cats: str, input_dir: str, train_snt_num: int
 ) -> DatasetDict:
     # load remained cats
-    focus_cats = focus_cats.split(CATEGORY_SEPARATOR)
+    positive_cats = positive_cats.split(CATEGORY_SEPARATOR)
     negative_cats = negative_cats.split(CATEGORY_SEPARATOR)
 
     # load dataset
     multi_label_ner = DatasetDict.load_from_disk(input_dir)
 
     singularized_ner = {
-        key: singularize_by_target_cats(split, focus_cats, negative_cats)
+        key: singularize_by_target_cats(split, positive_cats, negative_cats)
         for key, split in multi_label_ner.items()
     }
     c = Counter(
@@ -302,8 +302,8 @@ def load_gold_datasets(
             split,
             ner_tag_names,
             desc={
-                "desc": "MedMentions Dataset focus on %s" % str(focus_cats),
-                "focus_cats": focus_cats,
+                "desc": "MedMentions Dataset focus on %s" % str(positive_cats),
+                "positive_cats": positive_cats,
                 "split": key,
             },
         )
@@ -398,7 +398,7 @@ def load_MedMentions_gold_multi_label_ner_datasets(input_dir: str):
     dataset_dict["test"] = translate_MedMentions_conll_into_msmlc_dataset(
         test_conll, label_names, desc
     )
-    # describe focus_cat into datasetdict or dataset (describing into dataset dict is better)
+    # describe positive_cat into datasetdict or dataset (describing into dataset dict is better)
     return DatasetDict(dataset_dict)
 
 

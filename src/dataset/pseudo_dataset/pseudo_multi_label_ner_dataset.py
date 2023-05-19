@@ -31,8 +31,6 @@ class PseudoMSMLCAnnoConfig:
     output_dir: str = MISSING
     raw_corpus: str = MISSING
     gold_corpus: str = MISSING
-    # duplicate_cats: str = MISSING
-    # focus_cats: str = MISSING
 
 
 def remove_fp_ents(pred_tags: List[str], gold_tags: List[str]):
@@ -81,17 +79,20 @@ def add_dict_erosion_entity(pred_tags, gold_tags):
     return new_tags
 
 
-def get_msml_dataset_features(label_names):
-    features = datasets.Features(
-        {
-            "tokens": datasets.Sequence(datasets.Value("string")),
-            "starts": datasets.Sequence(datasets.Value("int32")),
-            "ends": datasets.Sequence(datasets.Value("int32")),
-            "labels": datasets.Sequence(
-                datasets.Sequence(datasets.ClassLabel(names=label_names))
-            ),
-        }
-    )
+def get_msml_dataset_features(label_names, with_weitht: False):
+    features = {
+        "tokens": datasets.Sequence(datasets.Value("string")),
+        "starts": datasets.Sequence(datasets.Value("int32")),
+        "ends": datasets.Sequence(datasets.Value("int32")),
+        "labels": datasets.Sequence(
+            datasets.Sequence(datasets.ClassLabel(names=label_names))
+        ),
+    }
+    if with_weitht:
+        features["weights"] = datasets.Sequence(
+            datasets.Sequence(datasets.Value("float32"))
+        )
+    features = datasets.Features(features)
     return features
 
 
@@ -109,23 +110,31 @@ def load_msml_pseudo_dataset(
     tokens = raw_corpus["tokens"]
     starts, ends, outputs = multi_label_ner_model.batch_predict(tokens)
     label_names = multi_label_ner_model.label_names
-    ret_tokens, ret_starts, ret_ends, ret_labels = [], [], [], []
+    ret_tokens, ret_starts, ret_ends, ret_labels, ret_weights = [], [], [], [], []
     for snt_tokens, snt_starts, snt_ends, snt_outputs in zip(
         tokens, starts, ends, outputs
     ):
-        if snt_outputs:
-            ret_tokens.append(snt_tokens)
-            ret_starts.append(snt_starts)
-            ret_ends.append(snt_ends)
-            ret_labels.append(snt_outputs.labels)
+        ret_snt_starts, ret_snt_ends, ret_snt_labels, ret_snt_weights = [], [], [], []
+        for start, end, output in zip(snt_starts, snt_ends, snt_outputs):
+            if output.labels:
+                ret_snt_starts.append(start)
+                ret_snt_ends.append(end)
+                ret_snt_labels.append(output.labels)
+                ret_snt_weights.append(output.weights)
+        ret_tokens.append(snt_tokens)
+        ret_starts.append(ret_snt_starts)
+        ret_ends.append(ret_snt_ends)
+        ret_labels.append(ret_snt_labels)
+        ret_weights.append(ret_snt_weights)
 
-    features = get_msml_dataset_features(label_names)
+    features = get_msml_dataset_features(label_names, with_weitht=True)
     pseudo_dataset = Dataset.from_dict(
         {
             "tokens": ret_tokens,
             "starts": ret_starts,
             "ends": ret_ends,
             "labels": ret_labels,
+            "weights": ret_weights,
         },
         info=DatasetInfo(description=json.dumps(desc), features=features),
     )
@@ -139,7 +148,9 @@ def get_labels(ner_dataset: Dataset):
 import copy
 
 
-def change_label_names(ner_dataset: Dataset, label_names: List[str]):
+def change_label_names(
+    ner_dataset: Dataset, label_names: List[str], with_weight: bool = False
+):
     info = copy.deepcopy(ner_dataset.info)
     old_names = info.features["labels"].feature.feature.names
     raw_label_names = []
@@ -151,7 +162,8 @@ def change_label_names(ner_dataset: Dataset, label_names: List[str]):
     return Dataset.from_dict(
         new_ner_dataset,
         info=DatasetInfo(
-            description=desc, features=get_msml_dataset_features(label_names)
+            description=desc,
+            features=get_msml_dataset_features(label_names, with_weight),
         ),
     )
 
@@ -169,7 +181,7 @@ def join_pseudo_and_gold_dataset(
         label_names = sorted(set(label_names))
     ret = DatasetDict(
         {
-            "train": change_label_names(pseudo_dataset, label_names),
+            "train": change_label_names(pseudo_dataset, label_names, with_weight=True),
             "validation": change_label_names(gold_dataset["validation"], label_names),
             "test": change_label_names(gold_dataset["test"], label_names),
         }

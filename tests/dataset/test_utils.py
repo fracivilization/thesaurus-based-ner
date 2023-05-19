@@ -1,13 +1,13 @@
 from src.dataset.utils import (
-    get_umls_negative_cats_from_focus_cats,
-    get_dbpedia_negative_cats_from_focus_cats,
+    get_negative_cats_from_positive_cats,
+    get_dbpedia_negative_cats_from_positive_cats,
     load_DBPediaCategories,
 )
 
 
-def test_get_umls_negative_cats_from_focus_cats():
-    focus_cats = ["T005"]
-    negative_cats = get_umls_negative_cats_from_focus_cats(focus_cats)
+def test_get_umls_negative_cats_from_positive_cats():
+    positive_cats = ["T005"]
+    negative_cats = get_negative_cats_from_positive_cats(positive_cats)
     assert [
         "T007",
         "T017",
@@ -20,9 +20,9 @@ def test_get_umls_negative_cats_from_focus_cats():
     ] == negative_cats
 
 
-def test_get_dbpedia_negative_cats_from_focus_cats():
-    focus_cats = ["Person"]
-    negative_cats = get_dbpedia_negative_cats_from_focus_cats(focus_cats)
+def test_get_dbpedia_negative_cats_from_positive_cats():
+    positive_cats = ["Person"]
+    negative_cats = get_dbpedia_negative_cats_from_positive_cats(positive_cats)
     assert negative_cats == [
         "Activity",
         "Algorithm",

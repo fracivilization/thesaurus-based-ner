@@ -19,7 +19,7 @@ class MultiLabelTwoStageConfig(MultiLabelNERModelConfig):
     multi_label_ner_model_name: str = "MultiLabelTwoStage"
     chunker: ChunkerConfig = MISSING
     multi_label_typer: MultiLabelTyperConfig = MISSING
-    # focus_cats: str = MISSING
+    remove_null_chunk: bool = False
 
 
 def register_multi_label_two_stage_configs(group="multi_label_ner_model") -> None:
@@ -40,17 +40,46 @@ class MultiLabelTwoStageModel(MultiLabelNERModel):
         config: MultiLabelTwoStageConfig,
         writer: MlflowWriter,
     ) -> None:
-        self.conf = config
         self.writer = writer
         self.chunker = chunker_builder(config.chunker)
         self.multi_label_typer = multi_label_typer_builder(
             config.multi_label_typer, writer
         )
         super().__init__(config, label_names=self.multi_label_typer.label_names)
+        self.conf = config
         # self.datasets = datasets
 
     def predict(self, tokens: List[str]) -> List[str]:
         raise NotImplementedError
+
+    def remove_null_chunk(
+        self,
+        input_starts: List[List[str]],
+        input_ends: List[List[str]],
+        input_outputs: List[List[MultiLabelTyperOutput]],
+    ) -> Tuple[List[List[str]], List[List[str]], List[List[MultiLabelTyperOutput]]]:
+        starts = []
+        ends = []
+        outputs = []
+        for snt_input_starts, snt_input_ends, snt_input_outputs in zip(
+            input_starts, input_ends, input_outputs
+        ):
+            snt_starts = []
+            snt_ends = []
+            snt_outputs = []
+            for s, e, o in zip(
+                snt_input_starts,
+                snt_input_ends,
+                snt_input_outputs
+            ):
+                if o.labels:
+                    snt_starts.append(s)
+                    snt_ends.append(e)
+                    snt_outputs.append(o)
+            starts.append(snt_starts)
+            ends.append(snt_ends)
+            outputs.append(snt_outputs)
+        return starts, ends, outputs
 
     def batch_predict(
         self, tokens: List[List[str]]
@@ -59,6 +88,8 @@ class MultiLabelTwoStageModel(MultiLabelNERModel):
         starts = [[s for s, e in snt] for snt in chunks]
         ends = [[e for s, e in snt] for snt in chunks]
         outputs = self.multi_label_typer.batch_predict(tokens, starts, ends)
+        if self.conf.remove_null_chunk:
+            starts, ends, outputs = self.remove_null_chunk(starts, ends, outputs)
         return starts, ends, outputs
 
     def train(self):

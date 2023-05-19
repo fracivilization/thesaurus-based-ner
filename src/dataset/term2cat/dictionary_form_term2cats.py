@@ -17,24 +17,25 @@ from src.dataset.utils import (
     MRCONSO,
     MRSTY,
     get_ascendant_tuis,
-    get_ascendant_dbpedia_thesaurus_node,
 )
 from src.dataset.utils import ST21pvSrc
 from functools import lru_cache
 import json
 from pathlib import Path
 import tempfile
-from src.utils.utils import DoubleArrayDict
+from src.kb_loader.db_pedia import (
+    AnchorTextTerm2CatsDB,
+    load_dbpedia_entity2cats,
+    expand_dbpedia_cats,
+)
 
 DBPedia_dir = "data/DBPedia"
 # DBPedia(Wikipedia)
 DBPedia_ontology = os.path.join(DBPedia_dir, "ontology--DEV_type=parsed_sorted.nt")
-DBPedia_instance_type = os.path.join(DBPedia_dir, "instance-types_lang=en_specific.ttl")
 DBPedia_mapping_literals = os.path.join(
     DBPedia_dir, "mappingbased-literals_lang=en.ttl"
 )
 DBPedia_infobox = os.path.join(DBPedia_dir, "infobox-properties_lang=en.ttl")
-DBPedia_redirect = os.path.join(DBPedia_dir, "redirects_lang=en.ttl")
 DBPedia_disambiguate = os.path.join(DBPedia_dir, "disambiguations_lang=en.ttl")
 DBPedia_labels = os.path.join(DBPedia_dir, "labels_lang=en.ttl")
 # DBPedia (Wikidata)
@@ -103,7 +104,7 @@ def get_anomaly_suffixes(term2cat):
 def load_term2cuis():
     term2cuis = defaultdict(set)
     # 相対パスではうまくとれないのでプロジェクトルートから取れるようにする
-    with open(os.path.join(get_original_cwd(), MRCONSO)) as f:
+    with open(MRCONSO) as f:
         for line in tqdm(f, total=16132274):
             (
                 cui,
@@ -136,7 +137,7 @@ def load_cui2tuis() -> Dict:
     cui2tuis = defaultdict(set)
     cui_loc = 0
     tui_loc = 1
-    with open(os.path.join(get_original_cwd(), MRSTY)) as f:
+    with open(MRSTY) as f:
         for line in f:
             line = line.strip().split("|")
             cui = line[cui_loc]
@@ -267,89 +268,14 @@ def load_term2dbpedia_entities(work_dir=tempfile.TemporaryDirectory()):
     return output_file
 
 
-@lru_cache(maxsize=None)
-def load_dbpedia_entity2cats() -> Dict:
-    entity2cats = dict()
-    with open(to_absolute_path(DBPedia_instance_type)) as f:
-        for line in tqdm(f, total=7636009):
-            # 例: line = "<http://dbpedia.org/resource/'Ara'ir> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://dbpedia.org/ontology/Settlement> ."
-            line = line.strip().split()
-            assert len(line) == 4
-            assert line[1] == "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>"
-            entity, _, cat, _ = line
-            if entity in entity2cats:
-                cats = json.loads(entity2cats[entity])
-                cats.append(cat)
-                entity2cats[entity] = json.dumps(cats)
-            else:
-                entity2cats[entity] = json.dumps([cat])
-    # Expand Wikipedia Articles using Redirect
-    unfound_redirects = []
-    with open(to_absolute_path(DBPedia_redirect)) as f:
-        for line in tqdm(f, total=10338969):
-            line = line.strip().split()
-            assert len(line) == 4
-            assert line[1] == "<http://dbpedia.org/ontology/wikiPageRedirects>"
-            entity, _, redirect, _ = line
-            if redirect in entity2cats:
-                new_cats = json.loads(entity2cats[redirect])
-                if entity in entity2cats:
-                    old_cats = json.loads(entity2cats[entity])
-                    cats = list(set(old_cats + new_cats))
-                    entity2cats[entity] = json.dumps(cats)
-                else:
-                    entity2cats[entity] = json.dumps(new_cats)
-            else:
-                unfound_redirects.append((entity, redirect))
-    while unfound_redirects:
-        print("unfound redirects num: ", len(unfound_redirects))
-        remained_redirects = []
-        for entity, redirect in unfound_redirects:
-            if redirect in entity2cats:
-                new_cats = json.loads(entity2cats[redirect])
-                if entity in entity2cats:
-                    old_cats = json.loads(entity2cats[entity])
-                    cats = list(set(old_cats + new_cats))
-                    entity2cats[entity] = json.dumps(cats)
-                else:
-                    entity2cats[entity] = json.dumps(new_cats)
-            else:
-                remained_redirects.append((entity, redirect))
-        if len(unfound_redirects) == len(remained_redirects):
-            break
-        unfound_redirects = remained_redirects
-        # TODO: WeightedDoubleArrayDictで読み込むようにする
-    keys = []
-    indexed_values = []
-    values_labels = []
-    while entity2cats:
-        entity, cats = entity2cats.popitem()
-        cats = sorted(set(json.loads(cats)))
-        keys.append(entity)
-        if cats not in values_labels:
-            values_labels.append(cats)
-        indexed_values.append(values_labels.index(cats))
-    entity2cats = DoubleArrayDict.load_from_unsorted_unbinarized_key_and_indexed_values(
-        keys, indexed_values, values_labels
-    )
-    return entity2cats
-
-
-def expand_dbpedia_cats(cats: Set[str]) -> Set:
-    # 1. シソーラスの構造に応じてラベル集合L={l_i}_iをパスに展開
-    #    各ラベルまでのパス上にあるノードをすべて集める
-    #    PATHS = {l \in PATH(l_i)}_{i in L}
-    expanded_cats = set()
-    for cat in cats:
-        expanded_cats |= set(get_ascendant_dbpedia_thesaurus_node(cat))
-    return expanded_cats
-
-
 def dbpedia_entities2labels(entities: Tuple[str], remain_common_sense):
     entity2cats = load_dbpedia_entity2cats()
-    for i, entity in enumerate(entities):
+    labels = None
+    for entity in entities:
+        if entity not in entity2cats:
+            continue
         cats = entity2cats[entity]
-        if i == 0:
+        if labels is None:
             labels = expand_dbpedia_cats(cats)
         else:
             if remain_common_sense:
@@ -361,10 +287,12 @@ def dbpedia_entities2labels(entities: Tuple[str], remain_common_sense):
                 # いずれかのCUIのPATHSに含まれるラベル集合を取得する
                 labels |= expand_dbpedia_cats(cats)
     del entity2cats
+    if labels is None:
+        return []
     return labels
 
 
-def load_dict_dictionary_form_term2cats_jsonl(
+def load_dictionary_form_term_cats_weights(
     knowledge_base: str,
     remain_common_sense: bool = True,
     work_dir=tempfile.TemporaryDirectory(),
@@ -376,11 +304,11 @@ def load_dict_dictionary_form_term2cats_jsonl(
         dictionary_form_term2cuis = load_term2cuis()
         # 2. CUI(の集合)からそれらの共通・合併成分をとる
         print("load intersection or union labels (tuis) for each cuis")
-        with open(dictionary_form_term2cats_file, "w") as g:
-            for term, cuis in tqdm(dictionary_form_term2cuis.items()):
-                cats = tuple(sorted(cuis2labels(cuis, remain_common_sense)))
-                if cats:
-                    g.write(json.dumps([term, cats]) + "\n")
+        for term, cuis in tqdm(dictionary_form_term2cuis.items()):
+            cats = tuple(sorted(cuis2labels(cuis, remain_common_sense)))
+            if cats:
+                weights = [1.0] * len(cats)
+                yield term, cats, weights
     elif knowledge_base == "DBPedia":
         # 1. 表層形からOntologyへのマップを構築し
         print("load dictionary_form_term2entities")
@@ -398,14 +326,17 @@ def load_dict_dictionary_form_term2cats_jsonl(
             1 for _ in open(dictionary_form_term2entities_file)
         )
         with open(dictionary_form_term2entities_file, "r") as f_in:
-            with open(dictionary_form_term2cats_file, "w") as f_out:
-                for line in tqdm(f_in, total=dictionary_form_term2entities_line_count):
-                    term, entities = json.loads(line)
-                    cats = sorted(
-                        dbpedia_entities2labels(entities, remain_common_sense)
-                    )
-                    if cats:
-                        f_out.write(json.dumps([term, cats]) + "\n")
+            for line in tqdm(f_in, total=dictionary_form_term2entities_line_count):
+                term, entities = json.loads(line)
+                cats = sorted(dbpedia_entities2labels(entities, remain_common_sense))
+                if cats:
+                    weights = [1.0] * len(cats)
+                    yield term, cats, weights
+    elif knowledge_base == "WikipediaAnchorText":
+        anchor_text_term2cats_db = AnchorTextTerm2CatsDB()
+        for term, cats, weights in anchor_text_term2cats_db.term_cats_and_weights():
+            if cats:
+                yield term, cats, weights
     else:
         raise NotImplementedError
     return dictionary_form_term2cats_file
@@ -438,22 +369,6 @@ def load_oracle_term2cat(conf: OracleTerm2CatsConfig):
         for non_duplicated_term in terms - remove_terms:
             term2cat[non_duplicated_term] = cat
     return term2cat
-
-
-def load_dictionary_form_term2cats_jsonl(
-    conf: DictionaryFormTerm2CatsConfig, work_dir=tempfile.TemporaryDirectory()
-):
-    if conf.name == "dict":
-        term2cats_jsonl = load_dict_dictionary_form_term2cats_jsonl(
-            conf, work_dir=work_dir
-        )
-    elif conf.name == "oracle":
-        # TODO: jsonlファイルを返すように修正する
-        raise NotImplementedError
-        term2cats_jsonl = load_oracle_term2cat(conf)
-    else:
-        raise NotImplementedError
-    return term2cats_jsonl
 
 
 def log_term2cats(term2cats: Dict):

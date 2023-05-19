@@ -22,7 +22,6 @@ class MSMLCConfig:
     output_dir: str = MISSING
     with_o: bool = False
     chunker: ChunkerConfig = ChunkerConfig()
-    under_sample: bool = False
 
 
 from tqdm import tqdm
@@ -61,49 +60,6 @@ def remove_misguided_fns(starts, ends, labels):
             new_ends.append(e)
             new_labels.append(l)
     return new_starts, new_ends, new_labels
-
-
-def undersample_o_span(msml_dataset: Dataset, info):
-    o_span_count: int = 0
-    non_o_span_count: int = 0
-    label_names = msml_dataset.features["labels"].feature.feature.names
-    o_id = label_names.index("nc-O")
-    for snt in msml_dataset["labels"]:
-        for span in snt:
-            if o_id in span:
-                o_span_count += 1
-            else:
-                non_o_span_count += 1
-    o_under_sampling_ratio = non_o_span_count / o_span_count
-    for snt in msml_dataset["labels"]:
-        for span in snt:
-            if o_id in span:
-                o_span_count += 1
-            else:
-                non_o_span_count += 1
-    ret_starts, ret_ends, ret_labels = [], [], []
-    # TODO: ラベル比でUndersamplingする
-    raise NotImplementedError
-    for snt in msml_dataset:
-        ret_snt_starts, ret_snt_ends, ret_snt_labels = [], [], []
-        for s, e, ls in zip(snt["starts"], snt["ends"], snt["labels"]):
-            if o_id in ls and random.random() > o_under_sampling_ratio:
-                continue
-            ret_snt_starts.append(s)
-            ret_snt_ends.append(e)
-            ret_snt_labels.append(ls)
-        ret_starts.append(ret_snt_starts)
-        ret_ends.append(ret_snt_ends)
-        ret_labels.append(ret_snt_labels)
-    return Dataset.from_dict(
-        {
-            "tokens": msml_dataset["tokens"],
-            "starts": ret_starts,
-            "ends": ret_ends,
-            "labels": ret_labels,
-        },
-        info=info,
-    )
 
 
 def multi_label_ner_datasets_to_multi_span_multi_label_classification_datasets(
@@ -159,15 +115,7 @@ def multi_label_ner_datasets_to_multi_span_multi_label_classification_datasets(
                 msml_dataset["ends"].append(ends)
                 msml_dataset["labels"].append(labels)
         pre_msml_datasets[key] = datasets.Dataset.from_dict(msml_dataset, info=info)
-    if data_args.under_sample:
-        for key in {"train", "validation"}:
-            pre_msml_datasets[key] = undersample_o_span(
-                pre_msml_datasets[key], info=info
-            )
     return datasets.DatasetDict(pre_msml_datasets)
-
-
-import numpy as np
 
 
 def label_balancing_span_classification_datasets(

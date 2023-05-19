@@ -19,12 +19,12 @@ class MultiLabelTestor:
     ) -> None:
         pass
         # For debugging
-        msml_dataset = DatasetDict(
-            {
-                key: Dataset.from_dict(split[:1000], features=split.features)
-                for key, split in msml_dataset.items()
-            }
-        )
+        # msml_dataset = DatasetDict(
+        #     {
+        #         key: Dataset.from_dict(split[:1000], features=split.features)
+        #         for key, split in msml_dataset.items()
+        #     }
+        # )
         self.multi_label_typer_model = multi_label_typer_model
         self.datasets = msml_dataset
         focused_cats = (

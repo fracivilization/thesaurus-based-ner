@@ -12,8 +12,13 @@ from hydra.core.config_store import ConfigStore
 from datasets import DatasetDict
 from collections import Counter
 from prettytable import PrettyTable
-from src.utils.utils import DoubleArrayDictWithIterators
-from src.dataset.utils import load_dbpedia_thesaurus, get_negative_cats_from_focus_cats
+from src.utils.utils import WeightedSQliteDict
+from src.dataset.utils import (
+    load_dbpedia_thesaurus,
+    get_negative_cats_from_positive_cats,
+    CoNLL2003CategoryMapper,
+    load_negative_cats_from_positive_cats,
+)
 from tqdm import tqdm
 
 
@@ -27,11 +32,10 @@ class Term2CatConfig:
 @dataclass
 class DictTerm2CatConfig(Term2CatConfig):
     name: str = "dict"
-    focus_cats: str = MISSING
-    # duplicate_cats: str = MISSING
-    negative_cats: str = MISSING
+    positive_cats: str = MISSING
+    with_negative_categories: bool = MISSING
+    eval_dataset: str = MISSING
     term2cats: str = MISSING
-    # with_nc: bool = False
     remove_anomaly_suffix: bool = False  # remove suffix term (e.g. "migration": nc-T054 for "cell migration": T038)
     output: str = MISSING
 
@@ -74,69 +78,53 @@ def get_anomaly_suffixes(term2cat):
     return anomaly_suffixes
 
 
-CategoryMapper = {
-    # NOTE: MISCはこれらいずれにも属さないカテゴリとする
-    "PER": {
-        "<http://dbpedia.org/ontology/Person>",
-        "<http://dbpedia.org/ontology/Name>",
-    },
-    "ORG": {"<http://dbpedia.org/ontology/Organisation>"},
-    "LOC": {"<http://dbpedia.org/ontology/Place>"},
-    # NOTE: DBPediaにはtime, day, ballなどの大量の一般名詞がふくまれるので、
-    #       PER, ORG, LOC以外とするのではなく、結局列挙する必要がありそう
-    "MISC": {
-        "<http://dbpedia.org/ontology/Work>",
-        "<http://dbpedia.org/ontology/Event>",
-        "<http://dbpedia.org/ontology/MeanOfTransportation>",
-        "<http://dbpedia.org/ontology/Device>",  # AK-47が含まれているので
-        "<http://dbpedia.org/ontology/Award>",  # ノーベル平和賞がふくまれているので
-        "<http://dbpedia.org/ontology/Disease>",
-        # NOTE:ethnicGroupは'/<http://www.w3.org/2002/07/owl#Class>/<http://www.w3.org/1999/02/22-rdf-syntax-ns#Property>/<http://dbpedia.org/ontology/ethnicGroup>' という箇所にある
-        "<http://dbpedia.org/ontology/ethnicGroup>",
-    },
-}
-
-
-def get_dbpedia_negative_cats_from_focus_cats(focus_cats: List[str]):
+def get_dbpedia_negative_cats_from_positive_cats(positive_cats: List[str]):
     dbpedia_thesaurus = load_dbpedia_thesaurus()
 
-    negative_cats = get_negative_cats_from_focus_cats(focus_cats, dbpedia_thesaurus)
-    assert not focus_cats & set(negative_cats)
+    negative_cats = get_negative_cats_from_positive_cats(
+        positive_cats, dbpedia_thesaurus
+    )
+    assert not positive_cats & set(negative_cats)
     return negative_cats
 
 
 def load_dict_term2cat(conf: DictTerm2CatConfig):
-    focus_cats = set(conf.focus_cats.split("_"))
-    if conf.negative_cats:
-        negative_cats = set(conf.negative_cats.split("_"))
+    positive_cats = set(conf.positive_cats.split("_"))
+    if conf.with_negative_categories:
+        negative_cats = set(
+            load_negative_cats_from_positive_cats(positive_cats, conf.eval_dataset)
+        )
     else:
         negative_cats = set()
-    target_cats = focus_cats | negative_cats
+    target_cats = positive_cats | negative_cats
     # NOTE: PER, LOC, ORG, MISCなどKnowledgebaseと対応付ける必要があるカテゴリに対処する
     target_knowledge_base_cats = set()
     for target_cat in target_cats:
-        if target_cat in CategoryMapper:
-            for knowledge_base_cat in CategoryMapper[target_cat]:
+        if target_cat in CoNLL2003CategoryMapper:
+            for knowledge_base_cat in CoNLL2003CategoryMapper[target_cat]:
                 target_knowledge_base_cats.add(knowledge_base_cat)
         else:
             target_knowledge_base_cats.add(target_cat)
     knowledgebase_cat2target_cat = {
         kb_cat: cat
-        for cat, knowledgebase_cats in CategoryMapper.items()
+        for cat, knowledgebase_cats in CoNLL2003CategoryMapper.items()
         for kb_cat in knowledgebase_cats
     }
-    term2cats = DoubleArrayDictWithIterators.load_from_disk(
-        to_absolute_path(conf.term2cats)
-    )
+    term2cats = WeightedSQliteDict.load_from_disk(to_absolute_path(conf.term2cats))
 
     term2cat = dict()
-    total_count = sum(1 for _ in term2cats.items())
-    for term, cats in tqdm(term2cats.items(), total=total_count):
-        candidate_knowledgebase_cats = set(cats) & target_knowledge_base_cats
-        candidate_cats = {
-            knowledgebase_cat2target_cat[kb_cat]
-            for kb_cat in candidate_knowledgebase_cats
-        }
+    total_count = len(term2cats)
+    for term, weighted_cats in tqdm(term2cats.items(), total=total_count):
+        candidate_knowledgebase_cats = (
+            set(weighted_cats.values) & target_knowledge_base_cats
+        )
+        candidate_cats = set()
+        for kb_cat in candidate_knowledgebase_cats:
+            if kb_cat in knowledgebase_cat2target_cat:
+                candidate_cats.add(knowledgebase_cat2target_cat[kb_cat])
+            else:
+                candidate_cats.add(kb_cat)
+
         if len(candidate_cats) == 1:
             knowledgebase_cat = candidate_cats.pop()
             cat = (
@@ -144,10 +132,42 @@ def load_dict_term2cat(conf: DictTerm2CatConfig):
                 if knowledgebase_cat in knowledgebase_cat2target_cat
                 else knowledgebase_cat
             )
-            if cat in negative_cats:
-                term2cat[term] = "nc-%s" % cat
+        elif len(candidate_cats) > 1:
+            kb_cat2weight = {
+                cat: weight
+                for cat, weight in zip(weighted_cats.values, weighted_cats.weights)
+            }
+            candidate_cat2weight = defaultdict(lambda: 0)
+            for candidate_cat in candidate_cats:
+                if candidate_cat in CoNLL2003CategoryMapper:
+                    for correspond_kb_cat in CoNLL2003CategoryMapper[candidate_cat]:
+                        if correspond_kb_cat in kb_cat2weight:
+                            candidate_cat2weight[candidate_cat] = max(
+                                kb_cat2weight[correspond_kb_cat],
+                                candidate_cat2weight[candidate_cat],
+                            )
+                else:
+                    candidate_cat2weight[candidate_cat] = max(
+                        kb_cat2weight[candidate_cat],
+                        candidate_cat2weight[candidate_cat],
+                    )
+            highest_weight = max(candidate_cat2weight.values())
+            highest_weighted_cats = [
+                cat
+                for cat, weight in candidate_cat2weight.items()
+                if weight == highest_weight
+            ]
+            if len(highest_weighted_cats) == 1:
+                cat = highest_weighted_cats.pop()
             else:
-                term2cat[term] = cat
+                continue
+        else:
+            continue
+
+        if cat in negative_cats:
+            term2cat[term] = "nc-%s" % cat
+        else:
+            term2cat[term] = cat
 
     if conf.remove_anomaly_suffix:
         anomaly_suffixes = get_anomaly_suffixes(term2cat)

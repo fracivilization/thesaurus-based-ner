@@ -90,7 +90,7 @@ class MultiLabelEnumeratedModelArguments:
             "help": "loss_fucntion of model: BCEWithLogitsLoss or MarginalCrossEntropyLoss"
         },
     )
-    pn_ratio_equivalence: bool = field(
+    static_pn_ratio_equivalence: bool = field(
         default=False,
         metadata={
             "help": "Make positive and negative ratio equal for each category by label mask.(statically: not on running)"
@@ -471,7 +471,7 @@ class MultiLabelEnumeratedTyperPreprocessor:
                 ret_snt_labels = []
                 ret_snt_label_mask = []
                 for span_labels in snt_labels:
-                    if self.model_args.pn_ratio_equivalence:
+                    if self.model_args.static_pn_ratio_equivalence:
                         if self.model_args.loss_func == "MarginalCrossEntropyLoss":
                             if -1 in span_labels:
                                 span_labels = padded_labels
@@ -637,7 +637,10 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                 "validation": msml_datasets["validation"],
             }
         )
-        if model_args.pn_ratio_equivalence or model_args.dynamic_pn_ratio_equivalence:
+        if (
+            model_args.static_pn_ratio_equivalence
+            or model_args.dynamic_pn_ratio_equivalence
+        ):
             if self.model_args.loss_func == "MarginalCrossEntropyLoss":
                 train_dataset = msml_datasets["train"]
                 label_names = train_dataset.features["labels"].feature.feature.names
@@ -859,16 +862,19 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         for snt_logit, span_num in tqdm(zip(logits, map(len, starts))):
             snt_logit = snt_logit[:span_num]
             labels = [[]] * span_num
+            weights = [[]] * span_num
             for span_id, label_id in zip(
                 *np.where(expit(snt_logit) > self.conf.prediction_threshold)
             ):
                 labels[span_id] = labels[span_id] + [self.label_names[label_id]]
+                weights[span_id] += [expit(snt_logit[span_id, label_id])]
             snt_ret_list = []
-            for span_logit, span_labels in zip(snt_logit, labels):
+            for span_logit, span_labels, span_weights in zip(snt_logit, labels, weights):
                 snt_ret_list.append(
                     MultiLabelTyperOutput(
                         labels=span_labels,
                         logits=span_logit,
+                        weights=span_weights
                     )
                 )
             ret_list.append(snt_ret_list)

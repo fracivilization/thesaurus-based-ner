@@ -1,10 +1,9 @@
-from os import write
 import hydra
 from hydra.core.config_store import ConfigStore
 from dataclasses import dataclass
 from src.ner_model.abstract_model import NERModel, NERModelConfig, NERModel
 from src.dataset.utils import DatasetConfig
-from omegaconf import MISSING, OmegaConf, DictConfig
+from omegaconf import MISSING, DictConfig
 from src.dataset import dataset_builder
 import logging
 from src.ner_model.evaluator import NERTestor, NERTestorConfig
@@ -14,7 +13,6 @@ from src.ner_model.evaluator import register_ner_testor_configs
 from src.utils.mlflow import MlflowWriter
 import json
 import os
-import sys
 
 logger = logging.getLogger(__name__)
 

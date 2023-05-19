@@ -1,15 +1,19 @@
-from src.dataset.utils import get_umls_negative_cats_from_focus_cats, CATEGORY_SEPARATOR
+from src.dataset.utils import load_negative_cats_from_positive_cats, CATEGORY_SEPARATOR
 import click
 
 
 @click.command()
-@click.option("--focus-categories", type=str)
+@click.option("--positive-categories", type=str)
 @click.option("--with-negative_categories", type=bool)
-def main(focus_categories: str, with_negative_categories: bool):
+@click.option("--eval-dataset", type=str)
+def main(positive_categories: str, with_negative_categories: bool, eval_dataset: str):
     # NOTE: スペースでの連結だと複数の単語から構成されるカテゴリ名を利用する際に問題になるかも
     if with_negative_categories:
-        focus_categories = focus_categories.split(CATEGORY_SEPARATOR)
-        print(" ".join(get_umls_negative_cats_from_focus_cats(focus_categories)))
+        positive_categories = positive_categories.split(CATEGORY_SEPARATOR)
+        negative_cats = load_negative_cats_from_positive_cats(
+            positive_categories, eval_dataset
+        )
+        print(" ".join(negative_cats))
     else:
         print("")
 

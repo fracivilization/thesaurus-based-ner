@@ -33,8 +33,9 @@ $(TERM2CAT): $(TERM2CAT_DIR) $(TERM2CATS)
 	${PYTHON} -m cli.preprocess.load_term2cat \
 		term2cats=$(TERM2CATS) \
 		output=$(TERM2CAT) \
-		focus_cats=$(subst $() ,_,$(FOCUS_CATS)) \
-		negative_cats=$(subst $() ,_,$(NEGATIVE_CATS))
+		positive_cats=$(subst $() ,_,$(POSITIVE_CATS)) \
+		eval_dataset=$(EVAL_DATASET) \
+		with_negative_categories=$(WITH_NEGATIVE_CATEGORIES)
 
 $(PSEUDO_DATA_DIR): $(DATA_DIR)
 	echo $(PSEUDO_DATA_DIR)
@@ -56,13 +57,13 @@ $(CONLL2003_DIR): $(GOLD_DIR)
 $(GOLD_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	@echo "Gold Data"
 	@echo GOLD_MULTI_LABEL_NER_DATA: $(GOLD_MULTI_LABEL_NER_DATA)
-	@echo PYTHON -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
-	${PYTHON} -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	@echo PYTHON -m cli.preprocess.load_gold_ner --positive-cats $(subst $() ,_,$(POSITIVE_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	${PYTHON} -m cli.preprocess.load_gold_ner --positive-cats $(subst $() ,_,$(POSITIVE_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
 $(GOLD_TRAIN_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	@echo "Gold Data"
 	@echo GOLD_MULTI_LABEL_NER_DATA: $(GOLD_MULTI_LABEL_NER_DATA)
-	@echo PYTHON -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
-	${PYTHON} -m cli.preprocess.load_gold_ner --focus-cats $(subst $() ,_,$(FOCUS_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	@echo PYTHON -m cli.preprocess.load_gold_ner --positive-cats $(subst $() ,_,$(POSITIVE_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+	${PYTHON} -m cli.preprocess.load_gold_ner --positive-cats $(subst $() ,_,$(POSITIVE_CATS)) --negative-cats $(subst $() ,_,$(NEGATIVE_CATS)) --output $(GOLD_TRAIN_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
 $(GOLD_TRAIN_MSC_DATA): $(GOLD_TRAIN_DATA)
 	@echo GOLD_TRAIN_MSC_DATA_ON_GOLD: $(GOLD_TRAIN_MSC_DATA)
 	$(MSC_DATA_BASE_CMD) \
@@ -90,7 +91,7 @@ $(RAW_CORPUS_OUT): $(SOURCE_TXT_DIR)
 $(PSEUDO_DATA_ON_GOLD): $(GOLD_DATA) $(PSEUDO_DATA_DIR) $(TERM2CAT) $(BUFFER_DIR)
 	@echo make pseudo data on Gold dataset for comparison
 	@echo make from Gold: $(GOLD_DATA)
-	@echo focused categories: $(FOCUS_CATS)
+	@echo positive categories: $(POSITIVE_CATS)
 	@echo negative categories: $(NEGATIVE_CATS)
 	@echo PSEUDO_DATA_ON_GOLD: $(PSEUDO_DATA_ON_GOLD)
 	$(PSEUDO_DATA_BASE_CMD) \
@@ -114,7 +115,7 @@ $(TRAIN_ON_GOLD_OUT): $(GOLD_TRAIN_MSC_DATA) $(GOLD_DATA)
 $(PSEUDO_OUT): $(GOLD_DATA) $(TERM2CAT)
 ifeq ($(REMAIN_COMMON_SENSE_FOR_TERM2CATS),False)
 	${PYTHON} -m cli.train \
-		ner_model=PseudoTwoStage \
+		ner_model=$(EVAL_DATASET)PseudoTwoStage \
 		++dataset.name_or_path=$(GOLD_DATA) \
 		+ner_model.typer.term2cat=$(TERM2CAT) 2>&1 | tee ${PSEUDO_OUT}
 else
@@ -134,7 +135,9 @@ $(GOLD_TRAIN_MSMLC_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 
 $(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD): $(TERM2CATS) $(GOLD_MULTI_LABEL_NER_DATA) $(PSEUDO_DATA_DIR)
 	${PYTHON} -m cli.preprocess.load_pseudo_multi_label_ner \
+		+multi_label_ner_model/multi_label_typer=$(EVAL_DATASET)DictMatch \
 		++multi_label_ner_model.multi_label_typer.term2cats=$(TERM2CATS) \
+		++multi_label_ner_model.remove_null_chunk=True \
 		+gold_corpus=$(GOLD_MULTI_LABEL_NER_DATA) \
 		+raw_corpus=$(GOLD_MULTI_LABEL_NER_DATA) \
 		+output_dir=$(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD)
@@ -144,7 +147,7 @@ $(PSEUDO_MSMLC_DATA_ON_GOLD): $(PSEUDO_MULTI_LABEL_NER_DATA_ON_GOLD)
 	+output_dir=$(PSEUDO_MSMLC_DATA_ON_GOLD)
 
 $(DICTIONARY_FORM_TERM2CATS): $(TERM2CATS_DIR) $(UMLS_DIR)
-ifeq ($(wildcard $(REMAIN_COMMON_SENSE_FOR_TERM2CATS)), "")
+ifeq ($(wildcard $(DICTIONARY_FORM_TERM2CATS)),)
 	@echo DICTIONARY_FORM_TERM2CATS: $(DICTIONARY_FORM_TERM2CATS)
 	${PYTHON} -m cli.preprocess.load_dictionary_form_term2cats \
 		--knowledge-base=$(KNOWLEDGE_BASE) \
@@ -152,15 +155,17 @@ ifeq ($(wildcard $(REMAIN_COMMON_SENSE_FOR_TERM2CATS)), "")
 		--output-dir=$(DICTIONARY_FORM_TERM2CATS)
 else
 	echo "既にDICTIONARY_FORM_TERM2CATSは存在します"
+	echo "DICTIONARY_FORM_TERM2CATS: $(DICTIONARY_FORM_TERM2CATS)"
 endif
 
 $(TERM2CATS): $(DICTIONARY_FORM_TERM2CATS)
-ifeq ($(wildcard $(TERM2CATS)), "")
+ifeq ($(wildcard $(TERM2CATS)),)
 	${PYTHON} -m cli.preprocess.inflect_terms_of_term2cats \
 		--dictionary-form-term2cats-dir=$(DICTIONARY_FORM_TERM2CATS) \
-		--output-dir=$(TERM2CATS)
+		--output-path=$(TERM2CATS)
 else
 	echo "既にTERM2CATSは存在します"
+	echo "TERM2CATS: $(TERM2CATS)"
 endif
 
 $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL): $(PSEUDO_MSMLC_DATA_ON_GOLD)

@@ -11,7 +11,7 @@ from src.dataset.utils import (
     ST21pvSrc,
     tui2ST,
     load_dbpedia_parent2descendants,
-    get_dbpedia_negative_cats_from_focus_cats,
+    get_dbpedia_negative_cats_from_positive_cats,
     load_DBPediaCategories,
 )
 
@@ -256,7 +256,7 @@ def load_CoNLL2003_terms(name="PER") -> Set:
             for _, correspond_cats in CoNLL2003ToDBPediaCategoryMapper.items()
             for correspond_cat in correspond_cats
         }
-        complement_categories = get_dbpedia_negative_cats_from_focus_cats(
+        complement_categories = get_dbpedia_negative_cats_from_positive_cats(
             mapped_categories
         )
         terms = load_DBPedia_terms(complement_categories)

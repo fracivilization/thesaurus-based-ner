@@ -15,10 +15,11 @@ class MultiLabelTyperConfig:
 
 @dataclass
 class MultiLabelTyperOutput:
-    labels: List[List[str]]
+    labels: List[str]
     # max_probs: np.array  # prediction probability for label
     # probs: np.array  # prediction probability for labels
-    logits: np.array # (span_num, label_num)
+    logits: np.array  # (span_num, label_num)
+    weights: List[float] = None
 
 
 class MultiLabelTyper:
@@ -27,12 +28,12 @@ class MultiLabelTyper:
 
     def predict(
         self, tokens: List[str], starts: List[str], ends: List[str]
-    ) -> MultiLabelTyperOutput:
+    ) -> List[MultiLabelTyperOutput]:
         raise NotImplementedError
 
     def batch_predict(
         self, tokens: List[List[str]], starts: List[List[int]], ends: List[List[int]]
-    ) -> List[MultiLabelTyperOutput]:
+    ) -> List[List[MultiLabelTyperOutput]]:
         assert len(tokens) == len(starts)
         assert len(starts) == len(ends)
         labels = []

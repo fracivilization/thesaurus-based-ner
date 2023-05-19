@@ -24,6 +24,10 @@ class DictMatchTyperConfig(TyperConfig):
     typer_name: str = "DictMatchTyper"
     term2cat: str = MISSING  # path for pickled term2cat
     label_names: str = "non_initialized"  # this variable is dinamically decided
+    case_sensitive: bool = (
+        False  # Falseであっても、大文字・小文字の違いによってtypeが異なる場合にはcase_sensitiveなマッチをする
+    )
+    exact: bool = False  # Trueであれば、完全一致のみを許す
 
 
 class DictMatchTyper(Typer):
@@ -34,7 +38,9 @@ class DictMatchTyper(Typer):
         self.conf = conf
         # keyword extractorを追加する
         # argumentを追加する...後でいいか...
-        self.keyword_processor = ComplexKeywordTyper(self.term2cat)
+        self.keyword_processor = ComplexKeywordTyper(
+            self.term2cat, case_sensitive=conf.case_sensitive
+        )
         self.label_names = ["nc-O"] + list(set(self.term2cat.values()))
 
     def predict(
@@ -46,7 +52,7 @@ class DictMatchTyper(Typer):
             labels = []
             for start, end in zip(starts, ends):
                 term = " ".join(tokens[start:end])
-                label = self.keyword_processor.type_chunk(term)
+                label = self.keyword_processor.type_chunk(term, exact=self.conf.exact)
                 labels.append(label)
             label_ids = np.array([self.label_names.index(l) for l in labels])
             probs = np.eye(len(self.label_names))[label_ids]
