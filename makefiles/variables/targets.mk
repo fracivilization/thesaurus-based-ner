@@ -11,6 +11,7 @@ RAW_CORPUS_OUT := $(RAW_CORPUS_DIR)/$(firstword $(shell echo $(RAW_CORPUS_NUM) |
 PSEUDO_OUT := outputs/$(firstword $(shell echo "PSEUDO_OUT" $(EVAL_DATASET) $(PSEUDO_DATA_ARGS) | sha1sum))
 
 GOLD_DATA := $(GOLD_DIR)/$(firstword $(shell echo $(EVAL_DATASET) $(POSITIVE_CATS) | sha1sum))
+CONLL_FORMATTED_GOLD_DATA := $(GOLD_DIR)/$(firstword $(shell echo CoNLL formatted $(GOLD_DATA) | sha1sum))
 GOLD_TRAIN_DATA := $(GOLD_DIR)/$(firstword $(shell echo "MedMentions" $(POSITIVE_CATS) $(NEGATIVE_CATS) $(TRAIN_SNT_NUM) | sha1sum))
 GOLD_TRAIN_MSC_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSC DATA" $(GOLD_TRAIN_DATA) $(MSC_ARGS) | sha1sum)) 
 GOLD_MULTI_LABEL_NER_DATA := $(GOLD_DIR)/$(EVAL_DATASET)_multi_label_ner

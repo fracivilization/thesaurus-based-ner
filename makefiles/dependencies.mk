@@ -59,6 +59,11 @@ $(GOLD_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	@echo GOLD_MULTI_LABEL_NER_DATA: $(GOLD_MULTI_LABEL_NER_DATA)
 	@echo PYTHON -m cli.preprocess.load_gold_ner --positive-cats $(subst $() ,_,$(POSITIVE_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
 	${PYTHON} -m cli.preprocess.load_gold_ner --positive-cats $(subst $() ,_,$(POSITIVE_CATS)) --output $(GOLD_DATA) --input-dir $(GOLD_MULTI_LABEL_NER_DATA) --train-snt-num $(TRAIN_SNT_NUM)
+$(CONLL_FORMATTED_GOLD_DATA): $(GOLD_DATA)
+	@echo "CoNLL formatted Gold Data"
+	@echo "GOLD DATA: $(GOLD_DATA)"
+	@echo PYTHON -m cli.preprocess.translate_ner_datasetdict_into_conll_format --input-ner-datasetdict $(GOLD_DATA) --output-dir $(CONLL_FORMATTED_GOLD_DATA)
+	${PYTHON} -m cli.preprocess.translate_ner_datasetdict_into_conll_format --input-ner-datasetdict $(GOLD_DATA) --output-dir $(CONLL_FORMATTED_GOLD_DATA)
 $(GOLD_TRAIN_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 	@echo "Gold Data"
 	@echo GOLD_MULTI_LABEL_NER_DATA: $(GOLD_MULTI_LABEL_NER_DATA)
