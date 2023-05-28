@@ -1,0 +1,13 @@
+{
+    "name": "vscode debug",
+    // docker-compose.ymlのファイルパスを指定
+    "dockerComposeFile": "../docker-compose.yml",
+    // docker-compose.ymlで指定しているpythonのservice名を指定
+    "service": "python",
+    // 指定したserviceのworkspaceフォルダを指定              
+    "workspaceFolder": "/myapp/.venv/bin/python",
+    // リモート先にpythonの拡張機能追加
+    "extensions": [
+        "ms-python.python"
+    ]
+}
