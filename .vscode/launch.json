@@ -617,5 +617,19 @@
             "console": "integratedTerminal",
             "justMyCode": false
         },
+        {
+            "name": "Python: Analyze Span Mismatch",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.analysis.analyze_span_mismatch",
+            "justMyCode": false,
+            "args": [
+                "--input-file",
+                // proposal1
+                "outputs/2023-05-05/23-56-50/prediction_for_validation.txt",
+                // proposal2 
+                // "outputs/2023-05-06/06-19-47/prediction_for_validation.txt",
+            ],
+        }
     ]
 }
