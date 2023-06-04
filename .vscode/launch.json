@@ -630,6 +630,19 @@
                 // proposal2 
                 // "outputs/2023-05-06/06-19-47/prediction_for_validation.txt",
             ],
+        },
+        {
+            "name": "Python: Few-Sample",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.preprocess.make_few_shot_data",
+            "justMyCode": false,
+            "args": [
+                "--source-datasetdict",
+                "data/gold/17176cd9eddc820cacc70684edbaabab7936d367",
+                "--few-shot-num",
+                "5",
+            ],
         }
     ]
 }
