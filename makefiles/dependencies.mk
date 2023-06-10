@@ -68,8 +68,7 @@ $(GOLD_TRAIN_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 $(GOLD_TRAIN_MSC_DATA): $(GOLD_TRAIN_DATA)
 	@echo GOLD_TRAIN_MSC_DATA_ON_GOLD: $(GOLD_TRAIN_MSC_DATA)
 	$(MSC_DATA_BASE_CMD) \
-		++negative_sampling=True \
-		++negative_ratio_over_positive=$(NEGATIVE_RATIO_OVER_POSITIVE) \
+		++negative_sampling=False \
 		+ner_dataset=$(GOLD_TRAIN_DATA) \
 		+output_dir=$(GOLD_TRAIN_MSC_DATA)
 
