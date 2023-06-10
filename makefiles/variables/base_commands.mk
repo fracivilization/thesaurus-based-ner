@@ -35,5 +35,6 @@ TRAIN_BASE_CMD := $(TRAIN_COMMON_BASE_CMD) \
 		ner_model.typer.model_args.negative_ratio_over_positive=$(NEGATIVE_RATIO_OVER_POSITIVE) \
 		ner_model.typer.train_args.per_device_train_batch_size=$(TRAIN_BATCH_SIZE) \
 		ner_model.typer.train_args.per_device_eval_batch_size=$(EVAL_BATCH_SIZE) \
+		ner_model.typer.train_args.num_train_epochs=$(NUM_TRAIN_EPOCHS) \
 		ner_model.typer.train_args.do_train=True \
 		ner_model.typer.train_args.overwrite_output_dir=True

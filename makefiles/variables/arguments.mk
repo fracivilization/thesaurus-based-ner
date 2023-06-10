@@ -31,6 +31,10 @@ MSMLC_NEGATIVE_RATIO_OVER_POSITIVE ?= 1.0
 ## 訓練時(TRAIN)と評価時(EVAL)のミニバッチサイズ
 TRAIN_BATCH_SIZE ?= 16
 EVAL_BATCH_SIZE ?= 32
+## Few-Shot設定に使うShot数
+FEW_SHOT_NUM ?= 5
+## 訓練のepoch数 (基本変えないがFew-Shot学習時のみ変更する)
+NUM_TRAIN_EPOCHS ?= 3
 
 
 # 中間変数
