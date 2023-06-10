@@ -105,10 +105,12 @@ $(PSEUDO_MSC_DATA_ON_GOLD): $(PSEUDO_DATA_ON_GOLD)
 
 $(TRAIN_OUT): $(PSEUDO_MSC_DATA_ON_GOLD) $(GOLD_DATA)
 	$(TRAIN_BASE_CMD) \
+		ner_model.typer.model_args.dynamic_pn_ratio_equivalence=True \
 		ner_model.typer.msc_datasets=$(PSEUDO_MSC_DATA_ON_GOLD) 2>&1 | tee $(TRAIN_OUT)
 
 $(TRAIN_ON_GOLD_OUT): $(GOLD_TRAIN_MSC_DATA) $(GOLD_DATA)
 	$(TRAIN_BASE_CMD) \
+		ner_model.typer.model_args.dynamic_pn_ratio_equivalence=False \
 		ner_model.typer.msc_datasets=$(GOLD_TRAIN_MSC_DATA) 2>&1 | tee $(TRAIN_ON_GOLD_OUT)
 
 
