@@ -161,6 +161,7 @@ class BertForEnumeratedTyper(BertForTokenClassification):
         self.start_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
         self.end_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
         self.config = config
+        self.MLP = MLP(config.hidden_size * 4, config.num_labels)
 
     def get_valid_entities(self, starts, ends, labels):
         """
@@ -207,55 +208,30 @@ class BertForEnumeratedTyper(BertForTokenClassification):
         )
         hidden_states = outputs.last_hidden_state  # (BatchSize, SeqLength, EmbedDim)
         # device = starts.device
-        droped_hidden_states = self.dropout(hidden_states)
-        start_logits = self.start_classifier(
-            droped_hidden_states
-        )  # (BatchSize, SeqLength, ClassNum)
-        end_logits = self.end_classifier(
-            droped_hidden_states
-        )  # (BatchSize, SeqLength, ClassNum)
-        # logits = self.li_et_al_logit_extractor(hidden_states, starts, ends)
-        # starts = starts  # (BatchSize, SeqLength, SpanNum)
         minibatch_size, max_span_num = starts.shape
-        # start_vecs = torch.gather(
-        #     hidden_states,
-        #     1,
-        #     starts[:, :, None].expand(
-        #         minibatch_size, max_span_num, self.config.hidden_size
-        #     ),
-        # )  # (BatchSize, SpanNum, HiddenDim)
-        # # start_vecs[i,j,k] = hidden_states[i,starts[i,j,k],k]
-        # end_vecs = torch.gather(
-        #     hidden_states,
-        #     1,
-        #     ends[:, :, None].expand(
-        #         minibatch_size, max_span_num, self.config.hidden_size
-        #     ),
-        # )  # (BatchSize, SpanNum, HiddenDim)
-        # # end_vecs[i,j,k] = hidden_states[i,ends[i,j,k],k]
-        # logits = self.MLP(
-        #     torch.cat(
-        #         [start_vecs, end_vecs, start_vecs - end_vecs, start_vecs * end_vecs],
-        #         dim=2,
-        #     )
-        # )
-        start_logits_per_span = torch.gather(
-            start_logits,
+        start_vecs = torch.gather(
+            hidden_states,
             1,
             starts[:, :, None].expand(
-                minibatch_size, max_span_num, self.config.num_labels
+                minibatch_size, max_span_num, self.config.hidden_size
             ),
-        )  # (BatchSize, SpanNum, ClassNum)
-        # # starts_logits_per_span[i,j,k] = start_logits[i,starts[i,j,k],k]
-        end_logits_per_span = torch.gather(
-            end_logits,
+        )  # (BatchSize, SpanNum, HiddenDim)
+        # start_vecs[i,j,k] = hidden_states[i,starts[i,j,k],k]
+        end_vecs = torch.gather(
+            hidden_states,
             1,
             ends[:, :, None].expand(
-                minibatch_size, max_span_num, self.config.num_labels
+                minibatch_size, max_span_num, self.config.hidden_size
             ),
-        )  # (BatchSize, SpanNum, ClassNum)
+        )  # (BatchSize, SpanNum, HiddenDim)
+        # # end_vecs[i,j,k] = hidden_states[i,ends[i,j,k],k]
+        logits = self.MLP(
+            torch.cat(
+                [start_vecs, end_vecs, start_vecs - end_vecs, start_vecs * end_vecs],
+                dim=2,
+            )
+        )
         # # ends_logits_per_span[i,j,k] = ends_logits[i,starts[i,j,k],k]
-        logits = start_logits_per_span + end_logits_per_span
         loss = None
         if labels is not None:
             loss_fct = torch.nn.CrossEntropyLoss(ignore_index=-1)
