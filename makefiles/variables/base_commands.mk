@@ -25,6 +25,7 @@ TRAIN_MSMLC_BASE_CMD := ${PYTHON} -m cli.train_msmlc +multi_label_typer=enumerat
 		++multi_label_typer.model_args.dynamic_pn_ratio_equivalence=$(MSMLC_DYNAMIC_PN_RATIO_EQUIVALENCE) \
 		++multi_label_typer.model_args.static_pn_ratio_equivalence=$(MSMLC_STATIC_PN_RATIO_EQUIVALENCE) \
 		++multi_label_typer.model_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE) \
+		++multi_label_typer.train_args.num_train_epochs=$(NUM_TRAIN_EPOCHS) \
 		++multi_label_typer.train_args.per_device_train_batch_size=$(TRAIN_BATCH_SIZE) \
 		++multi_label_typer.train_args.per_device_eval_batch_size=$(EVAL_BATCH_SIZE)
 

@@ -17,11 +17,13 @@ export http_proxy=$MY_PROXY_URL
 export https_proxy=$MY_PROXY_URL
 export ftp_proxy=$MY_PROXY_URL
 
-negative_ratios=(5.0 6.0 7.0 8.0 9.0)
+epoch_nums=(10 15 20 25 30)
+few_shot_nums=(10 50 100 200 400)
 
-
-for negative_ratio in ${negative_ratios[@]}; do
-    echo "negative_ratio: ${negative_ratio}" >>${OUTPUT_DIR}/cout
-    MAKE="EVAL_DATASET=${EVAL_DATASET} WITH_NEGATIVE_CATEGORIES=True WITH_O=True FIRST_STAGE_CHUNKER=\"enumerated\" NEGATIVE_RATIO_OVER_POSITIVE=${negative_ratio} make"
-    eval ${MAKE} train_on_gold -j$(nproc) >>${OUTPUT_DIR}/cout 2>>${OUTPUT_DIR}/cerr
+for few_shot_num in ${few_shot_nums[@]}; do
+    for epoch_num in ${epoch_nums[@]}; do
+        echo "epoch_num: ${epoch_num}" >>${OUTPUT_DIR}/cout
+        MAKE="FEW_SHOT_NUM=${few_shot_num} TRAIN_BATCH_SIZE=8 EVAL_BATCH_SIZE=16 NUM_TRAIN_EPOCHS=${epoch_num} EVAL_DATASET=${EVAL_DATASET} WITH_O=True FIRST_STAGE_CHUNKER=\"enumerated\" make"
+        eval ${MAKE} train_on_few_shot -j$(nproc) >>${OUTPUT_DIR}/cout 2>>${OUTPUT_DIR}/cerr
+    done
 done
