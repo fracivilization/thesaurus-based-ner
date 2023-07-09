@@ -3,11 +3,6 @@
 #$ -jc gpu-container_g4
 #$ -ac d=nvcr-pytorch-2205
 dir=`dirname $0`
-EVAL_DATASET=CoNLL2003
-OUTPUT_DIR=outputs/${EVAL_DATASET}/gold/single_w_nc
-mkdir -p ${OUTPUT_DIR}
-pwd >> ${OUTPUT_DIR}/cout
-ls -la >> ${OUTPUT_DIR}/cout
 
 export MY_PROXY_URL="http://10.1.10.1:8080/"
 export HTTP_PROXY=$MY_PROXY_URL
@@ -17,11 +12,15 @@ export http_proxy=$MY_PROXY_URL
 export https_proxy=$MY_PROXY_URL
 export ftp_proxy=$MY_PROXY_URL
 
-negative_ratios=(5.0 6.0 7.0 8.0 9.0)
+epoch_nums=(10 15 20 25 30)
 
-
-for negative_ratio in ${negative_ratios[@]}; do
-    echo "negative_ratio: ${negative_ratio}" >>${OUTPUT_DIR}/cout
-    MAKE="EVAL_DATASET=${EVAL_DATASET} WITH_NEGATIVE_CATEGORIES=True WITH_O=True FIRST_STAGE_CHUNKER=\"enumerated\" NEGATIVE_RATIO_OVER_POSITIVE=${negative_ratio} make"
+EVAL_DATASET=MedMentions
+OUTPUT_DIR=outputs/${EVAL_DATASET}/gold/single
+mkdir -p ${OUTPUT_DIR}
+pwd >> ${OUTPUT_DIR}/cout
+ls -la >> ${OUTPUT_DIR}/cout
+for epoch_num in ${epoch_nums[@]}; do
+    echo "epoch_num: ${epoch_num}" >>${OUTPUT_DIR}/cout
+    MAKE="TRAIN_BATCH_SIZE=8 EVAL_BATCH_SIZE=16 NUM_TRAIN_EPOCHS=${epoch_num} EVAL_DATASET=${EVAL_DATASET} WITH_NEGATIVE_CATEGORIES=True WITH_O=True FIRST_STAGE_CHUNKER=\"enumerated\" make"
     eval ${MAKE} train_on_gold -j$(nproc) >>${OUTPUT_DIR}/cout 2>>${OUTPUT_DIR}/cerr
 done

@@ -3,7 +3,7 @@
 #$ -jc gpu-container_g4
 #$ -ac d=nvcr-pytorch-2205
 dir=`dirname $0`
-EVAL_DATASET=CoNLL2003
+EVAL_DATASET=MedMentions
 OUTPUT_DIR=outputs/${EVAL_DATASET}/gold/multi_w_nc
 mkdir -p ${OUTPUT_DIR}
 pwd >> ${OUTPUT_DIR}/cout
