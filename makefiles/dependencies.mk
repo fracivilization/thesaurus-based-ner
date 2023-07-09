@@ -80,8 +80,7 @@ $(GOLD_FEW_SHOT_TRAIN_DATA): $(GOLD_TRAIN_DATA)
 $(GOLD_FEW_SHOT_TRAIN_MSC_DATA): $(GOLD_FEW_SHOT_TRAIN_DATA)
 	@echo GOLD_FEW_SHOT_TRAIN_MSC_DATA: $(GOLD_FEW_SHOT_TRAIN_MSC_DATA)
 	$(MSC_DATA_BASE_CMD) \
-		++negative_sampling=True \
-		++negative_ratio_over_positive=$(NEGATIVE_RATIO_OVER_POSITIVE) \
+		++negative_sampling=False \
 		+ner_dataset=$(GOLD_FEW_SHOT_TRAIN_DATA) \
 		+output_dir=$(GOLD_FEW_SHOT_TRAIN_MSC_DATA)
 
@@ -128,6 +127,7 @@ $(TRAIN_ON_GOLD_OUT): $(GOLD_TRAIN_MSC_DATA) $(GOLD_DATA)
 
 $(TRAIN_ON_FEW_SHOT): $(GOLD_FEW_SHOT_TRAIN_MSC_DATA) $(GOLD_DATA)
 	$(TRAIN_BASE_CMD) \
+		ner_model.typer.model_args.dynamic_pn_ratio_equivalence=False \
 		ner_model.typer.msc_datasets=$(GOLD_FEW_SHOT_TRAIN_MSC_DATA) 2>&1 | tee $(TRAIN_ON_FEW_SHOT)
 
 
