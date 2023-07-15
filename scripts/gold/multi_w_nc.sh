@@ -17,12 +17,9 @@ export http_proxy=$MY_PROXY_URL
 export https_proxy=$MY_PROXY_URL
 export ftp_proxy=$MY_PROXY_URL
 
-negative_ratios=(1.0 4.0 16.0 64.0 128.0)
-# negative_ratios=(32.0 64.0 128.0)
-for negative_ratio in ${negative_ratios[@]}; do
-    echo "negative_ratio: ${negative_ratio}" >>${OUTPUT_DIR}/cout
-    MAKE="EVAL_DATASET=${EVAL_DATASET} WITH_NEGATIVE_CATEGORIES=True MSMLC_STATIC_PN_RATIO_EQUIVALENCE=True MSMLC_NEGATIVE_RATIO_OVER_POSITIVE=${negative_ratio} make"
+epoch_nums=(5 10 15 20 25 30)
+for epoch_num in ${epoch_nums[@]}; do
+    echo "epoch_num: ${epoch_num}" >>${OUTPUT_DIR}/cout
+    MAKE="EVAL_DATASET=${EVAL_DATASET} TRAIN_BATCH_SIZE=8 EVAL_BATCH_SIZE=16 NUM_TRAIN_EPOCHS=${epoch_num} WITH_NEGATIVE_CATEGORIES=True make"
     eval ${MAKE} eval_flatten_marginal_softmax_gold -j$(nproc) >>${OUTPUT_DIR}/cout 2>>${OUTPUT_DIR}/cerr
-    # eval ${MAKE} -n train_flattern_multilabel_ner_gold
 done
-# echo ${MAKEOPT}
