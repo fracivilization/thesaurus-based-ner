@@ -124,6 +124,16 @@ class MarginalCrossEntropyLoss(torch.nn.BCEWithLogitsLoss):
         log_likelihood = torch.nn.functional.log_softmax(input, dim=2)
         return -log_likelihood * target
 
+class MLP(torch.nn.Module):
+    def __init__(self, input_dim, output_dim) -> None:
+        super().__init__()
+        self.first_classifier = torch.nn.Linear(input_dim, 2 * input_dim, bias=False)
+        self.activation_function = torch.tanh
+        self.last_classifier = torch.nn.Linear(2 * input_dim, output_dim, bias=False)
+
+    def forward(self, input_vec: torch.Tensor):
+        middle_state = self.activation_function(self.first_classifier(input_vec))
+        return self.last_classifier(middle_state)
 
 class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
     @classmethod
@@ -145,6 +155,7 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
         super().__init__(config)
         self.start_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
         self.end_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
+        self.MLP = MLP(config.hidden_size * 4, config.num_labels)
         self.config = config
 
     def get_valid_entities(self, starts, ends, labels):
@@ -227,29 +238,49 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
         )
         hidden_states = outputs.last_hidden_state  # (BatchSize, SeqLength, EmbedDim)
         droped_hidden_states = self.dropout(hidden_states)
-        start_logits = self.start_classifier(
-            droped_hidden_states
-        )  # (BatchSize, SeqLength, ClassNum)
-        end_logits = self.end_classifier(
-            droped_hidden_states
-        )  # (BatchSize, SeqLength, ClassNum)
+        # start_logits = self.start_classifier(
+        #     droped_hidden_states
+        # )  # (BatchSize, SeqLength, ClassNum)
+        # end_logits = self.end_classifier(
+        #     droped_hidden_states
+        # )  # (BatchSize, SeqLength, ClassNum)
         starts = starts  # (BatchSize, SeqLength, SpanNum)
         minibatch_size, max_span_num = starts.shape
-        start_logits_per_span = torch.gather(
-            start_logits,
+        # start_logits_per_span = torch.gather(
+        #     start_logits,
+        #     1,
+        #     starts[:, :, None].expand(
+        #         minibatch_size, max_span_num, self.config.num_labels
+        #     ),
+        # )  # (BatchSize, SpanNum, ClassNum)
+        start_vecs = torch.gather(
+            hidden_states,
             1,
             starts[:, :, None].expand(
-                minibatch_size, max_span_num, self.config.num_labels
+                minibatch_size, max_span_num, self.config.hidden_size
             ),
-        )  # (BatchSize, SpanNum, ClassNum)
-        end_logits_per_span = torch.gather(
-            end_logits,
+        )  # (BatchSize, SpanNum, HiddenDim)
+        # end_logits_per_span = torch.gather(
+        #     end_logits,
+        #     1,
+        #     ends[:, :, None].expand(
+        #         minibatch_size, max_span_num, self.config.num_labels
+        #     ),
+        # )  # (BatchSize, SpanNum, ClassNum)
+        end_vecs = torch.gather(
+            hidden_states,
             1,
             ends[:, :, None].expand(
-                minibatch_size, max_span_num, self.config.num_labels
+                minibatch_size, max_span_num, self.config.hidden_size
             ),
-        )  # (BatchSize, SpanNum, ClassNum)
-        logits = start_logits_per_span + end_logits_per_span
+        )  # (BatchSize, SpanNum, HiddenDim)
+        logits = self.MLP(
+            torch.cat(
+                [start_vecs, end_vecs, start_vecs - end_vecs, start_vecs * end_vecs],
+                dim=2,
+            )
+        )
+        # logits = start_logits_per_span + end_logits_per_span
         loss = None
         if labels is not None:
             if self.model_args.loss_func == "BCEWithLogitsLoss":

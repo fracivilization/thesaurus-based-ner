@@ -85,8 +85,12 @@ class EnumeratedModelArguments:
         metadata={"help": "Fine-Tuned parameters. If there is, load this parameter."},
     )
     o_label_id: int = 0  # Update when model loading, so 0 is temporal number
-    # o_sampling_ratio: float = 0.3  # O sampling in train
-    # nc_sampling_ratio: float = 1.0  # O sampling in train
+    dynamic_pn_ratio_equivalence: bool = field(
+        default=False,
+        metadata={
+            "help": "Make positive and negative ratio equal for each category by label mask.(Dinamically: on running)"
+        },
+    )
     negative_ratio_over_positive: float = field(
         default=1.0,
         metadata={
@@ -156,11 +160,8 @@ class BertForEnumeratedTyper(BertForTokenClassification):
         super().__init__(config)
         self.start_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
         self.end_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
-        # self.li_et_al_logit_extractor = LiEtAlLogitExtractor(
-        #     config.hidden_size, config.num_labels
-        # )
-        # self.MLP = MLP(4 * config.hidden_size, config.num_labels)
         self.config = config
+        self.MLP = MLP(config.hidden_size * 4, config.num_labels)
 
     def get_valid_entities(self, starts, ends, labels):
         """
@@ -198,7 +199,7 @@ class BertForEnumeratedTyper(BertForTokenClassification):
             Labels for computing the token classification loss. Indices should be in ``[0, ..., config.num_labels -
             1]``.
         """
-        if self.training:
+        if self.training and self.model_args.dynamic_pn_ratio_equivalence:
             starts, ends, labels = self.under_sample_o(starts, ends, labels)
         minibatch_size, max_seq_lens = input_ids.shape
         outputs = self.bert(
@@ -207,55 +208,30 @@ class BertForEnumeratedTyper(BertForTokenClassification):
         )
         hidden_states = outputs.last_hidden_state  # (BatchSize, SeqLength, EmbedDim)
         # device = starts.device
-        droped_hidden_states = self.dropout(hidden_states)
-        start_logits = self.start_classifier(
-            droped_hidden_states
-        )  # (BatchSize, SeqLength, ClassNum)
-        end_logits = self.end_classifier(
-            droped_hidden_states
-        )  # (BatchSize, SeqLength, ClassNum)
-        # logits = self.li_et_al_logit_extractor(hidden_states, starts, ends)
-        # starts = starts  # (BatchSize, SeqLength, SpanNum)
         minibatch_size, max_span_num = starts.shape
-        # start_vecs = torch.gather(
-        #     hidden_states,
-        #     1,
-        #     starts[:, :, None].expand(
-        #         minibatch_size, max_span_num, self.config.hidden_size
-        #     ),
-        # )  # (BatchSize, SpanNum, HiddenDim)
-        # # start_vecs[i,j,k] = hidden_states[i,starts[i,j,k],k]
-        # end_vecs = torch.gather(
-        #     hidden_states,
-        #     1,
-        #     ends[:, :, None].expand(
-        #         minibatch_size, max_span_num, self.config.hidden_size
-        #     ),
-        # )  # (BatchSize, SpanNum, HiddenDim)
-        # # end_vecs[i,j,k] = hidden_states[i,ends[i,j,k],k]
-        # logits = self.MLP(
-        #     torch.cat(
-        #         [start_vecs, end_vecs, start_vecs - end_vecs, start_vecs * end_vecs],
-        #         dim=2,
-        #     )
-        # )
-        start_logits_per_span = torch.gather(
-            start_logits,
+        start_vecs = torch.gather(
+            hidden_states,
             1,
             starts[:, :, None].expand(
-                minibatch_size, max_span_num, self.config.num_labels
+                minibatch_size, max_span_num, self.config.hidden_size
             ),
-        )  # (BatchSize, SpanNum, ClassNum)
-        # # starts_logits_per_span[i,j,k] = start_logits[i,starts[i,j,k],k]
-        end_logits_per_span = torch.gather(
-            end_logits,
+        )  # (BatchSize, SpanNum, HiddenDim)
+        # start_vecs[i,j,k] = hidden_states[i,starts[i,j,k],k]
+        end_vecs = torch.gather(
+            hidden_states,
             1,
             ends[:, :, None].expand(
-                minibatch_size, max_span_num, self.config.num_labels
+                minibatch_size, max_span_num, self.config.hidden_size
             ),
-        )  # (BatchSize, SpanNum, ClassNum)
+        )  # (BatchSize, SpanNum, HiddenDim)
+        # # end_vecs[i,j,k] = hidden_states[i,ends[i,j,k],k]
+        logits = self.MLP(
+            torch.cat(
+                [start_vecs, end_vecs, start_vecs - end_vecs, start_vecs * end_vecs],
+                dim=2,
+            )
+        )
         # # ends_logits_per_span[i,j,k] = ends_logits[i,starts[i,j,k],k]
-        logits = start_logits_per_span + end_logits_per_span
         loss = None
         if labels is not None:
             loss_fct = torch.nn.CrossEntropyLoss(ignore_index=-1)
@@ -369,7 +345,6 @@ class EnumeratedTyper(Typer):
             + f"distributed training: {bool(train_args.local_rank != -1)}, 16-bits training: {train_args.fp16}"
         )
         logger.info("Training/evaluation parameters %s", train_args)
-        # Set seed before initializing model.
         set_seed(train_args.seed)
 
         span_classification_datasets = DatasetDict.load_from_disk(
@@ -382,22 +357,11 @@ class EnumeratedTyper(Typer):
         else:
             column_names = span_classification_datasets["validation"].column_names
             features = span_classification_datasets["validation"].features
-        # text_column_name = "tokens" if "tokens" in column_names else column_names[0]
-        # label_column_name = (
-        #     f"{data_args.task_name}_tags"
-        #     if f"{data_args.task_name}_tags" in column_names
-        #     else column_names[1]
-        # )
 
         label_list = features["labels"].feature.names
         self.label_names = label_list
         num_labels = len(label_list)
 
-        # Load pretrained model and tokenizer
-        #
-        # Distributed training:
-        # The .from_pretrained methods guarantee that only one local process can concurrently
-        # download model & vocab.
         config = AutoConfig.from_pretrained(
             model_args.config_name
             if model_args.config_name

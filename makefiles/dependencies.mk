@@ -68,10 +68,21 @@ $(GOLD_TRAIN_DATA): $(GOLD_MULTI_LABEL_NER_DATA)
 $(GOLD_TRAIN_MSC_DATA): $(GOLD_TRAIN_DATA)
 	@echo GOLD_TRAIN_MSC_DATA_ON_GOLD: $(GOLD_TRAIN_MSC_DATA)
 	$(MSC_DATA_BASE_CMD) \
-		++negative_sampling=True \
-		++negative_ratio_over_positive=$(NEGATIVE_RATIO_OVER_POSITIVE) \
+		++negative_sampling=False \
 		+ner_dataset=$(GOLD_TRAIN_DATA) \
 		+output_dir=$(GOLD_TRAIN_MSC_DATA)
+$(GOLD_FEW_SHOT_TRAIN_DATA): $(GOLD_TRAIN_DATA)
+	@echo GOLD_FEW_SHOT_TRAIN_DATA: $(GOLD_FEW_SHOT_TRAIN_DATA)
+	${PYTHON} -m cli.preprocess.make_few_shot_data \
+		--source-datasetdict $(GOLD_TRAIN_DATA) \
+		--few-shot-num $(FEW_SHOT_NUM) \
+		--output-dir $(GOLD_FEW_SHOT_TRAIN_DATA)
+$(GOLD_FEW_SHOT_TRAIN_MSC_DATA): $(GOLD_FEW_SHOT_TRAIN_DATA)
+	@echo GOLD_FEW_SHOT_TRAIN_MSC_DATA: $(GOLD_FEW_SHOT_TRAIN_MSC_DATA)
+	$(MSC_DATA_BASE_CMD) \
+		++negative_sampling=False \
+		+ner_dataset=$(GOLD_FEW_SHOT_TRAIN_DATA) \
+		+output_dir=$(GOLD_FEW_SHOT_TRAIN_MSC_DATA)
 
 
 
@@ -106,11 +117,18 @@ $(PSEUDO_MSC_DATA_ON_GOLD): $(PSEUDO_DATA_ON_GOLD)
 
 $(TRAIN_OUT): $(PSEUDO_MSC_DATA_ON_GOLD) $(GOLD_DATA)
 	$(TRAIN_BASE_CMD) \
+		ner_model.typer.model_args.dynamic_pn_ratio_equivalence=True \
 		ner_model.typer.msc_datasets=$(PSEUDO_MSC_DATA_ON_GOLD) 2>&1 | tee $(TRAIN_OUT)
 
 $(TRAIN_ON_GOLD_OUT): $(GOLD_TRAIN_MSC_DATA) $(GOLD_DATA)
 	$(TRAIN_BASE_CMD) \
+		ner_model.typer.model_args.dynamic_pn_ratio_equivalence=False \
 		ner_model.typer.msc_datasets=$(GOLD_TRAIN_MSC_DATA) 2>&1 | tee $(TRAIN_ON_GOLD_OUT)
+
+$(TRAIN_ON_FEW_SHOT): $(GOLD_FEW_SHOT_TRAIN_MSC_DATA) $(GOLD_DATA)
+	$(TRAIN_BASE_CMD) \
+		ner_model.typer.model_args.dynamic_pn_ratio_equivalence=False \
+		ner_model.typer.msc_datasets=$(GOLD_FEW_SHOT_TRAIN_MSC_DATA) 2>&1 | tee $(TRAIN_ON_FEW_SHOT)
 
 
 $(PSEUDO_OUT): $(GOLD_DATA) $(TERM2CAT)
@@ -171,11 +189,16 @@ endif
 
 $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL): $(PSEUDO_MSMLC_DATA_ON_GOLD)
 	$(TRAIN_MSMLC_BASE_CMD) \
+		++multi_label_typer.model_args.dynamic_pn_ratio_equivalence=True \
+		++multi_label_typer.model_args.static_pn_ratio_equivalence=False \
+		++multi_label_typer.model_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE) \
 		++multi_label_typer.train_datasets=$(PSEUDO_MSMLC_DATA_ON_GOLD) \
 		++multi_label_typer.model_output_path=$(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL)
 
 $(GOLD_TRAINED_MSMLC_MODEL): $(GOLD_TRAIN_MSMLC_DATA)
 	$(TRAIN_MSMLC_BASE_CMD) \
+		++multi_label_typer.model_args.dynamic_pn_ratio_equivalence=False \
+		++multi_label_typer.model_args.static_pn_ratio_equivalence=False \
 		++multi_label_typer.train_datasets=$(GOLD_TRAIN_MSMLC_DATA) \
 		++multi_label_typer.model_output_path=$(GOLD_TRAINED_MSMLC_MODEL)
 
