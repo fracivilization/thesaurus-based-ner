@@ -17,9 +17,16 @@ export http_proxy=$MY_PROXY_URL
 export https_proxy=$MY_PROXY_URL
 export ftp_proxy=$MY_PROXY_URL
 
-negative_ratios=(4.0 8.0 16.0)
-for negative_ratio in ${negative_ratios[@]}; do
-    echo "negative_ratio: ${negative_ratio}" >>${OUTPUT_DIR}/cout
-    MAKE="EVAL_DATASET=${EVAL_DATASET} WITH_NEGATIVE_CATEGORIES=True REMAIN_COMMON_SENSE_FOR_TERM2CATS=False NEGATIVE_RATIO_OVER_POSITIVE=${negative_ratio} make"
-    eval ${MAKE} train -j$(nproc) >>${OUTPUT_DIR}/cout 2>>${OUTPUT_DIR}/cerr
+eval_datasets=(CoNLL2003 MedMentions)
+epoch_nums=(5 10 15 20 25 30)
+negative_ratios=(1.0 2.0 3.0 4.0 8.0 16.0)
+for EVAL_DATASET in ${eval_datasets[@]}; do
+    for epoch_num in ${epoch_nums[@]}; do
+        for negative_ratio in ${negative_ratios[@]}; do
+            echo "epoch_num: ${epoch_num}, negative_ratio: ${negative_ratio}" >>${OUTPUT_DIR}/cout
+            MAKE="EVAL_DATASET=${EVAL_DATASET} NUM_TRAIN_EPOCHS=${epoch_num} WITH_NEGATIVE_CATEGORIES=True REMAIN_COMMON_SENSE_FOR_TERM2CATS=False NEGATIVE_RATIO_OVER_POSITIVE=${negative_ratio} make"
+            eval ${MAKE} train -j$(nproc) >>${OUTPUT_DIR}/cout 2>>${OUTPUT_DIR}/cerr
+        done
+    done
 done
+
