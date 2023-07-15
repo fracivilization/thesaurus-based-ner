@@ -189,11 +189,16 @@ endif
 
 $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL): $(PSEUDO_MSMLC_DATA_ON_GOLD)
 	$(TRAIN_MSMLC_BASE_CMD) \
+		++multi_label_typer.model_args.dynamic_pn_ratio_equivalence=True \
+		++multi_label_typer.model_args.static_pn_ratio_equivalence=False \
+		++multi_label_typer.model_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE) \
 		++multi_label_typer.train_datasets=$(PSEUDO_MSMLC_DATA_ON_GOLD) \
 		++multi_label_typer.model_output_path=$(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL)
 
 $(GOLD_TRAINED_MSMLC_MODEL): $(GOLD_TRAIN_MSMLC_DATA)
 	$(TRAIN_MSMLC_BASE_CMD) \
+		++multi_label_typer.model_args.dynamic_pn_ratio_equivalence=False \
+		++multi_label_typer.model_args.static_pn_ratio_equivalence=False \
 		++multi_label_typer.train_datasets=$(GOLD_TRAIN_MSMLC_DATA) \
 		++multi_label_typer.model_output_path=$(GOLD_TRAINED_MSMLC_MODEL)
 
