@@ -19,6 +19,8 @@ make_term2cats: $(TERM2CATS)
 	@echo $(TERM2CATS)
 make_term2cat: $(TERM2CAT)
 	@echo $(TERM2CAT)
+make_dsnet_few_shot_data: $(DSNET_FEW_SHOT_DATA)
+	@echo $(DSNET_FEW_SHOT_DATA)
 
 # Train Main (Flat NER) Model
 train: $(TRAIN_OUT)

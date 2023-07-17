@@ -83,6 +83,11 @@ $(GOLD_FEW_SHOT_TRAIN_MSC_DATA): $(GOLD_FEW_SHOT_TRAIN_DATA)
 		++negative_sampling=False \
 		+ner_dataset=$(GOLD_FEW_SHOT_TRAIN_DATA) \
 		+output_dir=$(GOLD_FEW_SHOT_TRAIN_MSC_DATA)
+$(DSNET_FEW_SHOT_DATA): $(GOLD_TRAIN_DATA)
+	@echo DSNET_FEW_SHOT_DATA: $(DSNET_FEW_SHOT_DATA)
+	${PYTHON} -m cli.preprocess.make_sdnet_few_shot_data \
+		--source-datasetdict $(GOLD_TRAIN_DATA) \
+		--output-dir $(DSNET_FEW_SHOT_DATA)
 
 
 

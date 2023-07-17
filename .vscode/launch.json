@@ -640,6 +640,21 @@
                 "data/gold/17176cd9eddc820cacc70684edbaabab7936d367",
                 "--few-shot-num",
                 "5",
+                "--output-dir",
+                "few-shot-data"
+            ],
+        },
+        {
+            "name": "Make SDNet Few-Shot Data",
+            "type": "python",
+            "request": "launch",
+            "module": "cli.preprocess.make_sdnet_few_shot_data",
+            "justMyCode": false,
+            "args": [
+                "--source-datasetdict",
+                "data/gold/17176cd9eddc820cacc70684edbaabab7936d367",
+                "--output-dir",
+                "few-shot-data"
             ],
         }
     ]
