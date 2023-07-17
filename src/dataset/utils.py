@@ -572,6 +572,6 @@ def translate_label_name_into_common_noun(label_name: str) -> str:
     if label_name in CoNLL2003CommonNounMapper:
         return CoNLL2003CommonNounMapper[label_name]
     elif label_name in tui2ST:
-        return tui2ST[label_name]
+        return tui2ST[label_name].lower()
     else:
         raise NotImplementedError
