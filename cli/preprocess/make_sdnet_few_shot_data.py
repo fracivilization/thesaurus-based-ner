@@ -7,7 +7,7 @@ import os
 import json
 from seqeval.metrics.sequence_labeling import get_entities
 
-SHOT_NUMS = [5, 10, 20, 40, 80, 160]
+SHOT_NUMS = [5, 10, 20, 40, 80, 160, 320, 640]
 
 
 def translate_conll_format_snt_into_sdnet_format(
