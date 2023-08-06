@@ -325,11 +325,17 @@
             "module": "cli.preprocess.load_pseudo_multi_label_ner",
             "justMyCode": false,
             "args": [
-                "+multi_label_ner_model/multi_label_typer=CoNLL2003DictMatch",
+                "+multi_label_ner_model/multi_label_typer=MedMentionsDictMatch",
                 "++multi_label_ner_model.multi_label_typer.term2cats=data/term2cats/3b389f91f7acd3dccfa1aa48a9dac54b431a2f0d",
-                "+gold_corpus=data/gold/CoNLL2003_multi_label_ner",
-                "+raw_corpus=data/gold/CoNLL2003_multi_label_ner",
-                "+output_dir=data/pseudo/ae9c16b8d44253903cc211915bf7eb18b70af513"
+                "++multi_label_ner_model.remove_null_chunk=True",
+                "+gold_corpus=data/gold/MedMentions_multi_label_ner",
+                "+raw_corpus=data/gold/MedMentions_multi_label_ner",
+                "+output_dir=data/pseudo/e1612eeed51dead7e377b6bd67cadecf25972c55"
+                // "+multi_label_ner_model/multi_label_typer=CoNLL2003DictMatch",
+                // "++multi_label_ner_model.multi_label_typer.term2cats=data/term2cats/3b389f91f7acd3dccfa1aa48a9dac54b431a2f0d",
+                // "+gold_corpus=data/gold/CoNLL2003_multi_label_ner",
+                // "+raw_corpus=data/gold/CoNLL2003_multi_label_ner",
+                // "+output_dir=data/pseudo/ae9c16b8d44253903cc211915bf7eb18b70af513"
                 // "++multi_label_ner_model.multi_label_typer.term2cats=data/term2cats/3b389f91f7acd3dccfa1aa48a9dac54b431a2f0d",
                 // "+gold_corpus=data/gold/CoNLL2003_multi_label_ner",
                 // "+raw_corpus=data/gold/CoNLL2003_multi_label_ner",
