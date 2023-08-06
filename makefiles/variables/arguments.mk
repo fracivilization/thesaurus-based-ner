@@ -4,11 +4,12 @@ PYTHON ?= .venv/bin/python
 ## 疑似教師として利用する知識ベース or アンカーテキスト
 KNOWLEDGE_BASE ?= DBPedia# or UMLS or WikipediaAnchorText
 ## 評価に利用するデータセット
-EVAL_DATASET ?= CoNLL2003# or MedMentions
+# EVAL_DATASET ?= CoNLL2003# or MedMentions
+EVAL_DATASET ?= MedMentions
 ## EVAL_DATASET==MedMentionsの時のデフォルトPOSITIVE_CATS
-# POSITIVE_CATS ?= T005 T007 T017 T022 T031 T033 T037 T038 T058 T062 T074 T082 T091 T092 T097 T098 T103 T168 T170 T201 T204
+POSITIVE_CATS ?= T005 T007 T017 T022 T031 T033 T037 T038 T058 T062 T074 T082 T091 T092 T097 T098 T103 T168 T170 T201 T204
 ## EVAL_DATASET==CoNLL2003の時のデフォルトPOSITIVE_CATS
-POSITIVE_CATS ?= PER LOC ORG MISC
+# POSITIVE_CATS ?= PER LOC ORG MISC
 ## 負例のカテゴリを追加して利用するかどうか
 WITH_NEGATIVE_CATEGORIES ?= False
 ## 一つの単語に対して複数のentityが存在する場合に、複数のentityで共通するカテゴリ飲みを利用する
@@ -34,7 +35,7 @@ NUM_TRAIN_EPOCHS ?= 3
 
 # 中間変数
 ## 補完カテゴリ
-NEGATIVE_CATS := "$(shell ${PYTHON} -m cli.preprocess.load_negative_categories --positive-categories $(subst $() ,_,$(POSITIVE_CATS)) --with-negative_categories $(WITH_NEGATIVE_CATEGORIES) --eval-dataset $(EVAL_DATASET))"
+NEGATIVE_CATS := "$(shell ${PYTHON} -m cli.preprocess.load_negative_categories --positive-categories "$(subst $() ,_,$(POSITIVE_CATS))" --with-negative_categories $(WITH_NEGATIVE_CATEGORIES) --eval-dataset $(EVAL_DATASET))"
 ## 事前学習モデル名
 MODEL_NAME := $($(EVAL_DATASET)_MODEL_NAME)
 ## MultiSpanClassifierで利用する引数群

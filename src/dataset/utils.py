@@ -483,7 +483,7 @@ def load_negative_cats_from_positive_cats(
 ):
     if eval_dataset == "MedMentions":
         negative_cats = get_umls_negative_cats_from_positive_cats(
-            positive_categories, eval_dataset
+            positive_categories
         )
     elif eval_dataset == "CoNLL2003":
         negative_cats = get_dbpedia_negative_cats_from_positive_cats(

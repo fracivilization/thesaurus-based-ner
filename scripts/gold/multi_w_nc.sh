@@ -3,6 +3,7 @@
 #$ -jc gpu-container_g4
 #$ -ac d=nvcr-pytorch-2205
 dir=`dirname $0`
+# EVAL_DATASET=CoNLL2003
 EVAL_DATASET=MedMentions
 OUTPUT_DIR=outputs/${EVAL_DATASET}/gold/multi_w_nc
 mkdir -p ${OUTPUT_DIR}
@@ -17,7 +18,7 @@ export http_proxy=$MY_PROXY_URL
 export https_proxy=$MY_PROXY_URL
 export ftp_proxy=$MY_PROXY_URL
 
-epoch_nums=(5 10 15 20 25 30)
+epoch_nums=(1 3 5 10 15 20 25 30)
 for epoch_num in ${epoch_nums[@]}; do
     echo "epoch_num: ${epoch_num}" >>${OUTPUT_DIR}/cout
     MAKE="EVAL_DATASET=${EVAL_DATASET} TRAIN_BATCH_SIZE=8 EVAL_BATCH_SIZE=16 NUM_TRAIN_EPOCHS=${epoch_num} WITH_NEGATIVE_CATEGORIES=True make"

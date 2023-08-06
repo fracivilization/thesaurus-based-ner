@@ -14,6 +14,7 @@ export ftp_proxy=$MY_PROXY_URL
 
 epoch_nums=(10 15 20 25 30)
 
+# EVAL_DATASET=CoNLL2003
 EVAL_DATASET=MedMentions
 OUTPUT_DIR=outputs/${EVAL_DATASET}/gold/single
 mkdir -p ${OUTPUT_DIR}
