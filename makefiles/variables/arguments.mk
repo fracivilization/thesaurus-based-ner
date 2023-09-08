@@ -1,8 +1,6 @@
 # Arguments
 ## 実行に利用するPythonのパス
 PYTHON ?= .venv/bin/python
-## 疑似教師として利用する知識ベース or アンカーテキスト
-KNOWLEDGE_BASE ?= DBPedia# or UMLS or WikipediaAnchorText
 ## 評価に利用するデータセット
 # EVAL_DATASET ?= CoNLL2003# or MedMentions
 EVAL_DATASET ?= MedMentions
@@ -34,6 +32,10 @@ NUM_TRAIN_EPOCHS ?= 3
 
 
 # 中間変数
+## 疑似教師として利用する知識ベース or アンカーテキスト
+MedMentions_KNOWLEDGE_BASE := UMLS
+CoNLL2003_KNOWLEDGE_BASE := DBPedia# or WikipediaAnchorText
+KNOWLEDGE_BASE := $($(EVAL_DATASET)_KNOWLEDGE_BASE)# or UMLS or WikipediaAnchorText
 ## 補完カテゴリ
 NEGATIVE_CATS := "$(shell ${PYTHON} -m cli.preprocess.load_negative_categories --positive-categories "$(subst $() ,_,$(POSITIVE_CATS))" --with-negative_categories $(WITH_NEGATIVE_CATEGORIES) --eval-dataset $(EVAL_DATASET))"
 ## 事前学習モデル名
