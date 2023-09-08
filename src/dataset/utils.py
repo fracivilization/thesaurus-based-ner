@@ -8,6 +8,8 @@ import re
 from inflection import UNCOUNTABLES, PLURALS, SINGULARS
 from hydra.utils import to_absolute_path
 from functools import lru_cache
+from datasets import Dataset
+import random
 
 CATEGORY_SEPARATOR = "_"
 NEGATIVE_CATEGORY_PREFIX = "nc"
@@ -38,6 +40,12 @@ CoNLL2003CategoryMapper = {
         # NOTE: 属性としてのethnicGroupと名称としてのEthnicGroupの両方があるらしい
         "<http://dbpedia.org/ontology/EthnicGroup>",
     },
+}
+CoNLL2003CommonNounMapper = {
+    "PER": "person",
+    "ORG": "organization",
+    "LOC": "location",
+    "MISC": "miscellaneous",
 }
 
 
@@ -475,7 +483,7 @@ def load_negative_cats_from_positive_cats(
 ):
     if eval_dataset == "MedMentions":
         negative_cats = get_umls_negative_cats_from_positive_cats(
-            positive_categories, eval_dataset
+            positive_categories
         )
     elif eval_dataset == "CoNLL2003":
         negative_cats = get_dbpedia_negative_cats_from_positive_cats(
@@ -541,3 +549,29 @@ ST21pvSrc = {
     "RXNORM",
     "SNOMEDCT_US",
 }
+
+
+def split_ner_dataset(dataset: Dataset, split_num: int = 10) -> List[Dataset]:
+    """指定した数に固有表現抽出データセットを分割する"""
+    dataset_dicts = [defaultdict(list) for i in range(split_num)]
+    for snt in dataset:
+        target_split_data_id = random.randrange(split_num)
+        for key, value in snt.items():
+            dataset_dicts[target_split_data_id][key].append(value)
+    return [
+        Dataset.from_dict(split, features=dataset.features) for split in dataset_dicts
+    ]
+
+
+def translate_label_name_into_common_noun(label_name: str) -> str:
+    """labelに使用するタグをSDNetで利用する一般名詞に変換する
+    e.g.
+    - Input: LOC
+    - Output: location
+    """
+    if label_name in CoNLL2003CommonNounMapper:
+        return CoNLL2003CommonNounMapper[label_name]
+    elif label_name in tui2ST:
+        return tui2ST[label_name].lower()
+    else:
+        raise NotImplementedError

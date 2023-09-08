@@ -160,12 +160,19 @@ class ComplexKeywordTyper:
             )
         # 単語の途中に出てこないか確認 (e.g. ale: Food -> male or female: Food)
         confirmed_common_suffixes = []
+        # NOTE: マルチバイト文字に対応するためにencodeした時の文字列長を見る
+        encoded_chunk = chunk.encode()
+        reversed_encoded_chunk = reversed_chunk.encode()
+        encoded_chunk_size = len(chunk.encode())
         for _, inv_start in common_suffixes:
-            if inv_start < len(chunk) and reversed_chunk[inv_start] != " ":
+            if (
+                inv_start < encoded_chunk_size
+                and reversed_encoded_chunk[inv_start] != " "
+            ):
                 pass
             else:
-                start = len(chunk) - inv_start
-                term = chunk[start:]
+                start = encoded_chunk_size - inv_start
+                term = encoded_chunk[start:].decode()
                 if term in self.term2value:
                     value = self.term2value[term]
                 elif not self.case_sensitive:

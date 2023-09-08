@@ -1,10 +1,11 @@
 #$ -S /bin/bash
 #$ -cwd
-#$ -jc gpu-container_g4
+#$ -jc gpub-container_g4
 #$ -ac d=nvcr-pytorch-2205
 dir=`dirname $0`
+# EVAL_DATASET=CoNLL2003
 EVAL_DATASET=MedMentions
-OUTPUT_DIR=outputs/${EVAL_DATASET}/pseudo/multi_w_nc
+OUTPUT_DIR=outputs/${EVAL_DATASET}/pseudo/multi_w_nc/negative_ratio=${NEGATIVE_RATIO}/epoch_num=${EPOCH_NUM}
 mkdir -p ${OUTPUT_DIR}
 pwd >> ${OUTPUT_DIR}/cout
 ls -la >> ${OUTPUT_DIR}/cout
@@ -18,12 +19,8 @@ export https_proxy=$MY_PROXY_URL
 export ftp_proxy=$MY_PROXY_URL
 
 
-epoch_nums=(5 10 15 20 25 30)
-negative_ratios=(0.005 0.01 0.05 0.1 0.3 0.5 1.0 4.0 8.0 16.0)
-for epoch_num in ${epoch_nums[@]}; do
-    for negative_ratio in ${negative_ratios[@]}; do
-        echo "epoch_num: ${epoch_num}, negative_ratio: ${negative_ratio}" >>${OUTPUT_DIR}/cout
-        MAKE="EVAL_DATASET=${EVAL_DATASET} NUM_TRAIN_EPOCHS=${epoch_num} MSMLC_NEGATIVE_RATIO_OVER_POSITIVE=${negative_ratio} WITH_NEGATIVE_CATEGORIES=True make"
-        eval ${MAKE} eval_flatten_marginal_softmax -j$(nproc) >>${OUTPUT_DIR}/cout 2>>${OUTPUT_DIR}/cerr
-    done
-done
+echo "epoch_num: ${EPOCH_NUM}, negative_ratio: ${NEGATIVE_RATIO}" >>${OUTPUT_DIR}/cout
+MAKE="EVAL_DATASET=${EVAL_DATASET} NUM_TRAIN_EPOCHS=${EPOCH_NUM} MSMLC_NEGATIVE_RATIO_OVER_POSITIVE=${NEGATIVE_RATIO} WITH_NEGATIVE_CATEGORIES=True make"
+eval ${MAKE} eval_flatten_marginal_softmax -j$(nproc) >>${OUTPUT_DIR}/cout 2>>${OUTPUT_DIR}/cerr
+# TODO: そもそも生成させないようにする
+rm -r `find outputs -type d -regex '.*/checkpoint-[0-9]+'`
