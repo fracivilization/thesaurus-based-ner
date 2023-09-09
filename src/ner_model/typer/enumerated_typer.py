@@ -38,7 +38,6 @@ from tqdm import tqdm
 from typing import Dict
 import itertools
 from hashlib import md5
-from hydra.utils import get_original_cwd
 from transformers.modeling_outputs import (
     TokenClassifierOutput,
 )
@@ -177,14 +176,12 @@ class BertForEnumeratedTyper(BertForTokenClassification):
         """
         Get valid entities from start, end and label, cut tensor by no-ent label.
         """
-        # O ラベルをサンプリングする
         o_label_mask = labels == self.model_args.o_label_id
         sample_mask = (
             torch.rand(labels.shape, device=labels.device)
             >= self.negative_under_sampling_ratio
         )  # 1-sample ratio の割合で True となる mask
         sampled_labels = torch.where(o_label_mask * sample_mask, -1, labels)
-        # サンプリングに合わせて、-1に当たる部分をソートして外側に出す
         sort_arg = torch.argsort(sampled_labels, descending=True, dim=1)
         sorted_sampled_labels = torch.take_along_dim(sampled_labels, sort_arg, dim=1)
         sorted_starts = torch.take_along_dim(starts, sort_arg, dim=1)
@@ -207,7 +204,6 @@ class BertForEnumeratedTyper(BertForTokenClassification):
             attention_mask=attention_mask,
         )
         hidden_states = outputs.last_hidden_state  # (BatchSize, SeqLength, EmbedDim)
-        # device = starts.device
         minibatch_size, max_span_num = starts.shape
         start_vecs = torch.gather(
             hidden_states,
@@ -216,7 +212,6 @@ class BertForEnumeratedTyper(BertForTokenClassification):
                 minibatch_size, max_span_num, self.config.hidden_size
             ),
         )  # (BatchSize, SpanNum, HiddenDim)
-        # start_vecs[i,j,k] = hidden_states[i,starts[i,j,k],k]
         end_vecs = torch.gather(
             hidden_states,
             1,
@@ -224,14 +219,12 @@ class BertForEnumeratedTyper(BertForTokenClassification):
                 minibatch_size, max_span_num, self.config.hidden_size
             ),
         )  # (BatchSize, SpanNum, HiddenDim)
-        # # end_vecs[i,j,k] = hidden_states[i,ends[i,j,k],k]
         logits = self.MLP(
             torch.cat(
                 [start_vecs, end_vecs, start_vecs - end_vecs, start_vecs * end_vecs],
                 dim=2,
             )
         )
-        # # ends_logits_per_span[i,j,k] = ends_logits[i,starts[i,j,k],k]
         loss = None
         if labels is not None:
             loss_fct = torch.nn.CrossEntropyLoss(ignore_index=-1)
@@ -348,7 +341,7 @@ class EnumeratedTyper(Typer):
         set_seed(train_args.seed)
 
         span_classification_datasets = DatasetDict.load_from_disk(
-            os.path.join(get_original_cwd(), config.msc_datasets)
+            to_absolute_path(config.msc_datasets)
         )
         log_label_ratio(span_classification_datasets)
         if train_args.do_train:
@@ -424,8 +417,8 @@ class EnumeratedTyper(Typer):
 
         def get_buffer_path(arg_str: str):
 
-            return os.path.join(
-                get_original_cwd(), "data/buffer", md5(arg_str.encode()).hexdigest()
+            return to_absolute_path(
+                os.path.join("data/buffer", md5(arg_str.encode()).hexdigest())
             )
 
         cache_file_names = {

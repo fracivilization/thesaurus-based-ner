@@ -124,6 +124,7 @@ class MarginalCrossEntropyLoss(torch.nn.BCEWithLogitsLoss):
         log_likelihood = torch.nn.functional.log_softmax(input, dim=2)
         return -log_likelihood * target
 
+
 class MLP(torch.nn.Module):
     def __init__(self, input_dim, output_dim) -> None:
         super().__init__()
@@ -134,6 +135,7 @@ class MLP(torch.nn.Module):
     def forward(self, input_vec: torch.Tensor):
         middle_state = self.activation_function(self.first_classifier(input_vec))
         return self.last_classifier(middle_state)
+
 
 class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
     @classmethod
@@ -155,8 +157,8 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
         super().__init__(config)
         self.start_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
         self.end_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
-        self.MLP = MLP(config.hidden_size * 4, config.num_labels)
         self.config = config
+        self.MLP = MLP(config.hidden_size * 4, config.num_labels)
 
     def get_valid_entities(self, starts, ends, labels):
         """
@@ -222,7 +224,6 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
             1]``.
         """
         if self.model_args.dynamic_pn_ratio_equivalence and labels is not None:
-            # hypothesize "O" as "nc-O"
             o_labeled_spans = labels[:, :, self.model_args.o_label_id]
             non_o_spans = torch.logical_not(o_labeled_spans)
             remained_spans = (
@@ -237,22 +238,8 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
             attention_mask=attention_mask,
         )
         hidden_states = outputs.last_hidden_state  # (BatchSize, SeqLength, EmbedDim)
-        droped_hidden_states = self.dropout(hidden_states)
-        # start_logits = self.start_classifier(
-        #     droped_hidden_states
-        # )  # (BatchSize, SeqLength, ClassNum)
-        # end_logits = self.end_classifier(
-        #     droped_hidden_states
-        # )  # (BatchSize, SeqLength, ClassNum)
         starts = starts  # (BatchSize, SeqLength, SpanNum)
         minibatch_size, max_span_num = starts.shape
-        # start_logits_per_span = torch.gather(
-        #     start_logits,
-        #     1,
-        #     starts[:, :, None].expand(
-        #         minibatch_size, max_span_num, self.config.num_labels
-        #     ),
-        # )  # (BatchSize, SpanNum, ClassNum)
         start_vecs = torch.gather(
             hidden_states,
             1,
@@ -260,13 +247,6 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
                 minibatch_size, max_span_num, self.config.hidden_size
             ),
         )  # (BatchSize, SpanNum, HiddenDim)
-        # end_logits_per_span = torch.gather(
-        #     end_logits,
-        #     1,
-        #     ends[:, :, None].expand(
-        #         minibatch_size, max_span_num, self.config.num_labels
-        #     ),
-        # )  # (BatchSize, SpanNum, ClassNum)
         end_vecs = torch.gather(
             hidden_states,
             1,
@@ -280,7 +260,6 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
                 dim=2,
             )
         )
-        # logits = start_logits_per_span + end_logits_per_span
         loss = None
         if labels is not None:
             if self.model_args.loss_func == "BCEWithLogitsLoss":
@@ -630,7 +609,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         set_seed(train_args.seed)
         # msml: Multi Span Multi Label
         msml_datasets = DatasetDict.load_from_disk(
-            os.path.join(get_original_cwd(), config.train_datasets)
+            to_absolute_path(config.train_datasets)
         )
         log_label_ratio(msml_datasets)
         if train_args.do_train:
@@ -900,12 +879,12 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                 labels[span_id] = labels[span_id] + [self.label_names[label_id]]
                 weights[span_id] += [expit(snt_logit[span_id, label_id])]
             snt_ret_list = []
-            for span_logit, span_labels, span_weights in zip(snt_logit, labels, weights):
+            for span_logit, span_labels, span_weights in zip(
+                snt_logit, labels, weights
+            ):
                 snt_ret_list.append(
                     MultiLabelTyperOutput(
-                        labels=span_labels,
-                        logits=span_logit,
-                        weights=span_weights
+                        labels=span_labels, logits=span_logit, weights=span_weights
                     )
                 )
             ret_list.append(snt_ret_list)
