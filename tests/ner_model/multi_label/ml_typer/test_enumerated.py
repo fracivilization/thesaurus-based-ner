@@ -35,7 +35,7 @@ class TestEnumeratedTyper(unittest.TestCase):
         # train_args で 16bitを指定
         train_args = HydraAddaptedTrainingArguments(fp16=True, output_dir=".")
         config = MultiLabelEnumeratedTyperConfig(
-            msc_datasets=MSMLC_DATASET_PATH, train_args=train_args
+            train_datasets=MSMLC_DATASET_PATH, train_args=train_args
         )
-        typer = MultiLabelEnumeratedTyperConfig(config)
+        typer = MultiLabelEnumeratedTyper(config)
         typer.train()

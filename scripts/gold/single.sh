@@ -1,7 +1,7 @@
 #$ -S /bin/bash
 #$ -cwd
 #$ -jc gpu-container_g4
-#$ -ac d=nvcr-pytorch-2205
+#$ -ac d=nvcr-pytorch-2305
 dir=`dirname $0`
 
 export MY_PROXY_URL="http://10.1.10.1:8080/"

@@ -1,7 +1,7 @@
 #$ -S /bin/bash
 #$ -cwd
 #$ -jc gpu-container_g4
-#$ -ac d=nvcr-pytorch-2205
+#$ -ac d=nvcr-pytorch-2305
 dir=`dirname $0`
 # TODO: 連想配列使って両方の実験設定を回せるようにする
 # EVAL_DATASET=CoNLL2003
