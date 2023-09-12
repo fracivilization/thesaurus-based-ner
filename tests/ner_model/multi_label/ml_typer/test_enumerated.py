@@ -4,6 +4,7 @@ from src.ner_model.multi_label.ml_typer import (
     MultiLabelEnumeratedTyperConfig,
 )
 from datasets import DatasetDict
+from src.utils.hydra import HydraAddaptedTrainingArguments
 
 MSMLC_DATASET_PATH = "tests/fixtures/mini_conll_msmlc_dataset"
 
@@ -29,3 +30,12 @@ class TestEnumeratedTyper(unittest.TestCase):
         config = MultiLabelEnumeratedTyperConfig(train_datasets=MSMLC_DATASET_PATH)
         ml_typer = MultiLabelEnumeratedTyper(config)
         ml_typer.train()
+
+    def test_train_euumerated_typer_with_16bit(self):
+        # train_args で 16bitを指定
+        train_args = HydraAddaptedTrainingArguments(fp16=True, output_dir=".")
+        config = MultiLabelEnumeratedTyperConfig(
+            msc_datasets=MSMLC_DATASET_PATH, train_args=train_args
+        )
+        typer = MultiLabelEnumeratedTyperConfig(config)
+        typer.train()
