@@ -36,3 +36,18 @@ class TestEnumeratedTyper(unittest.TestCase):
         )
         typer = EnumeratedTyper(config)
         typer.train()
+
+    def test_train_early_stopping_on_enumerated_typer(self):
+        # c.f. https://dev.classmethod.jp/articles/huggingface-usage-early-stopping/
+        train_args = HydraAddaptedTrainingArguments(
+            output_dir="tmp",
+            load_best_model_at_end=True,
+            num_train_epochs=20,
+            evaluation_strategy="epoch",
+            save_strategy="epoch",
+        )
+        config = EnumeratedTyperConfig(
+            msc_datasets=MSC_DATASET_PATH, train_args=train_args
+        )
+        typer = EnumeratedTyper(config)
+        typer.train()

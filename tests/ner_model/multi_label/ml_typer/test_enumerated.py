@@ -39,3 +39,18 @@ class TestEnumeratedTyper(unittest.TestCase):
         )
         typer = MultiLabelEnumeratedTyper(config)
         typer.train()
+
+    def test_train_euumerated_typer_with_early_stopping(self):
+        # c.f. https://dev.classmethod.jp/articles/huggingface-usage-early-stopping/
+        train_args = HydraAddaptedTrainingArguments(
+            output_dir="tmp",
+            load_best_model_at_end=True,
+            num_train_epochs=20,
+            evaluation_strategy="epoch",
+            save_strategy="epoch",
+        )
+        config = MultiLabelEnumeratedTyperConfig(
+            train_datasets=MSMLC_DATASET_PATH, train_args=train_args
+        )
+        typer = MultiLabelEnumeratedTyper(config)
+        typer.train()

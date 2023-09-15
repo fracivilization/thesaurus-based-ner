@@ -43,6 +43,7 @@ import datasets
 from datasets import DatasetDict
 from hydra.utils import get_original_cwd, to_absolute_path
 import random
+from transformers import EarlyStoppingCallback
 
 span_start_token = "[unused1]"
 span_end_token = "[unused2]"
@@ -821,6 +822,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
             tokenizer=self.preprocessor.tokenizer,
             data_collator=default_data_collator,
             compute_metrics=compute_metrics,
+            callbacks=[EarlyStoppingCallback(early_stopping_patience=3)],
         )
         self.trainer = trainer
 
