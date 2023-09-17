@@ -24,7 +24,10 @@ TRAIN_MSMLC_BASE_CMD := ${PYTHON} -m cli.train_msmlc +multi_label_typer=enumerat
 		++multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss \
 		++multi_label_typer.train_args.num_train_epochs=$(NUM_TRAIN_EPOCHS) \
 		++multi_label_typer.train_args.per_device_train_batch_size=$(TRAIN_BATCH_SIZE) \
-		++multi_label_typer.train_args.per_device_eval_batch_size=$(EVAL_BATCH_SIZE)
+		++multi_label_typer.train_args.per_device_eval_batch_size=$(EVAL_BATCH_SIZE) \
+		ner_model.typer.train_args.load_best_model_at_end=True \
+		ner_model.typer.train_args.save_strategy=EPOCH \
+		ner_model.typer.train_args.evaluation_strategy=EPOCH
 
 
 TRAIN_BASE_CMD := $(TRAIN_COMMON_BASE_CMD) \
@@ -35,4 +38,7 @@ TRAIN_BASE_CMD := $(TRAIN_COMMON_BASE_CMD) \
 		ner_model.typer.train_args.per_device_eval_batch_size=$(EVAL_BATCH_SIZE) \
 		ner_model.typer.train_args.num_train_epochs=$(NUM_TRAIN_EPOCHS) \
 		ner_model.typer.train_args.do_train=True \
-		ner_model.typer.train_args.overwrite_output_dir=True
+		ner_model.typer.train_args.overwrite_output_dir=True \
+		ner_model.typer.train_args.load_best_model_at_end=True \
+		ner_model.typer.train_args.save_strategy=EPOCH \
+		ner_model.typer.train_args.evaluation_strategy=EPOCH
