@@ -3,8 +3,8 @@
 #$ -jc gpub-container_g4
 #$ -ac d=nvcr-pytorch-2305
 dir=`dirname $0`
-# EVAL_DATASET=CoNLL2003
-EVAL_DATASET=MedMentions
+EVAL_DATASET=CoNLL2003
+# EVAL_DATASET=MedMentions
 OUTPUT_DIR=outputs/${EVAL_DATASET}/pseudo/multi_w_nc/negative_ratio=${NEGATIVE_RATIO}/epoch_num=${EPOCH_NUM}
 mkdir -p ${OUTPUT_DIR}
 pwd >> ${OUTPUT_DIR}/cout
@@ -19,8 +19,8 @@ export https_proxy=$MY_PROXY_URL
 export ftp_proxy=$MY_PROXY_URL
 
 
-echo "epoch_num: ${EPOCH_NUM}, negative_ratio: ${NEGATIVE_RATIO}" >>${OUTPUT_DIR}/cout
-MAKE="EVAL_DATASET=${EVAL_DATASET} NUM_TRAIN_EPOCHS=${EPOCH_NUM} MSMLC_NEGATIVE_RATIO_OVER_POSITIVE=${NEGATIVE_RATIO} WITH_NEGATIVE_CATEGORIES=True make"
+echo "negative_ratio: ${NEGATIVE_RATIO}" >>${OUTPUT_DIR}/cout
+MAKE="EVAL_DATASET=${EVAL_DATASET} MSMLC_NEGATIVE_RATIO_OVER_POSITIVE=${NEGATIVE_RATIO} WITH_NEGATIVE_CATEGORIES=True make"
 eval ${MAKE} eval_flatten_marginal_softmax -j$(nproc) >>${OUTPUT_DIR}/cout 2>>${OUTPUT_DIR}/cerr
 # TODO: そもそも生成させないようにする
 rm -r `find outputs -type d -regex '.*/checkpoint-[0-9]+'`

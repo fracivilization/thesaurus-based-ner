@@ -16,7 +16,7 @@ class TestTrainMSCEnumerated:
             "ner_model.typer.model_args.negative_ratio_over_positive=1.0",
             "ner_model.typer.train_args.per_device_train_batch_size=8",
             "ner_model.typer.train_args.per_device_eval_batch_size=16",
-            "ner_model.typer.train_args.num_train_epochs=20",
+            "ner_model.typer.train_args.num_train_epochs=40",
             "ner_model.typer.train_args.do_train=True",
             "ner_model.typer.train_args.overwrite_output_dir=True",
             "ner_model.typer.train_args.save_total_limit=5",
@@ -25,6 +25,7 @@ class TestTrainMSCEnumerated:
             # 学習の最後に最も良かったモデルを利用する（Early Stoppingに必要）
             "ner_model.typer.train_args.save_strategy=EPOCH",
             "ner_model.typer.train_args.evaluation_strategy=EPOCH",
+            "ner_model.typer.train_args.fp16=True",
             "ner_model.typer.model_args.dynamic_pn_ratio_equivalence=True",
             f"ner_model.typer.msc_datasets={MSC_DATASET}"
         ]
@@ -41,7 +42,7 @@ class TestTrainMSMLCEnumerated:
             "+multi_label_typer=enumerated",
             "++multi_label_typer.model_args.model_name_or_path='bert-base-cased'",
             "++multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss",
-            "++multi_label_typer.train_args.num_train_epochs=20",
+            "++multi_label_typer.train_args.num_train_epochs=40",
             "++multi_label_typer.train_args.per_device_train_batch_size=8",
             "++multi_label_typer.train_args.per_device_eval_batch_size=16",
             "++multi_label_typer.train_args.save_total_limit=5",
@@ -54,6 +55,7 @@ class TestTrainMSMLCEnumerated:
             # 学習の最後に最も良かったモデルを利用する（Early Stoppingに必要）
             "++multi_label_typer.train_args.save_strategy=EPOCH",
             "++multi_label_typer.train_args.evaluation_strategy=EPOCH",
+            "++multi_label_typer.train_args.fp16=True",
         ]
         print(cmd)
         subprocess.run(cmd)
