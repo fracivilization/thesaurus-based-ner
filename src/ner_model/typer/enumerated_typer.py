@@ -443,33 +443,6 @@ class EnumeratedTyper(Typer):
         # Data collator
         # data_collator = DataCollatorForTokenClassification(tokenizer)
 
-        # Metrics
-        def compute_metrics(p):
-            predictions, labels = p
-            predictions = np.argmax(predictions, axis=2)
-
-            # Remove ignored index (special tokens)
-            true_predictions = [
-                [label_list[p] for (p, l) in zip(prediction, label) if l != -100]
-                for prediction, label in zip(predictions, labels)
-            ]
-            true_labels = [
-                [label_list[l] for (p, l) in zip(prediction, label) if l != -100]
-                for prediction, label in zip(predictions, labels)
-            ]
-            from seqeval.metrics import (
-                accuracy_score,
-                f1_score,
-                precision_score,
-                recall_score,
-            )
-
-            return {
-                "accuracy_score": accuracy_score(true_labels, true_predictions),
-                "precision": precision_score(true_labels, true_predictions),
-                "recall": recall_score(true_labels, true_predictions),
-                "f1": f1_score(true_labels, true_predictions),
-            }
 
         # Initialize our Trainer
         from transformers import default_data_collator
@@ -483,7 +456,6 @@ class EnumeratedTyper(Typer):
             else None,
             tokenizer=tokenizer,
             data_collator=default_data_collator,
-            compute_metrics=compute_metrics,
             callbacks=[EarlyStoppingCallback(early_stopping_patience=3)],
         )
         self.trainer = trainer
