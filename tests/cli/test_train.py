@@ -19,6 +19,7 @@ class TestTrainMSCEnumerated:
             "ner_model.typer.train_args.num_train_epochs=20",
             "ner_model.typer.train_args.do_train=True",
             "ner_model.typer.train_args.overwrite_output_dir=True",
+            "ner_model.typer.train_args.save_total_limit=5",
             # 学習の最後に最も良かったモデルを利用する（Early Stoppingに必要）
             "ner_model.typer.train_args.load_best_model_at_end=True",
             # 学習の最後に最も良かったモデルを利用する（Early Stoppingに必要）
@@ -43,6 +44,7 @@ class TestTrainMSMLCEnumerated:
             "++multi_label_typer.train_args.num_train_epochs=20",
             "++multi_label_typer.train_args.per_device_train_batch_size=8",
             "++multi_label_typer.train_args.per_device_eval_batch_size=16",
+            "++multi_label_typer.train_args.save_total_limit=5",
             "++multi_label_typer.model_args.dynamic_pn_ratio_equivalence=False",
             "++multi_label_typer.model_args.static_pn_ratio_equivalence=False",
             f"++multi_label_typer.train_datasets={MSMLC_DATASET}",
