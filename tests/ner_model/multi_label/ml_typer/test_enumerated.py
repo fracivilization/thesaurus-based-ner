@@ -3,6 +3,7 @@ from src.ner_model.multi_label.ml_typer import (
     MultiLabelEnumeratedTyper,
     MultiLabelEnumeratedTyperConfig,
 )
+from src.ner_model.multi_label.ml_typer.enumerated import MultiLabelEnumeratedModelArguments
 from datasets import DatasetDict
 from src.utils.hydra import HydraAddaptedTrainingArguments
 
@@ -48,9 +49,18 @@ class TestEnumeratedTyper(unittest.TestCase):
             num_train_epochs=20,
             evaluation_strategy="epoch",
             save_strategy="epoch",
+            do_train=True,
+            overwrite_output_dir=True
+        )
+        model_args = MultiLabelEnumeratedModelArguments(
+            model_name_or_path='bert-base-cased',
+            loss_func="MarginalCrossEntropyLoss",
+            dynamic_pn_ratio_equivalence=False,
+            static_pn_ratio_equivalence=False,
         )
         config = MultiLabelEnumeratedTyperConfig(
-            train_datasets=MSMLC_DATASET_PATH, train_args=train_args
+            train_datasets=MSMLC_DATASET_PATH, train_args=train_args,
+            model_output_path="data/model/trained_msmlc_model"
         )
         typer = MultiLabelEnumeratedTyper(config)
         typer.train()
