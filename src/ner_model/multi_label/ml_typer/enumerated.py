@@ -783,6 +783,34 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
             )
         self.model = model
 
+        def compute_metrics(p):
+            predictions, labels = p
+            predictions # (data_size, max_span_num, label_size)
+            labels, valid_spans = labels
+            labels # (data_size, max_span_num, label_size)
+            valid_spans # (data_size, max_span_num)
+
+            # valid_spansから有効であると考えられるスパンの分類結果を取得する
+            # predictionsに対しては閾値を決めて予測するかしないかを決める
+            label_names = np.array(self.label_names)
+            for pred, label, valid in zip(predictions, labels, valid_spans):
+                span_pred, span_label = [], []
+                for pd, ll, vd in zip(pred, label, valid):
+                    self.label_names[0]
+                    import pdb; pdb.set_trace()
+            predictions = None
+            labels = None
+
+            # TODO: CoNLLデータセット状など必要な場合にラベルの変換を行う
+
+            # TODO: micro p./r./f. を計算する
+            return {
+                "accuracy_score": accuracy_score(true_labels, true_predictions),
+                "precision": precision_score(true_labels, true_predictions),
+                "recall": recall_score(true_labels, true_predictions),
+                "f1": f1_score(true_labels, true_predictions),
+            }
+
         # Initialize our Trainer
         from transformers import default_data_collator
 
@@ -798,6 +826,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
             tokenizer=self.preprocessor.tokenizer,
             data_collator=default_data_collator,
             callbacks=[EarlyStoppingCallback(early_stopping_patience=data_args.early_stopping_patience)],
+            compute_metrics=compute_metrics,
         )
         self.trainer = trainer
 

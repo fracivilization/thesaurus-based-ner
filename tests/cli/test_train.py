@@ -25,7 +25,6 @@ class TestTrainMSCEnumerated:
             # 学習の最後に最も良かったモデルを利用する（Early Stoppingに必要）
             "ner_model.typer.train_args.save_strategy=EPOCH",
             "ner_model.typer.train_args.evaluation_strategy=EPOCH",
-            "ner_model.typer.train_args.fp16=True",
             "ner_model.typer.model_args.dynamic_pn_ratio_equivalence=True",
             f"ner_model.typer.msc_datasets={MSC_DATASET}"
         ]
@@ -55,7 +54,28 @@ class TestTrainMSMLCEnumerated:
             # 学習の最後に最も良かったモデルを利用する（Early Stoppingに必要）
             "++multi_label_typer.train_args.save_strategy=EPOCH",
             "++multi_label_typer.train_args.evaluation_strategy=EPOCH",
-            "++multi_label_typer.train_args.fp16=True",
+        ]
+        print(cmd)
+        subprocess.run(cmd)
+class TestTrainAndEvalFlattenSoftmax:
+    def test_train_and_eval_flatten_softmax(self):
+        cmd = [
+            "poetry", "run", "python", "-m",
+            "cli.train",
+            f"dataset.name_or_path={NER_DATASET}",
+            "ner_model=flatten_marginal_softmax_ner",
+            "ner_model.positive_cats=PER_LOC_ORG_MISC",
+            "ner_model.with_negative_categories=False",
+            "ner_model.eval_dataset=CoNLL2003",
+            "ner_model/multi_label_ner_model=two_stage",
+            "+ner_model/multi_label_ner_model/chunker=enumerated",
+            "+ner_model/multi_label_ner_model/multi_label_typer=enumerated",
+            "++ner_model.multi_label_ner_model.multi_label_typer.model_args.model_name_or_path='bert-base-cased'",
+            "++ner_model.multi_label_ner_model.multi_label_typer.train_args.do_train=True",
+            "++ner_model.multi_label_ner_model.multi_label_typer.model_output_path=\"no_output\"",
+            f"++msmlc_datasets={MSMLC_DATASET}",
+            "++ner_model.multi_label_ner_model.multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss",
+            f"++ner_model.multi_label_ner_model.multi_label_typer.train_datasets={MSMLC_DATASET}"
         ]
         print(cmd)
         subprocess.run(cmd)

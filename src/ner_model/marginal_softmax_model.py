@@ -165,7 +165,6 @@ class FlattenMarginalSoftmaxNERModel(NERModel):
         starts, ends, outputs = self.multi_label_ner_model.batch_predict(tokens)
         label_names = self.multi_label_ner_model.label_names
         ner_tags = []
-        logits = []
         examples = [
             {
                 "tokens": snt_tokens,
@@ -184,24 +183,10 @@ class FlattenMarginalSoftmaxNERModel(NERModel):
             )
         ]
         chunked_examples = list(
-            chunked(examples, n=len(examples) // (3 * multiprocessing.cpu_count()))
+            chunked(examples, n=1 + len(examples) // (3 * multiprocessing.cpu_count()))
         )
         ner_tags = p_map(batch_postprocess_for_output, chunked_examples)
         ner_tags = [snt_ner_tags for chunk in ner_tags for snt_ner_tags in chunk]
-
-        for snt_outputs in outputs:
-            snt_logits = np.array([o.logits for o in snt_outputs])
-            logits.append(snt_logits)
-        log_dataset = Dataset.from_dict(
-            {
-                "tokens": tokens,
-                "starts": starts,
-                "ends": ends,
-                "logits": logits,
-                "label_names": [label_names] * len(tokens),
-            }
-        )
-        log_dataset.save_to_disk("span_classif_log_%s" % str(uuid.uuid1()))
         return ner_tags
 
     def train(self):
