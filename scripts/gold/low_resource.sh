@@ -1,11 +1,12 @@
 #$ -S /bin/bash
 #$ -cwd
-#$ -jc gpu-container_g4
+#$ -jc gpub-container_g4
 #$ -ac d=nvcr-pytorch-2305
 dir=`dirname $0`
 # EVAL_DATASET=CoNLL2003
+LD_LIBRARY_PATH=/home/takayo-s/.linuxbrew/Cellar/libffi/3.4.4/lib/:/home/takayo-s/.linuxbrew/Cellar/openssl@1.1/1.1.1q/lib/:/home/takayo-s/.linuxbrew/Cellar/libx11/1.8.1/lib:/home/takayo-s/.linuxbrew/Cellar/libffi/3.4.4/lib/:/home/takayo-s/.linuxbrew/Cellar/openssl@1.1/1.1.1q/lib/:/home/takayo-s/.linuxbrew/Cellar/libx11/1.8.1/lib:
 EVAL_DATASET=MedMentions
-OUTPUT_DIR=outputs/${EVAL_DATASET}/gold/few_shot
+OUTPUT_DIR=outputs/${EVAL_DATASET}/gold/low_resource
 mkdir -p ${OUTPUT_DIR}
 pwd >> ${OUTPUT_DIR}/cout
 ls -la >> ${OUTPUT_DIR}/cout
@@ -18,17 +19,12 @@ export http_proxy=$MY_PROXY_URL
 export https_proxy=$MY_PROXY_URL
 export ftp_proxy=$MY_PROXY_URL
 
-epoch_nums=(5 10 15 20 25 30 50 100)
-epoch_nums=(150 200 250 300 500 700)
-epoch_nums=(800 900 1000 1200 1400 1500)
-few_shot_nums=(10 50 100 200 400 500 600 700 800 900 1000 1200)
+train_snt_nums=(10 50 100 200 400 500 600 700 800 900 1000 1200)
 
-for few_shot_num in ${few_shot_nums[@]}; do
-    DIR=${OUTPUT_DIR}/${few_shot_num}
+for train_snt_num in ${train_snt_nums[@]}; do
+    DIR=${OUTPUT_DIR}/${train_snt_num}
     mkdir -p ${DIR}
-    for epoch_num in ${epoch_nums[@]}; do
-        echo "epoch_num: ${epoch_num}, few_shot_num: ${few_shot_num}" >>${OUTPUT_DIR}/cout
-        MAKE="FEW_SHOT_NUM=${few_shot_num} TRAIN_BATCH_SIZE=8 EVAL_BATCH_SIZE=16 NUM_TRAIN_EPOCHS=${epoch_num} EVAL_DATASET=${EVAL_DATASET} WITH_O=True FIRST_STAGE_CHUNKER=\"enumerated\" make"
-        eval ${MAKE} train_on_few_shot -j$(nproc) >>${DIR}/cout 2>>${DIR}/cerr
-    done
+    echo "train_snt_num: ${train_snt_num}" >>${OUTPUT_DIR}/cout
+    MAKE="TRAIN_SNT_NUM=${train_snt_num} EVAL_DATASET=${EVAL_DATASET} WITH_O=True FIRST_STAGE_CHUNKER=\"enumerated\" make"
+    eval ${MAKE} train_on_gold -j$(nproc) >>${DIR}/cout 2>>${DIR}/cerr
 done
