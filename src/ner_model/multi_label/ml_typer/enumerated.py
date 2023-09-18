@@ -793,7 +793,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
             else None,
             tokenizer=self.preprocessor.tokenizer,
             data_collator=default_data_collator,
-            callbacks=[EarlyStoppingCallback(early_stopping_patience=3)],
+            callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
         )
         self.trainer = trainer
 
