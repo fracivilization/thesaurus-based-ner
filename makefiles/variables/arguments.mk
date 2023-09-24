@@ -28,6 +28,7 @@ EVAL_BATCH_SIZE ?= 24
 FEW_SHOT_NUM ?= 5
 ## 訓練のepoch数 (基本変えないがFew-Shot学習時のみ変更する)
 NUM_TRAIN_EPOCHS ?= 40 # Early Stoppingの場合は最大epoch数
+EARLY_STOPPING_PATIENCE ?= 5
 
 
 # 中間変数

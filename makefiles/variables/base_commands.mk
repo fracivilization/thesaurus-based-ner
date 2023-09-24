@@ -22,6 +22,7 @@ FLATTEN_MARGINAL_SOFTMAX_NER_BASE_CMD := $(TRAIN_COMMON_BASE_CMD) \
 TRAIN_MSMLC_BASE_CMD := ${PYTHON} -m cli.train_msmlc +multi_label_typer=enumerated \
 		++multi_label_typer.model_args.model_name_or_path=$(MODEL_NAME) \
 		++multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss \
+		++multi_label_typer.data_args.early_stopping_patience=$(EARLY_STOPPING_PATIENCE) \
 		++multi_label_typer.train_args.num_train_epochs=$(NUM_TRAIN_EPOCHS) \
 		++multi_label_typer.train_args.per_device_train_batch_size=$(TRAIN_BATCH_SIZE) \
 		++multi_label_typer.train_args.per_device_eval_batch_size=$(EVAL_BATCH_SIZE) \
@@ -36,6 +37,7 @@ TRAIN_BASE_CMD := $(TRAIN_COMMON_BASE_CMD) \
 		ner_model/chunker=$(FIRST_STAGE_CHUNKER) \
 		ner_model.typer.model_args.model_name_or_path=$(MODEL_NAME) \
 		ner_model.typer.model_args.negative_ratio_over_positive=$(NEGATIVE_RATIO_OVER_POSITIVE) \
+		ner_model.typer.data_args.early_stopping_patience=$(EARLY_STOPPING_PATIENCE) \
 		ner_model.typer.train_args.per_device_train_batch_size=$(TRAIN_BATCH_SIZE) \
 		ner_model.typer.train_args.per_device_eval_batch_size=$(EVAL_BATCH_SIZE) \
 		ner_model.typer.train_args.num_train_epochs=$(NUM_TRAIN_EPOCHS) \

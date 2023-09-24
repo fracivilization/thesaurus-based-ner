@@ -278,6 +278,10 @@ class EnumeratedDataTrainingArguments:
         default=512,
         metadata={"help": "Max sequence length in training."},
     )
+    early_stopping_patience: int = field(
+        default=5,
+        metadata={"help": "Early stopping patience"},
+    )
 
 
 @dataclass
@@ -456,7 +460,7 @@ class EnumeratedTyper(Typer):
             else None,
             tokenizer=tokenizer,
             data_collator=default_data_collator,
-            callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
+            callbacks=[EarlyStoppingCallback(early_stopping_patience=data_args.early_stopping_patience)],
         )
         self.trainer = trainer
 
