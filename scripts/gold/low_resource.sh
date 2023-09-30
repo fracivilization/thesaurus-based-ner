@@ -3,9 +3,9 @@
 #$ -jc gpub-container_g4
 #$ -ac d=nvcr-pytorch-2305
 dir=`dirname $0`
-# EVAL_DATASET=CoNLL2003
 LD_LIBRARY_PATH=/home/takayo-s/.linuxbrew/Cellar/libffi/3.4.4/lib/:/home/takayo-s/.linuxbrew/Cellar/openssl@1.1/1.1.1q/lib/:/home/takayo-s/.linuxbrew/Cellar/libx11/1.8.1/lib:/home/takayo-s/.linuxbrew/Cellar/libffi/3.4.4/lib/:/home/takayo-s/.linuxbrew/Cellar/openssl@1.1/1.1.1q/lib/:/home/takayo-s/.linuxbrew/Cellar/libx11/1.8.1/lib:
-EVAL_DATASET=MedMentions
+EVAL_DATASET=CoNLL2003
+# EVAL_DATASET=MedMentions
 OUTPUT_DIR=outputs/${EVAL_DATASET}/gold/low_resource
 mkdir -p ${OUTPUT_DIR}
 pwd >> ${OUTPUT_DIR}/cout
@@ -19,7 +19,7 @@ export http_proxy=$MY_PROXY_URL
 export https_proxy=$MY_PROXY_URL
 export ftp_proxy=$MY_PROXY_URL
 
-train_snt_nums=(10 50 100 200 400 500 600 700 800 900 1000 1200)
+train_snt_nums=(10 50 100 200 400 500 600 700 800 900 1000 1200 1500 2000 2500 3000 4000 5000 6000 7000)
 
 for train_snt_num in ${train_snt_nums[@]}; do
     DIR=${OUTPUT_DIR}/${train_snt_num}

@@ -1,11 +1,11 @@
 #$ -S /bin/bash
 #$ -cwd
-#$ -jc gpu-container_g4
+#$ -jc gpub-container_g4
 #$ -ac d=nvcr-pytorch-2305
 dir=`dirname $0`
 # TODO: 連想配列使って両方の実験設定を回せるようにする
-# EVAL_DATASET=CoNLL2003
-EVAL_DATASET=MedMentions
+EVAL_DATASET=CoNLL2003
+# EVAL_DATASET=MedMentions
 OUTPUT_DIR=outputs/${EVAL_DATASET}/pseudo/single_w_nc
 LD_LIBRARY_PATH=/home/takayo-s/.linuxbrew/Cellar/libffi/3.4.4/lib/:/home/takayo-s/.linuxbrew/Cellar/openssl@1.1/1.1.1q/lib/:/home/takayo-s/.linuxbrew/Cellar/libx11/1.8.1/lib:/home/takayo-s/.linuxbrew/Cellar/libffi/3.4.4/lib/:/home/takayo-s/.linuxbrew/Cellar/openssl@1.1/1.1.1q/lib/:/home/takayo-s/.linuxbrew/Cellar/libx11/1.8.1/lib:
 mkdir -p ${OUTPUT_DIR}
@@ -20,7 +20,8 @@ export http_proxy=$MY_PROXY_URL
 export https_proxy=$MY_PROXY_URL
 export ftp_proxy=$MY_PROXY_URL
 
-negative_ratios=(1.0 2.0 3.0 4.0 8.0 16.0)
+negative_ratios=(0.1 0.5 1.0 2.0 3.0 4.0 8.0 16.0)
+
 for negative_ratio in ${negative_ratios[@]}; do
     echo "negative_ratio: ${negative_ratio}" >>${OUTPUT_DIR}/cout
     MAKE="EVAL_DATASET=${EVAL_DATASET} WITH_NEGATIVE_CATEGORIES=True REMAIN_COMMON_SENSE_FOR_TERM2CATS=False NEGATIVE_RATIO_OVER_POSITIVE=${negative_ratio} make"
