@@ -44,6 +44,7 @@ from datasets import DatasetDict
 from hydra.utils import get_original_cwd, to_absolute_path
 import random
 from transformers import EarlyStoppingCallback
+from src.ner_model.chunker.abstract_model import EnumeratedChunker, EnumeratedChunkerConfig
 
 span_start_token = "[unused1]"
 span_end_token = "[unused2]"
@@ -327,6 +328,14 @@ class MultiLabelEnumeratedDataTrainingArguments:
         default=5,
         metadata={"help": "Early Stopping patience epoch"},
     )
+    positive_cats: str = field(
+        default=None,
+        metadata={"help": "Positive Cats for Early Stopping Validation. Separeted by ' '."},
+    )
+    negative_cats: str = field(
+        default=None,
+        metadata={"help": "Negative Cats for Early Stopping Validation. Separated by ' '."},
+    )
 
 
 @dataclass
@@ -339,11 +348,13 @@ class MultiLabelEnumeratedTrainingArguments(TrainingArguments):
     )
 
 
+
 @dataclass
 class MultiLabelEnumeratedTyperConfig(MultiLabelTyperConfig):
     multi_label_typer_name: str = "MultiLabelEnumeratedTyper"
     label_names: str = "non_initialized: this variable is dinamically decided"
-    train_datasets: str = "Please add path to DatasetDict"
+    train_msmlc_datasets: str = "Please add path to DatasetDict of MSMLC Dataset for training"
+    validation_ner_datasets: str = "Please add path to DatasetDict of NER Dataset for training"
     model_args: MultiLabelEnumeratedModelArguments = MultiLabelEnumeratedModelArguments(
         model_name_or_path="dmis-lab/biobert-base-cased-v1.1"
     )
@@ -361,9 +372,6 @@ class MultiLabelEnumeratedTyperPreprocessor:
     """MultiLabelEnumeratedTyperのためのPreprocessor
     分散処理をする際にクラスにGPU情報を持たせないために前処理に関連する情報だけ分離する
     """
-
-    pass
-
     def __init__(
         self,
         model_args: MultiLabelEnumeratedModelArguments,
@@ -593,6 +601,8 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         data_args = config.data_args
         self.model_args = config.model_args
         self.data_args = config.data_args
+        self.positive_cats = self.data_args.positive_cats.split(' ')
+        self.negative_cats = self.data_args.negative_cats.split(' ')
         self.train_args = train_args
         logger.info("Start Loading BERT")
         if (
@@ -614,7 +624,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         set_seed(train_args.seed)
         # msml: Multi Span Multi Label
         msml_datasets = DatasetDict.load_from_disk(
-            to_absolute_path(config.train_datasets)
+            to_absolute_path(config.train_msmlc_datasets)
         )
         log_label_ratio(msml_datasets)
         if train_args.do_train:
@@ -696,6 +706,8 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                 )
         else:
             self.negative_sampling_ratio = 1.0
+        
+        self.validation_ner_dataset = DatasetDict.load_from_disk(to_absolute_path(self.conf.validation_ner_datasets))['validation']
 
         if self.model_args.loss_func == "MarginalCrossEntropyLoss":
             features = datasets.Features(
@@ -784,31 +796,40 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         self.model = model
 
         def compute_metrics(p):
-            predictions, labels = p
-            predictions # (data_size, max_span_num, label_size)
-            labels, valid_spans = labels
-            labels # (data_size, max_span_num, label_size)
-            valid_spans # (data_size, max_span_num)
+            # NOTE: p は MSMLCデータに対する予測のためこれを活用しない
+            # NOTE: ValidationのNERデータセットに対して予測をさせる
+            enumerate_chunker = EnumeratedChunker(EnumeratedChunkerConfig())
+            tokens = self.validation_ner_dataset['tokens']
+            starts, ends = [], []
+            for snt in enumerate_chunker.batch_predict(tokens):
+                snt_starts, snt_ends = zip(*snt)
+                starts.append(snt_starts)
+                ends.append(snt_ends)
 
-            # valid_spansから有効であると考えられるスパンの分類結果を取得する
-            # predictionsに対しては閾値を決めて予測するかしないかを決める
-            label_names = np.array(self.label_names)
-            for pred, label, valid in zip(predictions, labels, valid_spans):
-                span_pred, span_label = [], []
-                for pd, ll, vd in zip(pred, label, valid):
-                    self.label_names[0]
-                    import pdb; pdb.set_trace()
-            predictions = None
-            labels = None
+            ml_outputs = self.batch_predict(tokens, starts, ends)
 
-            # TODO: CoNLLデータセット状など必要な場合にラベルの変換を行う
+            from src.utils.typer_to_bio import postprocess_for_multi_label_ner_output
+            # NOTE: postprocess_for_multi_label_ner_output を利用してflat nerの出力に変換する
+            pred_ner_tags = []
+            for snt_tokens, snt_starts, snt_ends, ml_output in zip(tokens, starts, ends, ml_outputs):
+                pred_ner_tags.append(
+                    postprocess_for_multi_label_ner_output(
+                        len(snt_tokens), snt_starts, snt_ends, ml_output,
+                        self.label_names, self.positive_cats, self.negative_cats
+                    )
+                )
 
-            # TODO: micro p./r./f. を計算する
+            # NOTE: flat_nerの出力としてvalidationデータセットとの比較スコアを計算する
+            from seqeval.metrics.sequence_labeling import precision_recall_fscore_support
+            ner_tag_names = self.validation_ner_dataset.features['ner_tags'].feature.names
+            true_ner_tags = [[ner_tag_names[tag] for tag in snt] for snt in self.validation_ner_dataset['ner_tags']]
+            precision, recall, f1, support = precision_recall_fscore_support(true_ner_tags, pred_ner_tags, average='micro')
+
             return {
-                "accuracy_score": accuracy_score(true_labels, true_predictions),
-                "precision": precision_score(true_labels, true_predictions),
-                "recall": recall_score(true_labels, true_predictions),
-                "f1": f1_score(true_labels, true_predictions),
+                "precision": precision,
+                "recall": recall,
+                "f1": f1,
+                "support": support,
             }
 
         # Initialize our Trainer

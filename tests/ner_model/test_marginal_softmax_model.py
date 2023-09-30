@@ -32,7 +32,7 @@ class TestMarginalSoftmax(unittest.TestCase):
             multi_label_ner_model=MultiLabelTwoStageConfig(
                 chunker=EnumeratedChunkerConfig(),
                 multi_label_typer=MultiLabelEnumeratedTyperConfig(
-                    train_datasets=PSEUDO_CONLL_MSMLC_DATASET_PATH,
+                    train_msmlc_datasets=PSEUDO_CONLL_MSMLC_DATASET_PATH,
                     train_args=train_args,
                     model_args=model_args,
                     model_output_path="data/model/trained_msmlc_model"

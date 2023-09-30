@@ -81,10 +81,12 @@ def load_information_to_extract_focus_and_negative_cats(
                 category_mapper[category] = label
                 used_logit_label_names.append(category)
                 used_logit_label_ids.append(ml_label_names.index(category))
-        # NOTE: 学習データ中に出現しなかったラベルは無視する
-        else:
+        elif label in ml_label_names:
             used_logit_label_names.append(label)
             used_logit_label_ids.append(ml_label_names.index(label))
+        # NOTE: 学習データ中に出現しなかったラベルは無視する
+        else:
+            pass
     used_logit_label_names = used_logit_label_names
     used_logit_label_ids = np.array(used_logit_label_ids)
     return used_logit_label_names, used_logit_label_ids, category_mapper
