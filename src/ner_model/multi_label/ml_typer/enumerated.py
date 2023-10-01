@@ -45,6 +45,7 @@ from hydra.utils import get_original_cwd, to_absolute_path
 import random
 from transformers import EarlyStoppingCallback
 from src.ner_model.chunker.abstract_model import EnumeratedChunker, EnumeratedChunkerConfig
+from src.dataset.utils import CATEGORY_SEPARATOR
 
 span_start_token = "[unused1]"
 span_end_token = "[unused2]"
@@ -329,12 +330,12 @@ class MultiLabelEnumeratedDataTrainingArguments:
         metadata={"help": "Early Stopping patience epoch"},
     )
     positive_cats: str = field(
-        default=None,
-        metadata={"help": "Positive Cats for Early Stopping Validation. Separeted by ' '."},
+        default='',
+        metadata={"help": f"Positive Cats for Early Stopping Validation. Separeted by {CATEGORY_SEPARATOR}."},
     )
     negative_cats: str = field(
-        default=None,
-        metadata={"help": "Negative Cats for Early Stopping Validation. Separated by ' '."},
+        default='',
+        metadata={"help": f"Negative Cats for Early Stopping Validation. Separated by {CATEGORY_SEPARATOR}."},
     )
 
 
@@ -601,8 +602,8 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         data_args = config.data_args
         self.model_args = config.model_args
         self.data_args = config.data_args
-        self.positive_cats = self.data_args.positive_cats.split(' ')
-        self.negative_cats = self.data_args.negative_cats.split(' ')
+        self.positive_cats = self.data_args.positive_cats.split(CATEGORY_SEPARATOR)
+        self.negative_cats = self.data_args.negative_cats.split(CATEGORY_SEPARATOR)
         self.train_args = train_args
         logger.info("Start Loading BERT")
         if (
