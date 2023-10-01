@@ -45,7 +45,7 @@ from hydra.utils import get_original_cwd, to_absolute_path
 import random
 from transformers import EarlyStoppingCallback
 from src.ner_model.chunker.abstract_model import EnumeratedChunker, EnumeratedChunkerConfig
-from src.dataset.utils import CATEGORY_SEPARATOR
+from src.dataset.utils import load_negative_cats_from_positive_cats, CATEGORY_SEPARATOR
 
 span_start_token = "[unused1]"
 span_end_token = "[unused2]"
@@ -333,9 +333,12 @@ class MultiLabelEnumeratedDataTrainingArguments:
         default='',
         metadata={"help": f"Positive Cats for Early Stopping Validation. Separeted by {CATEGORY_SEPARATOR}."},
     )
-    negative_cats: str = field(
-        default='',
-        metadata={"help": f"Negative Cats for Early Stopping Validation. Separated by {CATEGORY_SEPARATOR}."},
+    eval_dataset_for_negative_categories: str = field(
+        metadata={"help": "CoNLL2003 or MedMentions; used for nagative categories loading"},
+    )
+    with_negative_categories: bool = field(
+        default=False,
+        metadata={"help": f"Negative Cats caluculated from positive_cats."},
     )
 
 
@@ -603,8 +606,9 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         self.model_args = config.model_args
         self.data_args = config.data_args
         self.positive_cats = self.data_args.positive_cats.split(CATEGORY_SEPARATOR)
-        self.negative_cats = self.data_args.negative_cats.split(CATEGORY_SEPARATOR)
+        self.negative_cats = load_negative_cats_from_positive_cats(self.positive_cats, self.data_args.eval_dataset_for_negative_categories)
         self.train_args = train_args
+        import pdb; pdb.set_trace()
         logger.info("Start Loading BERT")
         if (
             os.path.exists(train_args.output_dir)

@@ -25,7 +25,8 @@ TRAIN_MSMLC_BASE_CMD := ${PYTHON} -m cli.train_msmlc +multi_label_typer=enumerat
 		++multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss \
 		++multi_label_typer.data_args.early_stopping_patience=$(EARLY_STOPPING_PATIENCE) \
 		++multi_label_typer.data_args.positive_cats=$(subst $() ,_,$(POSITIVE_CATS)) \
-		++multi_label_typer.data_args.negative_cats=$(subst $() ,_,$(NEGATIVE_CATS)) \
+		++multi_label_typer.data_args.eval_dataset_for_negative_categories=$(EVAL_DATASET) \
+		++multi_label_typer.data_args.with_negative_categories=$(WITH_NEGATIVE_CATEGORIES) \
 		++multi_label_typer.train_args.num_train_epochs=$(NUM_TRAIN_EPOCHS) \
 		++multi_label_typer.train_args.per_device_train_batch_size=$(TRAIN_BATCH_SIZE) \
 		++multi_label_typer.train_args.per_device_eval_batch_size=$(EVAL_BATCH_SIZE) \
