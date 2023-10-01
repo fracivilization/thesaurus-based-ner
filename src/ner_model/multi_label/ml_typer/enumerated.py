@@ -334,6 +334,7 @@ class MultiLabelEnumeratedDataTrainingArguments:
         metadata={"help": f"Positive Cats for Early Stopping Validation. Separeted by {CATEGORY_SEPARATOR}."},
     )
     eval_dataset_for_negative_categories: str = field(
+        default = '',
         metadata={"help": "CoNLL2003 or MedMentions; used for nagative categories loading"},
     )
     with_negative_categories: bool = field(
@@ -608,7 +609,6 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         self.positive_cats = self.data_args.positive_cats.split(CATEGORY_SEPARATOR)
         self.negative_cats = load_negative_cats_from_positive_cats(self.positive_cats, self.data_args.eval_dataset_for_negative_categories)
         self.train_args = train_args
-        import pdb; pdb.set_trace()
         logger.info("Start Loading BERT")
         if (
             os.path.exists(train_args.output_dir)
