@@ -38,8 +38,9 @@ TRAIN_MSMLC_BASE_CMD := ${PYTHON} -m cli.train_msmlc +multi_label_typer=enumerat
 		++multi_label_typer.train_args.save_total_limit=5 \
 		++multi_label_typer.train_args.load_best_model_at_end=True \
 		++multi_label_typer.train_args.metric_for_best_model=f1 \
-		++multi_label_typer.train_args.save_strategy=EPOCH \
-		++multi_label_typer.train_args.evaluation_strategy=EPOCH \
+		++multi_label_typer.train_args.save_strategy=STEPS \
+		++multi_label_typer.train_args.evaluation_strategy=STEPS \
+		++multi_label_typer.train_args.eval_steps=$(EVAL_STEPS) \
 		++multi_label_typer.train_args.fp16=True
 
 
@@ -55,6 +56,7 @@ TRAIN_BASE_CMD := $(TRAIN_COMMON_BASE_CMD) \
 		ner_model.typer.train_args.overwrite_output_dir=True \
 		ner_model.typer.train_args.save_total_limit=5 \
 		ner_model.typer.train_args.load_best_model_at_end=True \
-		ner_model.typer.train_args.save_strategy=EPOCH \
-		ner_model.typer.train_args.evaluation_strategy=EPOCH \
+		ner_model.typer.train_args.save_strategy=STEPS \
+		ner_model.typer.train_args.evaluation_strategy=STEPS \
+		++multi_label_typer.train_args.eval_steps=$(EVAL_STEPS) \
 		ner_model.typer.train_args.fp16=True
