@@ -359,7 +359,7 @@ class MultiLabelEnumeratedTyperConfig(MultiLabelTyperConfig):
     multi_label_typer_name: str = "MultiLabelEnumeratedTyper"
     label_names: str = "non_initialized: this variable is dinamically decided"
     train_msmlc_datasets: str = "Please add path to DatasetDict of MSMLC Dataset for training"
-    validation_ner_datasets: str = "Please add path to DatasetDict of NER Dataset for training"
+    validation_ner_datasets: str = "Please add path to DatasetDict of NER Dataset for validation"
     model_args: MultiLabelEnumeratedModelArguments = MultiLabelEnumeratedModelArguments(
         model_name_or_path="dmis-lab/biobert-base-cased-v1.1"
     )
