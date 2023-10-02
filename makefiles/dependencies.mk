@@ -210,14 +210,14 @@ $(GOLD_TRAINED_MSMLC_MODEL): $(GOLD_TRAIN_MSMLC_DATA)
 $(EVAL_FLATTEN_MARGINAL_MSMLC_ON_GOLD_OUT): $(GOLD_TRAINED_MSMLC_MODEL) $(GOLD_TRAIN_MSMLC_DATA) $(GOLD_DATA)
 	$(FLATTEN_MARGINAL_SOFTMAX_NER_BASE_CMD) \
 		++ner_model.multi_label_ner_model.multi_label_typer.model_args.saved_param_path=$(GOLD_TRAINED_MSMLC_MODEL) \
-		++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=$(GOLD_TRAIN_MSMLC_DATA) \
+		++ner_model.multi_label_ner_model.multi_label_typer.train_msmlc_datasets=$(GOLD_TRAIN_MSMLC_DATA) \
 		2>&1 | tee $(EVAL_FLATTEN_MARGINAL_MSMLC_ON_GOLD_OUT)
 
 $(EVAL_FLATTEN_MARGINAL_MSMLC_OUT): $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL) $(PSEUDO_MSMLC_DATA_ON_GOLD) $(GOLD_DATA)
 	@echo $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL)
 	$(FLATTEN_MARGINAL_SOFTMAX_NER_BASE_CMD) \
 		++ner_model.multi_label_ner_model.multi_label_typer.model_args.saved_param_path=$(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL) \
-		++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=$(PSEUDO_MSMLC_DATA_ON_GOLD) \
+		++ner_model.multi_label_ner_model.multi_label_typer.train_msmlc_datasets=$(PSEUDO_MSMLC_DATA_ON_GOLD) \
 		2>&1 | tee $(EVAL_FLATTEN_MARGINAL_MSMLC_OUT)
 
 
