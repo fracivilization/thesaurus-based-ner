@@ -17,8 +17,13 @@ FLATTEN_MARGINAL_SOFTMAX_NER_BASE_CMD := $(TRAIN_COMMON_BASE_CMD) \
 		++ner_model.multi_label_ner_model.multi_label_typer.model_args.model_name_or_path=$(MODEL_NAME) \
 		++ner_model.multi_label_ner_model.multi_label_typer.train_args.do_train=False \
 		++ner_model.multi_label_ner_model.multi_label_typer.model_output_path="no_output" \
+		++ner_model.multi_label_ner_model.multi_label_typer.data_args.positive_cats=$(subst $() ,_,$(POSITIVE_CATS)) \
+		++ner_model.multi_label_ner_model.multi_label_typer.data_args.eval_dataset_for_negative_categories=$(EVAL_DATASET) \
+		++ner_model.multi_label_ner_model.multi_label_typer.data_args.with_negative_categories=$(WITH_NEGATIVE_CATEGORIES) \
+		++ner_model.multi_label_ner_model.multi_label_typer.validation_ner_datasets=$(GOLD_DATA) \
 		++msmlc_datasets=$(GOLD_TRAIN_MSMLC_DATA) \
 		++ner_model.multi_label_ner_model.multi_label_typer.model_args.loss_func=MarginalCrossEntropyLoss
+
 TRAIN_MSMLC_BASE_CMD := ${PYTHON} -m cli.train_msmlc +multi_label_typer=enumerated \
 		++multi_label_typer.validation_ner_datasets=$(GOLD_DATA) \
 		++multi_label_typer.model_args.model_name_or_path=$(MODEL_NAME) \
