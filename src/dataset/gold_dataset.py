@@ -297,8 +297,11 @@ def load_gold_datasets(
         ]
     )
     ner_tag_names = [tag for tag, _ in c.most_common()]
-    dataset_dict = {
-        key: translate_conll_into_dataset(
+    dataset_dict = dict()
+    for key, split in singularized_ner.items():
+        if key == 'train':
+            split = split[:train_snt_num]
+        dataset_dict[key] = translate_conll_into_dataset(
             split,
             ner_tag_names,
             desc={
@@ -307,8 +310,6 @@ def load_gold_datasets(
                 "split": key,
             },
         )
-        for key, split in singularized_ner.items()
-    }
     return DatasetDict(dataset_dict)
 
 
