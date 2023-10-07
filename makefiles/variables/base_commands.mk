@@ -46,6 +46,7 @@ TRAIN_MSMLC_BASE_CMD := ${PYTHON} -m cli.train_msmlc +multi_label_typer=enumerat
 
 TRAIN_BASE_CMD := $(TRAIN_COMMON_BASE_CMD) \
 		ner_model/chunker=$(FIRST_STAGE_CHUNKER) \
+		ner_model.typer.validation_ner_dataset=$(GOLD_DATA) \
 		ner_model.typer.model_args.model_name_or_path=$(MODEL_NAME) \
 		ner_model.typer.model_args.negative_ratio_over_positive=$(NEGATIVE_RATIO_OVER_POSITIVE) \
 		ner_model.typer.data_args.early_stopping_patience=$(EARLY_STOPPING_PATIENCE) \
@@ -58,5 +59,6 @@ TRAIN_BASE_CMD := $(TRAIN_COMMON_BASE_CMD) \
 		ner_model.typer.train_args.load_best_model_at_end=True \
 		ner_model.typer.train_args.save_strategy=STEPS \
 		ner_model.typer.train_args.evaluation_strategy=STEPS \
+		ner_model.typer.train_args.metric_for_best_model=f1 \
 		++multi_label_typer.train_args.eval_steps=$(EVAL_STEPS) \
 		ner_model.typer.train_args.fp16=True

@@ -143,7 +143,7 @@
                 "ner_model.typer.train_args.per_device_eval_batch_size=16",
                 "ner_model.typer.train_args.do_train=False",
                 "ner_model.typer.train_args.overwrite_output_dir=True",
-                "ner_model.typer.msc_datasets=data/gold/e28f210f0623e8c9ac34e4e40c60851b4160cec2",
+                "ner_model.typer.train_msc_datasets=data/gold/e28f210f0623e8c9ac34e4e40c60851b4160cec2",
             ],
         },
         {
@@ -160,7 +160,7 @@
                 "ner_model.typer.train_args.per_device_eval_batch_size=32",
                 "ner_model.typer.train_args.do_train=True",
                 "ner_model.typer.train_args.overwrite_output_dir=True",
-                "ner_model.typer.msc_datasets=data/pseudo/f69f14306e76a12012ce1928021021a72d418c1d",
+                "ner_model.typer.train_msc_datasets=data/pseudo/f69f14306e76a12012ce1928021021a72d418c1d",
             ],
         },
         {
@@ -206,7 +206,7 @@
                 "ner_model.typer.train_args.per_device_eval_batch_size=16",
                 "ner_model.typer.train_args.do_train=True",
                 "ner_model.typer.train_args.overwrite_output_dir=True",
-                "ner_model.typer.msc_datasets=data/gold/d9202dcfe78419d1d05039ad1c00f00635eb3dae",
+                "ner_model.typer.train_msc_datasets=data/gold/d9202dcfe78419d1d05039ad1c00f00635eb3dae",
             ],
         },
         {

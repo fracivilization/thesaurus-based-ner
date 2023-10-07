@@ -1,12 +1,8 @@
 import os
-import pickle
 from typing import List, Optional
 import numpy as np
 from transformers.trainer_utils import set_seed
-from src.ner_model.chunker.abstract_model import Chunker
 from src.ner_model.typer.data_translator import (
-    MSCConfig,
-    translate_into_msc_datasets,
     log_label_ratio,
 )
 import uuid
@@ -22,7 +18,7 @@ from .abstract_model import (
 )
 from dataclasses import field, dataclass
 from omegaconf import MISSING
-from transformers import TrainingArguments, training_args
+from transformers import TrainingArguments
 from datasets import DatasetDict, Dataset
 from loguru import logger
 from transformers import (
@@ -44,8 +40,9 @@ from transformers.modeling_outputs import (
 from scipy.special import softmax
 import psutil
 import itertools
-from hydra.utils import get_original_cwd, to_absolute_path
+from hydra.utils import to_absolute_path
 from transformers import EarlyStoppingCallback
+from src.ner_model.chunker.abstract_model import EnumeratedChunker, EnumeratedChunkerConfig
 
 span_start_token = "[unused1]"
 span_end_token = "[unused2]"
@@ -296,9 +293,10 @@ class EnumeratedTrainingArguments(TrainingArguments):
 
 @dataclass
 class EnumeratedTyperConfig(TyperConfig):
-    msc_datasets: str = MISSING
+    train_msc_datasets: str = MISSING
     typer_name: str = "Enumerated"
     label_names: str = "non_initialized"  # this variable is dinamically decided
+    validation_ner_datasets: str = "Please add path to DatasetDict of NER Dataset for validation"
     model_args: EnumeratedModelArguments = EnumeratedModelArguments(
         model_name_or_path="dmis-lab/biobert-base-cased-v1.1"
     )
@@ -322,6 +320,7 @@ class EnumeratedTyper(Typer):
         train_args = get_orig_transoformers_train_args_from_hydra_addapted_train_args(
             config.train_args
         )
+        self.config = config
         model_args = config.model_args
         data_args = config.data_args
         self.model_args = config.model_args
@@ -346,7 +345,7 @@ class EnumeratedTyper(Typer):
         set_seed(train_args.seed)
 
         span_classification_datasets = DatasetDict.load_from_disk(
-            to_absolute_path(config.msc_datasets)
+            to_absolute_path(config.train_msc_datasets)
         )
         log_label_ratio(span_classification_datasets)
         if train_args.do_train:
@@ -448,6 +447,40 @@ class EnumeratedTyper(Typer):
         # data_collator = DataCollatorForTokenClassification(tokenizer)
 
 
+        from seqeval.metrics.sequence_labeling import precision_recall_fscore_support
+        self.validation_ner_dataset = DatasetDict.load_from_disk(to_absolute_path(self.config.validation_ner_datasets))['validation']
+        def compute_metrics(p):
+            # NOTE: p は MSMLCデータに対する予測のためこれを活用しない
+            # NOTE: ValidationのNERデータセットに対して予測をさせる
+            enumerate_chunker = EnumeratedChunker(EnumeratedChunkerConfig())
+            tokens = self.validation_ner_dataset['tokens']
+            starts, ends = [], []
+            for snt in enumerate_chunker.batch_predict(tokens):
+                snt_starts, snt_ends = zip(*snt)
+                starts.append(list(snt_starts))
+                ends.append(list(snt_ends))
+
+
+            outputs = self.batch_predict(tokens, starts, ends)
+
+            # NOTE: postprocess_for_multi_label_ner_output を利用してflat nerの出力に変換する
+            from src.utils.typer_to_bio import load_ner_tags
+            pred_ner_tags = []
+            for snt_tokens, snt_starts, snt_ends, output in zip(tokens, starts, ends, outputs):
+                pred_ner_tags.append(load_ner_tags(snt_starts, snt_ends, output.labels, output.max_probs, len(snt_tokens)))
+
+            # NOTE: flat_nerの出力としてvalidationデータセットとの比較スコアを計算する
+            ner_tag_names = self.validation_ner_dataset.features['ner_tags'].feature.names
+            true_ner_tags = [[ner_tag_names[tag] for tag in snt] for snt in self.validation_ner_dataset['ner_tags']]
+            precision, recall, f1, support = precision_recall_fscore_support(true_ner_tags, pred_ner_tags, average='micro')
+
+            return {
+                "precision": precision,
+                "recall": recall,
+                "f1": f1,
+                "support": support,
+            }
+
         # Initialize our Trainer
         from transformers import default_data_collator
 
@@ -461,6 +494,7 @@ class EnumeratedTyper(Typer):
             tokenizer=tokenizer,
             data_collator=default_data_collator,
             callbacks=[EarlyStoppingCallback(early_stopping_patience=data_args.early_stopping_patience)],
+            compute_metrics=compute_metrics
         )
         self.trainer = trainer
 

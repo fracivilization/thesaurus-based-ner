@@ -14,9 +14,9 @@ def load_category_mapped_focus_and_negative_cats(category_mapper, used_logit_lab
         sorted(set(category_mapped_focus_and_negative_cats))
     )
 
-def load_ner_tags(starts, ends, labels, probs, snt_len):
+def load_ner_tags(starts, ends, labels, max_probs, snt_len):
     labeled_chunks = sorted(
-        zip(starts, ends, labels, probs),
+        zip(starts, ends, labels, max_probs),
         key=lambda x: x[3],
         reverse=True,
     )
