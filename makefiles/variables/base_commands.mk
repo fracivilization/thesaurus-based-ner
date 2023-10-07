@@ -60,5 +60,5 @@ TRAIN_BASE_CMD := $(TRAIN_COMMON_BASE_CMD) \
 		ner_model.typer.train_args.save_strategy=STEPS \
 		ner_model.typer.train_args.evaluation_strategy=STEPS \
 		ner_model.typer.train_args.metric_for_best_model=f1 \
-		++multi_label_typer.train_args.eval_steps=$(EVAL_STEPS) \
+		ner_model.typer.train_args.eval_steps=$(EVAL_STEPS) \
 		ner_model.typer.train_args.fp16=True
