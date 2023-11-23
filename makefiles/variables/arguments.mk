@@ -32,6 +32,7 @@ EARLY_STOPPING_PATIENCE ?= 5
 EVAL_STEPS ?= 100
 
 
+
 # 中間変数
 ## 疑似教師として利用する知識ベース or アンカーテキスト
 MedMentions_KNOWLEDGE_BASE := UMLS

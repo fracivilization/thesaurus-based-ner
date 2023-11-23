@@ -3,8 +3,12 @@
 #$ -jc gpub-container_g4
 #$ -ac d=nvcr-pytorch-2305
 dir=`dirname $0`
-# TODO: 連想配列使って両方の実験設定を回せるようにする
+# EVAL_DATASET=MedMentions
 LD_LIBRARY_PATH=/home/takayo-s/.linuxbrew/Cellar/libffi/3.4.4/lib/:/home/takayo-s/.linuxbrew/Cellar/openssl@1.1/1.1.1q/lib/:/home/takayo-s/.linuxbrew/Cellar/libx11/1.8.1/lib:/home/takayo-s/.linuxbrew/Cellar/libffi/3.4.4/lib/:/home/takayo-s/.linuxbrew/Cellar/openssl@1.1/1.1.1q/lib/:/home/takayo-s/.linuxbrew/Cellar/libx11/1.8.1/lib:
+OUTPUT_DIR=outputs/${EVAL_DATASET}/pseudo/pseudo_anno
+mkdir -p ${OUTPUT_DIR}
+pwd >> ${OUTPUT_DIR}/cout
+ls -la >> ${OUTPUT_DIR}/cout
 
 export MY_PROXY_URL="http://10.1.10.1:8080/"
 export HTTP_PROXY=$MY_PROXY_URL
@@ -14,11 +18,7 @@ export http_proxy=$MY_PROXY_URL
 export https_proxy=$MY_PROXY_URL
 export ftp_proxy=$MY_PROXY_URL
 
-OUTPUT_DIR=outputs/${EVAL_DATASET}/pseudo/single_w_nc/negative_ratio=${NEGATIVE_RATIO}
-mkdir -p ${OUTPUT_DIR}
-pwd >> ${OUTPUT_DIR}/cout
-ls -la >> ${OUTPUT_DIR}/cout
-echo "negative_ratio: ${NEGATIVE_RATIO}" >>${OUTPUT_DIR}/cout
-MAKE="EVAL_DATASET=${EVAL_DATASET} WITH_NEGATIVE_CATEGORIES=True REMAIN_COMMON_SENSE_FOR_TERM2CATS=False NEGATIVE_RATIO_OVER_POSITIVE=${NEGATIVE_RATIO} make"
-eval ${MAKE} train -j$(nproc) >>${OUTPUT_DIR}/cout 2>>${OUTPUT_DIR}/cerr
 
+EVAL_DATASET=${EVAL_DATASET} REMAIN_COMMON_SENSE_FOR_TERM2CATS=False make train_pseudo_anno -j$(nproc) >>${OUTPUT_DIR}/cout 2>>${OUTPUT_DIR}/cerr
+# TODO: そもそも生成させないようにする
+rm -r `find outputs -type d -regex '.*/checkpoint-[0-9]+'`

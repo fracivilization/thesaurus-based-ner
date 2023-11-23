@@ -10,7 +10,7 @@ RUN_ARGS := $(O_SAMPLING_RATIO) $(FIRST_STAGE_CHUNKER) $(MODEL_NAME) $(NUM_TRAIN
 RAW_CORPUS_OUT := $(RAW_CORPUS_DIR)/$(firstword $(shell echo $(RAW_CORPUS_NUM) | sha1sum))
 PSEUDO_OUT := outputs/$(firstword $(shell echo "PSEUDO_OUT" $(EVAL_DATASET) $(PSEUDO_DATA_ARGS) | sha1sum))
 
-GOLD_DATA := $(GOLD_DIR)/$(firstword $(shell echo $(EVAL_DATASET) $(POSITIVE_CATS) | sha1sum))
+GOLD_DATA := $(GOLD_DIR)/$(firstword $(shell echo $(EVAL_DATASET) $(POSITIVE_CATS) $(TRAIN_SNT_NUM) | sha1sum))
 GOLD_TRAIN_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD TRAIN DATA" $(POSITIVE_CATS) $(NEGATIVE_CATS) $(TRAIN_SNT_NUM) | sha1sum))
 DSNET_FEW_SHOT_DATA := $(GOLD_DIR)/$(firstword $(shell echo "DSNET FEW SHOT DATA" $(GOLD_TRAIN_DATA) | sha1sum))
 GOLD_TRAIN_MSC_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSC DATA" $(GOLD_TRAIN_DATA) $(MSC_ARGS) | sha1sum)) 

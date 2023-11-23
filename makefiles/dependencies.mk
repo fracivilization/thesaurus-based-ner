@@ -122,16 +122,22 @@ $(PSEUDO_MSC_DATA_ON_GOLD): $(PSEUDO_DATA_ON_GOLD)
 
 $(TRAIN_OUT): $(PSEUDO_MSC_DATA_ON_GOLD) $(GOLD_DATA)
 	$(TRAIN_BASE_CMD) \
+		ner_model.typer.data_args.early_stopping_patience=$(EARLY_STOPPING_PATIENCE) \
 		ner_model.typer.model_args.dynamic_pn_ratio_equivalence=True \
 		ner_model.typer.train_msc_datasets=$(PSEUDO_MSC_DATA_ON_GOLD) 2>&1 | tee $(TRAIN_OUT)
 
+# 注：GOLDデータではEarlyStoppingしないようにNUM_TRAIN_EPOCHSにearly_stopping_patienceを合わせている
 $(TRAIN_ON_GOLD_OUT): $(GOLD_TRAIN_MSC_DATA) $(GOLD_DATA)
 	$(TRAIN_BASE_CMD) \
 		ner_model.typer.model_args.dynamic_pn_ratio_equivalence=False \
+		ner_model.typer.train_args.save_strategy=EPOCH \
+		ner_model.typer.train_args.evaluation_strategy=EPOCH \
+		ner_model.typer.data_args.early_stopping_patience=$(NUM_TRAIN_EPOCHS) \
 		ner_model.typer.train_msc_datasets=$(GOLD_TRAIN_MSC_DATA) 2>&1 | tee $(TRAIN_ON_GOLD_OUT)
 
 $(TRAIN_ON_FEW_SHOT): $(GOLD_FEW_SHOT_TRAIN_MSC_DATA) $(GOLD_DATA)
 	$(TRAIN_BASE_CMD) \
+		ner_model.typer.data_args.early_stopping_patience=$(EARLY_STOPPING_PATIENCE) \
 		ner_model.typer.model_args.dynamic_pn_ratio_equivalence=False \
 		ner_model.typer.train_msc_datasets=$(GOLD_FEW_SHOT_TRAIN_MSC_DATA) 2>&1 | tee $(TRAIN_ON_FEW_SHOT)
 

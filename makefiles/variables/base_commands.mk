@@ -35,12 +35,13 @@ TRAIN_MSMLC_BASE_CMD := ${PYTHON} -m cli.train_msmlc +multi_label_typer=enumerat
 		++multi_label_typer.train_args.num_train_epochs=$(NUM_TRAIN_EPOCHS) \
 		++multi_label_typer.train_args.per_device_train_batch_size=$(TRAIN_BATCH_SIZE) \
 		++multi_label_typer.train_args.per_device_eval_batch_size=$(EVAL_BATCH_SIZE) \
-		++multi_label_typer.train_args.save_total_limit=5 \
 		++multi_label_typer.train_args.load_best_model_at_end=True \
 		++multi_label_typer.train_args.metric_for_best_model=f1 \
 		++multi_label_typer.train_args.save_strategy=STEPS \
 		++multi_label_typer.train_args.evaluation_strategy=STEPS \
+		++multi_label_typer.train_args.save_total_limit=40 \
 		++multi_label_typer.train_args.eval_steps=$(EVAL_STEPS) \
+		++multi_label_typer.train_args.save_steps=$(EVAL_STEPS) \
 		++multi_label_typer.train_args.fp16=True
 
 
@@ -49,16 +50,15 @@ TRAIN_BASE_CMD := $(TRAIN_COMMON_BASE_CMD) \
 		ner_model.typer.validation_ner_datasets=$(GOLD_DATA) \
 		ner_model.typer.model_args.model_name_or_path=$(MODEL_NAME) \
 		ner_model.typer.model_args.negative_ratio_over_positive=$(NEGATIVE_RATIO_OVER_POSITIVE) \
-		ner_model.typer.data_args.early_stopping_patience=$(EARLY_STOPPING_PATIENCE) \
 		ner_model.typer.train_args.per_device_train_batch_size=$(TRAIN_BATCH_SIZE) \
 		ner_model.typer.train_args.per_device_eval_batch_size=$(EVAL_BATCH_SIZE) \
 		ner_model.typer.train_args.num_train_epochs=$(NUM_TRAIN_EPOCHS) \
 		ner_model.typer.train_args.do_train=True \
 		ner_model.typer.train_args.overwrite_output_dir=True \
-		ner_model.typer.train_args.save_total_limit=5 \
 		ner_model.typer.train_args.load_best_model_at_end=True \
 		ner_model.typer.train_args.save_strategy=STEPS \
 		ner_model.typer.train_args.evaluation_strategy=STEPS \
 		ner_model.typer.train_args.metric_for_best_model=f1 \
 		ner_model.typer.train_args.eval_steps=$(EVAL_STEPS) \
+		ner_model.typer.train_args.save_steps=$(EVAL_STEPS) \
 		ner_model.typer.train_args.fp16=True
