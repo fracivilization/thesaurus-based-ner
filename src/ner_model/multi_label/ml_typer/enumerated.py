@@ -43,6 +43,9 @@ import datasets
 from datasets import DatasetDict
 from hydra.utils import get_original_cwd, to_absolute_path
 import random
+from transformers import EarlyStoppingCallback
+from src.ner_model.chunker.abstract_model import EnumeratedChunker, EnumeratedChunkerConfig
+from src.dataset.utils import load_negative_cats_from_positive_cats, CATEGORY_SEPARATOR
 
 span_start_token = "[unused1]"
 span_end_token = "[unused2]"
@@ -85,7 +88,7 @@ class MultiLabelEnumeratedModelArguments:
     o_sampling_ratio: float = 0.3  # O sampling in train
     nc_sampling_ratio: float = 1.0  # O sampling in train
     loss_func: str = field(
-        default="BCEWithLogitsLoss",
+        default="MarginalCrossEntropyLoss",
         metadata={
             "help": "loss_fucntion of model: BCEWithLogitsLoss or MarginalCrossEntropyLoss"
         },
@@ -124,6 +127,7 @@ class MarginalCrossEntropyLoss(torch.nn.BCEWithLogitsLoss):
         log_likelihood = torch.nn.functional.log_softmax(input, dim=2)
         return -log_likelihood * target
 
+
 class MLP(torch.nn.Module):
     def __init__(self, input_dim, output_dim) -> None:
         super().__init__()
@@ -134,6 +138,7 @@ class MLP(torch.nn.Module):
     def forward(self, input_vec: torch.Tensor):
         middle_state = self.activation_function(self.first_classifier(input_vec))
         return self.last_classifier(middle_state)
+
 
 class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
     @classmethod
@@ -155,8 +160,8 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
         super().__init__(config)
         self.start_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
         self.end_classifier = torch.nn.Linear(config.hidden_size, config.num_labels)
-        self.MLP = MLP(config.hidden_size * 4, config.num_labels)
         self.config = config
+        self.MLP = MLP(config.hidden_size * 4, config.num_labels)
 
     def get_valid_entities(self, starts, ends, labels):
         """
@@ -222,7 +227,6 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
             1]``.
         """
         if self.model_args.dynamic_pn_ratio_equivalence and labels is not None:
-            # hypothesize "O" as "nc-O"
             o_labeled_spans = labels[:, :, self.model_args.o_label_id]
             non_o_spans = torch.logical_not(o_labeled_spans)
             remained_spans = (
@@ -237,22 +241,8 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
             attention_mask=attention_mask,
         )
         hidden_states = outputs.last_hidden_state  # (BatchSize, SeqLength, EmbedDim)
-        droped_hidden_states = self.dropout(hidden_states)
-        # start_logits = self.start_classifier(
-        #     droped_hidden_states
-        # )  # (BatchSize, SeqLength, ClassNum)
-        # end_logits = self.end_classifier(
-        #     droped_hidden_states
-        # )  # (BatchSize, SeqLength, ClassNum)
         starts = starts  # (BatchSize, SeqLength, SpanNum)
         minibatch_size, max_span_num = starts.shape
-        # start_logits_per_span = torch.gather(
-        #     start_logits,
-        #     1,
-        #     starts[:, :, None].expand(
-        #         minibatch_size, max_span_num, self.config.num_labels
-        #     ),
-        # )  # (BatchSize, SpanNum, ClassNum)
         start_vecs = torch.gather(
             hidden_states,
             1,
@@ -260,13 +250,6 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
                 minibatch_size, max_span_num, self.config.hidden_size
             ),
         )  # (BatchSize, SpanNum, HiddenDim)
-        # end_logits_per_span = torch.gather(
-        #     end_logits,
-        #     1,
-        #     ends[:, :, None].expand(
-        #         minibatch_size, max_span_num, self.config.num_labels
-        #     ),
-        # )  # (BatchSize, SpanNum, ClassNum)
         end_vecs = torch.gather(
             hidden_states,
             1,
@@ -280,7 +263,6 @@ class BertForEnumeratedMultiLabelTyper(BertForTokenClassification):
                 dim=2,
             )
         )
-        # logits = start_logits_per_span + end_logits_per_span
         loss = None
         if labels is not None:
             if self.model_args.loss_func == "BCEWithLogitsLoss":
@@ -343,6 +325,22 @@ class MultiLabelEnumeratedDataTrainingArguments:
         default=512,
         metadata={"help": "Max sequence length in training."},
     )
+    early_stopping_patience: int = field(
+        default=5,
+        metadata={"help": "Early Stopping patience epoch"},
+    )
+    positive_cats: str = field(
+        default='',
+        metadata={"help": f"Positive Cats for Early Stopping Validation. Separeted by {CATEGORY_SEPARATOR}."},
+    )
+    eval_dataset_for_negative_categories: str = field(
+        default = '',
+        metadata={"help": "CoNLL2003 or MedMentions; used for nagative categories loading"},
+    )
+    with_negative_categories: bool = field(
+        default=False,
+        metadata={"help": f"Negative Cats caluculated from positive_cats."},
+    )
 
 
 @dataclass
@@ -355,11 +353,13 @@ class MultiLabelEnumeratedTrainingArguments(TrainingArguments):
     )
 
 
+
 @dataclass
 class MultiLabelEnumeratedTyperConfig(MultiLabelTyperConfig):
     multi_label_typer_name: str = "MultiLabelEnumeratedTyper"
     label_names: str = "non_initialized: this variable is dinamically decided"
-    train_datasets: str = "Please add path to DatasetDict"
+    train_msmlc_datasets: str = "Please add path to DatasetDict of MSMLC Dataset for training"
+    validation_ner_datasets: str = "Please add path to DatasetDict of NER Dataset for validation"
     model_args: MultiLabelEnumeratedModelArguments = MultiLabelEnumeratedModelArguments(
         model_name_or_path="dmis-lab/biobert-base-cased-v1.1"
     )
@@ -377,9 +377,6 @@ class MultiLabelEnumeratedTyperPreprocessor:
     """MultiLabelEnumeratedTyperのためのPreprocessor
     分散処理をする際にクラスにGPU情報を持たせないために前処理に関連する情報だけ分離する
     """
-
-    pass
-
     def __init__(
         self,
         model_args: MultiLabelEnumeratedModelArguments,
@@ -609,6 +606,8 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         data_args = config.data_args
         self.model_args = config.model_args
         self.data_args = config.data_args
+        self.positive_cats = self.data_args.positive_cats.split(CATEGORY_SEPARATOR)
+        self.negative_cats = load_negative_cats_from_positive_cats(self.positive_cats, self.data_args.eval_dataset_for_negative_categories)
         self.train_args = train_args
         logger.info("Start Loading BERT")
         if (
@@ -630,7 +629,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
         set_seed(train_args.seed)
         # msml: Multi Span Multi Label
         msml_datasets = DatasetDict.load_from_disk(
-            os.path.join(get_original_cwd(), config.train_datasets)
+            to_absolute_path(config.train_msmlc_datasets)
         )
         log_label_ratio(msml_datasets)
         if train_args.do_train:
@@ -712,6 +711,8 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                 )
         else:
             self.negative_sampling_ratio = 1.0
+        
+        self.validation_ner_dataset = DatasetDict.load_from_disk(to_absolute_path(self.conf.validation_ner_datasets))['validation']
 
         if self.model_args.loss_func == "MarginalCrossEntropyLoss":
             features = datasets.Features(
@@ -799,32 +800,41 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
             )
         self.model = model
 
-        # Metrics
         def compute_metrics(p):
-            predictions, labels = p
-            predictions = np.argmax(predictions, axis=2)
+            # NOTE: p は MSMLCデータに対する予測のためこれを活用しない
+            # NOTE: ValidationのNERデータセットに対して予測をさせる
+            enumerate_chunker = EnumeratedChunker(EnumeratedChunkerConfig())
+            tokens = self.validation_ner_dataset['tokens']
+            starts, ends = [], []
+            for snt in enumerate_chunker.batch_predict(tokens):
+                snt_starts, snt_ends = zip(*snt)
+                starts.append(snt_starts)
+                ends.append(snt_ends)
 
-            # Remove ignored index (special tokens)
-            true_predictions = [
-                [label_list[p] for (p, l) in zip(prediction, label) if l != -100]
-                for prediction, label in zip(predictions, labels)
-            ]
-            true_labels = [
-                [label_list[l] for (p, l) in zip(prediction, label) if l != -100]
-                for prediction, label in zip(predictions, labels)
-            ]
-            from seqeval.metrics import (
-                accuracy_score,
-                f1_score,
-                precision_score,
-                recall_score,
-            )
+            ml_outputs = self.batch_predict(tokens, starts, ends)
+
+            from src.utils.typer_to_bio import postprocess_for_multi_label_ner_output
+            # NOTE: postprocess_for_multi_label_ner_output を利用してflat nerの出力に変換する
+            pred_ner_tags = []
+            for snt_tokens, snt_starts, snt_ends, ml_output in zip(tokens, starts, ends, ml_outputs):
+                pred_ner_tags.append(
+                    postprocess_for_multi_label_ner_output(
+                        len(snt_tokens), snt_starts, snt_ends, ml_output,
+                        self.label_names, self.positive_cats, self.negative_cats
+                    )
+                )
+
+            # NOTE: flat_nerの出力としてvalidationデータセットとの比較スコアを計算する
+            from seqeval.metrics.sequence_labeling import precision_recall_fscore_support
+            ner_tag_names = self.validation_ner_dataset.features['ner_tags'].feature.names
+            true_ner_tags = [[ner_tag_names[tag] for tag in snt] for snt in self.validation_ner_dataset['ner_tags']]
+            precision, recall, f1, support = precision_recall_fscore_support(true_ner_tags, pred_ner_tags, average='micro')
 
             return {
-                "accuracy_score": accuracy_score(true_labels, true_predictions),
-                "precision": precision_score(true_labels, true_predictions),
-                "recall": recall_score(true_labels, true_predictions),
-                "f1": f1_score(true_labels, true_predictions),
+                "precision": precision,
+                "recall": recall,
+                "f1": f1,
+                "support": support,
             }
 
         # Initialize our Trainer
@@ -841,6 +851,7 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
             else None,
             tokenizer=self.preprocessor.tokenizer,
             data_collator=default_data_collator,
+            callbacks=[EarlyStoppingCallback(early_stopping_patience=data_args.early_stopping_patience)],
             compute_metrics=compute_metrics,
         )
         self.trainer = trainer
@@ -900,12 +911,12 @@ class MultiLabelEnumeratedTyper(MultiLabelTyper):
                 labels[span_id] = labels[span_id] + [self.label_names[label_id]]
                 weights[span_id] += [expit(snt_logit[span_id, label_id])]
             snt_ret_list = []
-            for span_logit, span_labels, span_weights in zip(snt_logit, labels, weights):
+            for span_logit, span_labels, span_weights in zip(
+                snt_logit, labels, weights
+            ):
                 snt_ret_list.append(
                     MultiLabelTyperOutput(
-                        labels=span_labels,
-                        logits=span_logit,
-                        weights=span_weights
+                        labels=span_labels, logits=span_logit, weights=span_weights
                     )
                 )
             ret_list.append(snt_ret_list)

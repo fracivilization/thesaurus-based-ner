@@ -263,7 +263,7 @@ def register_BERT_configs(group="ner_model") -> None:
     cs.store(
         group="%s/train_args" % group,
         name="BERT_train_args",
-        node=TrainingArguments,
+        node=HydraAddaptedTrainingArguments,
     )
     cs.store(
         group="%s/model_args" % group,

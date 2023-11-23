@@ -20,6 +20,7 @@ from pathlib import Path
 from hashlib import md5
 import itertools
 from psutil import cpu_count
+from src.utils.hydra import HydraAddaptedTrainingArguments
 
 
 class BertForSpanInsconClassification(BertForTokenClassification):
@@ -277,7 +278,7 @@ class TrainingArguments(OrigTrainingArguments):
 class InsconTyperConfig(TyperConfig):
     typer_name: str = "Inscon"
     label_names: str = "non_initialized"  # this variable is dinamically decided
-    train_args: TrainingArguments = TrainingArguments(output_dir=".")
+    train_args: HydraAddaptedTrainingArguments = HydraAddaptedTrainingArguments(output_dir=".")
     data_args: InsconTyperDataTrainingArguments = InsconTyperDataTrainingArguments()
     model_args: InsconTyperModelArguments = InsconTyperModelArguments(
         model_name_or_path="dmis-lab/biobert-base-cased-v1.1"

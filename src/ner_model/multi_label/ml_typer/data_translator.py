@@ -78,8 +78,7 @@ def multi_label_ner_datasets_to_multi_span_multi_label_classification_datasets(
             raise NotImplementedError
     else:
         assert "nc-O" not in label_names
-    info = datasets.DatasetInfo(
-        features=datasets.Features(
+    features = datasets.Features(
             {
                 "tokens": datasets.Sequence(datasets.Value("string")),
                 "starts": datasets.Sequence(datasets.Value("int32")),
@@ -89,7 +88,6 @@ def multi_label_ner_datasets_to_multi_span_multi_label_classification_datasets(
                 ),
             }
         )
-    )
     for key in multi_label_ner_datasets:
         msml_dataset = defaultdict(list)
         for snt in tqdm(multi_label_ner_datasets[key]):
@@ -106,7 +104,7 @@ def multi_label_ner_datasets_to_multi_span_multi_label_classification_datasets(
                     starts.append(s)
                     ends.append(e)
                     if data_args.with_o:
-                        labels.append(["nc-O"])
+                        labels.append([label_names.index("nc-O")])
                     else:
                         labels.append([])
             if labels:
@@ -114,7 +112,7 @@ def multi_label_ner_datasets_to_multi_span_multi_label_classification_datasets(
                 msml_dataset["starts"].append(starts)
                 msml_dataset["ends"].append(ends)
                 msml_dataset["labels"].append(labels)
-        pre_msml_datasets[key] = datasets.Dataset.from_dict(msml_dataset, info=info)
+        pre_msml_datasets[key] = datasets.Dataset.from_dict(msml_dataset, features=features)
     return datasets.DatasetDict(pre_msml_datasets)
 
 

@@ -1,7 +1,7 @@
 #$ -S /bin/bash
 #$ -cwd
 #$ -jc gpub-container_g4
-#$ -ac d=nvcr-pytorch-2205
+#$ -ac d=nvcr-pytorch-2305
 dir=`dirname $0`
 # EVAL_DATASET=CoNLL2003
 EVAL_DATASET=MedMentions

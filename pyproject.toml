@@ -41,6 +41,7 @@ mlflow = "^1.20.2"
 ptvsd = "^4.3.2"
 pptree = "^3.1"
 anytree = "^2.8.0"
+setuptools = "59.5.0"
 
 
 [tool.poetry.dev-dependencies]

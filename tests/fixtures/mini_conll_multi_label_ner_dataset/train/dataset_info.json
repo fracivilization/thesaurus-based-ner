@@ -1,0 +1,71 @@
+{
+  "builder_name": null,
+  "citation": "",
+  "config_name": null,
+  "dataset_size": null,
+  "description": "{\"desc\": \"CoNLL2003 MSMLC Dataset\", \"split\": \"train\"}",
+  "download_checksums": null,
+  "download_size": null,
+  "features": {
+    "tokens": {
+      "feature": {
+        "dtype": "string",
+        "id": null,
+        "_type": "Value"
+      },
+      "length": -1,
+      "id": null,
+      "_type": "Sequence"
+    },
+    "starts": {
+      "feature": {
+        "dtype": "int32",
+        "id": null,
+        "_type": "Value"
+      },
+      "length": -1,
+      "id": null,
+      "_type": "Sequence"
+    },
+    "ends": {
+      "feature": {
+        "dtype": "int32",
+        "id": null,
+        "_type": "Value"
+      },
+      "length": -1,
+      "id": null,
+      "_type": "Sequence"
+    },
+    "labels": {
+      "feature": {
+        "feature": {
+          "num_classes": 4,
+          "names": [
+            "LOC",
+            "MISC",
+            "ORG",
+            "PER"
+          ],
+          "id": null,
+          "_type": "ClassLabel"
+        },
+        "length": -1,
+        "id": null,
+        "_type": "Sequence"
+      },
+      "length": -1,
+      "id": null,
+      "_type": "Sequence"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "post_processed": null,
+  "post_processing_size": null,
+  "size_in_bytes": null,
+  "splits": null,
+  "supervised_keys": null,
+  "task_templates": null,
+  "version": null
+}

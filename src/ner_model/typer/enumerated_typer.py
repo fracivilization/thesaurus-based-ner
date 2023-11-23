@@ -1,12 +1,8 @@
 import os
-import pickle
 from typing import List, Optional
 import numpy as np
 from transformers.trainer_utils import set_seed
-from src.ner_model.chunker.abstract_model import Chunker
 from src.ner_model.typer.data_translator import (
-    MSCConfig,
-    translate_into_msc_datasets,
     log_label_ratio,
 )
 import uuid
@@ -22,7 +18,7 @@ from .abstract_model import (
 )
 from dataclasses import field, dataclass
 from omegaconf import MISSING
-from transformers import TrainingArguments, training_args
+from transformers import TrainingArguments
 from datasets import DatasetDict, Dataset
 from loguru import logger
 from transformers import (
@@ -38,14 +34,15 @@ from tqdm import tqdm
 from typing import Dict
 import itertools
 from hashlib import md5
-from hydra.utils import get_original_cwd
 from transformers.modeling_outputs import (
     TokenClassifierOutput,
 )
 from scipy.special import softmax
 import psutil
 import itertools
-from hydra.utils import get_original_cwd, to_absolute_path
+from hydra.utils import to_absolute_path
+from transformers import EarlyStoppingCallback
+from src.ner_model.chunker.abstract_model import EnumeratedChunker, EnumeratedChunkerConfig
 
 span_start_token = "[unused1]"
 span_end_token = "[unused2]"
@@ -177,14 +174,12 @@ class BertForEnumeratedTyper(BertForTokenClassification):
         """
         Get valid entities from start, end and label, cut tensor by no-ent label.
         """
-        # O ラベルをサンプリングする
         o_label_mask = labels == self.model_args.o_label_id
         sample_mask = (
             torch.rand(labels.shape, device=labels.device)
             >= self.negative_under_sampling_ratio
         )  # 1-sample ratio の割合で True となる mask
         sampled_labels = torch.where(o_label_mask * sample_mask, -1, labels)
-        # サンプリングに合わせて、-1に当たる部分をソートして外側に出す
         sort_arg = torch.argsort(sampled_labels, descending=True, dim=1)
         sorted_sampled_labels = torch.take_along_dim(sampled_labels, sort_arg, dim=1)
         sorted_starts = torch.take_along_dim(starts, sort_arg, dim=1)
@@ -207,7 +202,6 @@ class BertForEnumeratedTyper(BertForTokenClassification):
             attention_mask=attention_mask,
         )
         hidden_states = outputs.last_hidden_state  # (BatchSize, SeqLength, EmbedDim)
-        # device = starts.device
         minibatch_size, max_span_num = starts.shape
         start_vecs = torch.gather(
             hidden_states,
@@ -216,7 +210,6 @@ class BertForEnumeratedTyper(BertForTokenClassification):
                 minibatch_size, max_span_num, self.config.hidden_size
             ),
         )  # (BatchSize, SpanNum, HiddenDim)
-        # start_vecs[i,j,k] = hidden_states[i,starts[i,j,k],k]
         end_vecs = torch.gather(
             hidden_states,
             1,
@@ -224,14 +217,12 @@ class BertForEnumeratedTyper(BertForTokenClassification):
                 minibatch_size, max_span_num, self.config.hidden_size
             ),
         )  # (BatchSize, SpanNum, HiddenDim)
-        # # end_vecs[i,j,k] = hidden_states[i,ends[i,j,k],k]
         logits = self.MLP(
             torch.cat(
                 [start_vecs, end_vecs, start_vecs - end_vecs, start_vecs * end_vecs],
                 dim=2,
             )
         )
-        # # ends_logits_per_span[i,j,k] = ends_logits[i,starts[i,j,k],k]
         loss = None
         if labels is not None:
             loss_fct = torch.nn.CrossEntropyLoss(ignore_index=-1)
@@ -284,6 +275,10 @@ class EnumeratedDataTrainingArguments:
         default=512,
         metadata={"help": "Max sequence length in training."},
     )
+    early_stopping_patience: int = field(
+        default=5,
+        metadata={"help": "Early stopping patience"},
+    )
 
 
 @dataclass
@@ -298,9 +293,10 @@ class EnumeratedTrainingArguments(TrainingArguments):
 
 @dataclass
 class EnumeratedTyperConfig(TyperConfig):
-    msc_datasets: str = MISSING
+    train_msc_datasets: str = MISSING
     typer_name: str = "Enumerated"
     label_names: str = "non_initialized"  # this variable is dinamically decided
+    validation_ner_datasets: str = "Please add path to DatasetDict of NER Dataset for validation"
     model_args: EnumeratedModelArguments = EnumeratedModelArguments(
         model_name_or_path="dmis-lab/biobert-base-cased-v1.1"
     )
@@ -324,6 +320,7 @@ class EnumeratedTyper(Typer):
         train_args = get_orig_transoformers_train_args_from_hydra_addapted_train_args(
             config.train_args
         )
+        self.config = config
         model_args = config.model_args
         data_args = config.data_args
         self.model_args = config.model_args
@@ -348,7 +345,7 @@ class EnumeratedTyper(Typer):
         set_seed(train_args.seed)
 
         span_classification_datasets = DatasetDict.load_from_disk(
-            os.path.join(get_original_cwd(), config.msc_datasets)
+            to_absolute_path(config.train_msc_datasets)
         )
         log_label_ratio(span_classification_datasets)
         if train_args.do_train:
@@ -424,8 +421,8 @@ class EnumeratedTyper(Typer):
 
         def get_buffer_path(arg_str: str):
 
-            return os.path.join(
-                get_original_cwd(), "data/buffer", md5(arg_str.encode()).hexdigest()
+            return to_absolute_path(
+                os.path.join("data/buffer", md5(arg_str.encode()).hexdigest())
             )
 
         cache_file_names = {
@@ -449,32 +446,39 @@ class EnumeratedTyper(Typer):
         # Data collator
         # data_collator = DataCollatorForTokenClassification(tokenizer)
 
-        # Metrics
-        def compute_metrics(p):
-            predictions, labels = p
-            predictions = np.argmax(predictions, axis=2)
 
-            # Remove ignored index (special tokens)
-            true_predictions = [
-                [label_list[p] for (p, l) in zip(prediction, label) if l != -100]
-                for prediction, label in zip(predictions, labels)
-            ]
-            true_labels = [
-                [label_list[l] for (p, l) in zip(prediction, label) if l != -100]
-                for prediction, label in zip(predictions, labels)
-            ]
-            from seqeval.metrics import (
-                accuracy_score,
-                f1_score,
-                precision_score,
-                recall_score,
-            )
+        from seqeval.metrics.sequence_labeling import precision_recall_fscore_support
+        self.validation_ner_dataset = DatasetDict.load_from_disk(to_absolute_path(self.config.validation_ner_datasets))['validation']
+        def compute_metrics(p):
+            # NOTE: p は MSMLCデータに対する予測のためこれを活用しない
+            # NOTE: ValidationのNERデータセットに対して予測をさせる
+            enumerate_chunker = EnumeratedChunker(EnumeratedChunkerConfig())
+            tokens = self.validation_ner_dataset['tokens']
+            starts, ends = [], []
+            for snt in enumerate_chunker.batch_predict(tokens):
+                snt_starts, snt_ends = zip(*snt)
+                starts.append(list(snt_starts))
+                ends.append(list(snt_ends))
+
+
+            outputs = self.batch_predict(tokens, starts, ends)
+
+            # NOTE: postprocess_for_multi_label_ner_output を利用してflat nerの出力に変換する
+            from src.utils.typer_to_bio import load_ner_tags
+            pred_ner_tags = []
+            for snt_tokens, snt_starts, snt_ends, output in zip(tokens, starts, ends, outputs):
+                pred_ner_tags.append(load_ner_tags(snt_starts, snt_ends, output.labels, output.max_probs, len(snt_tokens)))
+
+            # NOTE: flat_nerの出力としてvalidationデータセットとの比較スコアを計算する
+            ner_tag_names = self.validation_ner_dataset.features['ner_tags'].feature.names
+            true_ner_tags = [[ner_tag_names[tag] for tag in snt] for snt in self.validation_ner_dataset['ner_tags']]
+            precision, recall, f1, support = precision_recall_fscore_support(true_ner_tags, pred_ner_tags, average='micro')
 
             return {
-                "accuracy_score": accuracy_score(true_labels, true_predictions),
-                "precision": precision_score(true_labels, true_predictions),
-                "recall": recall_score(true_labels, true_predictions),
-                "f1": f1_score(true_labels, true_predictions),
+                "precision": precision,
+                "recall": recall,
+                "f1": f1,
+                "support": support,
             }
 
         # Initialize our Trainer
@@ -489,7 +493,8 @@ class EnumeratedTyper(Typer):
             else None,
             tokenizer=tokenizer,
             data_collator=default_data_collator,
-            compute_metrics=compute_metrics,
+            callbacks=[EarlyStoppingCallback(early_stopping_patience=data_args.early_stopping_patience)],
+            compute_metrics=compute_metrics
         )
         self.trainer = trainer
 

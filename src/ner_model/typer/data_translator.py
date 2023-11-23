@@ -146,15 +146,13 @@ def ner_datasets_to_span_classification_datasets(
     if data_args.with_o:
         if "nc-O" not in label_names:
             label_names = ["nc-O"] + label_names
-    info = datasets.DatasetInfo(
-        features=datasets.Features(
-            {
-                "tokens": datasets.Sequence(datasets.Value("string")),
-                "starts": datasets.Sequence(datasets.Value("int32")),
-                "ends": datasets.Sequence(datasets.Value("int32")),
-                "labels": datasets.Sequence(datasets.ClassLabel(names=label_names)),
-            }
-        )
+    features=datasets.Features(
+        {
+            "tokens": datasets.Sequence(datasets.Value("string")),
+            "starts": datasets.Sequence(datasets.Value("int32")),
+            "ends": datasets.Sequence(datasets.Value("int32")),
+            "labels": datasets.Sequence(datasets.ClassLabel(names=label_names)),
+        }
     )
 
     for key in ner_datasets:
@@ -196,7 +194,7 @@ def ner_datasets_to_span_classification_datasets(
                 pre_span_classification_dataset, data_args.negative_ratio_over_positive
             )
         pre_span_classification_datasets[key] = datasets.Dataset.from_dict(
-            pre_span_classification_dataset, info=info
+            pre_span_classification_dataset, features=features
         )
     return datasets.DatasetDict(pre_span_classification_datasets)
 

@@ -1,7 +1,7 @@
 #$ -S /bin/bash
 #$ -cwd
 #$ -jc gpu-container_g4
-#$ -ac d=nvcr-pytorch-2205
+#$ -ac d=nvcr-pytorch-2305
 dir=`dirname $0`
 
 export MY_PROXY_URL="http://10.1.10.1:8080/"
@@ -12,11 +12,12 @@ export http_proxy=$MY_PROXY_URL
 export https_proxy=$MY_PROXY_URL
 export ftp_proxy=$MY_PROXY_URL
 
-epoch_nums=(10 15 20 25 30)
+LD_LIBRARY_PATH=/home/takayo-s/.linuxbrew/Cellar/libffi/3.4.4/lib/:/home/takayo-s/.linuxbrew/Cellar/openssl@1.1/1.1.1q/lib/:/home/takayo-s/.linuxbrew/Cellar/libx11/1.8.1/lib:/home/takayo-s/.linuxbrew/Cellar/libffi/3.4.4/lib/:/home/takayo-s/.linuxbrew/Cellar/openssl@1.1/1.1.1q/lib/:/home/takayo-s/.linuxbrew/Cellar/libx11/1.8.1/lib:
+early_stop_patiences=(3 5 7 10)
 
 # EVAL_DATASET=CoNLL2003
 EVAL_DATASET=MedMentions
-OUTPUT_DIR=outputs/${EVAL_DATASET}/gold/single
+OUTPUT_DIR=outputs/${EVAL_DATASET}/gold/single_w_nc
 mkdir -p ${OUTPUT_DIR}
 pwd >> ${OUTPUT_DIR}/cout
 ls -la >> ${OUTPUT_DIR}/cout

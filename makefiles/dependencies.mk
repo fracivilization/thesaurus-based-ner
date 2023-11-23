@@ -122,18 +122,24 @@ $(PSEUDO_MSC_DATA_ON_GOLD): $(PSEUDO_DATA_ON_GOLD)
 
 $(TRAIN_OUT): $(PSEUDO_MSC_DATA_ON_GOLD) $(GOLD_DATA)
 	$(TRAIN_BASE_CMD) \
+		ner_model.typer.data_args.early_stopping_patience=$(EARLY_STOPPING_PATIENCE) \
 		ner_model.typer.model_args.dynamic_pn_ratio_equivalence=True \
-		ner_model.typer.msc_datasets=$(PSEUDO_MSC_DATA_ON_GOLD) 2>&1 | tee $(TRAIN_OUT)
+		ner_model.typer.train_msc_datasets=$(PSEUDO_MSC_DATA_ON_GOLD) 2>&1 | tee $(TRAIN_OUT)
 
+# 注：GOLDデータではEarlyStoppingしないようにNUM_TRAIN_EPOCHSにearly_stopping_patienceを合わせている
 $(TRAIN_ON_GOLD_OUT): $(GOLD_TRAIN_MSC_DATA) $(GOLD_DATA)
 	$(TRAIN_BASE_CMD) \
 		ner_model.typer.model_args.dynamic_pn_ratio_equivalence=False \
-		ner_model.typer.msc_datasets=$(GOLD_TRAIN_MSC_DATA) 2>&1 | tee $(TRAIN_ON_GOLD_OUT)
+		ner_model.typer.train_args.save_strategy=EPOCH \
+		ner_model.typer.train_args.evaluation_strategy=EPOCH \
+		ner_model.typer.data_args.early_stopping_patience=$(NUM_TRAIN_EPOCHS) \
+		ner_model.typer.train_msc_datasets=$(GOLD_TRAIN_MSC_DATA) 2>&1 | tee $(TRAIN_ON_GOLD_OUT)
 
 $(TRAIN_ON_FEW_SHOT): $(GOLD_FEW_SHOT_TRAIN_MSC_DATA) $(GOLD_DATA)
 	$(TRAIN_BASE_CMD) \
+		ner_model.typer.data_args.early_stopping_patience=$(EARLY_STOPPING_PATIENCE) \
 		ner_model.typer.model_args.dynamic_pn_ratio_equivalence=False \
-		ner_model.typer.msc_datasets=$(GOLD_FEW_SHOT_TRAIN_MSC_DATA) 2>&1 | tee $(TRAIN_ON_FEW_SHOT)
+		ner_model.typer.train_msc_datasets=$(GOLD_FEW_SHOT_TRAIN_MSC_DATA) 2>&1 | tee $(TRAIN_ON_FEW_SHOT)
 
 
 $(PSEUDO_OUT): $(GOLD_DATA) $(TERM2CAT)
@@ -197,27 +203,27 @@ $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL): $(PSEUDO_MSMLC_DATA_ON_GOLD)
 		++multi_label_typer.model_args.dynamic_pn_ratio_equivalence=True \
 		++multi_label_typer.model_args.static_pn_ratio_equivalence=False \
 		++multi_label_typer.model_args.negative_ratio_over_positive=$(MSMLC_NEGATIVE_RATIO_OVER_POSITIVE) \
-		++multi_label_typer.train_datasets=$(PSEUDO_MSMLC_DATA_ON_GOLD) \
+		++multi_label_typer.train_msmlc_datasets=$(PSEUDO_MSMLC_DATA_ON_GOLD) \
 		++multi_label_typer.model_output_path=$(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL)
 
 $(GOLD_TRAINED_MSMLC_MODEL): $(GOLD_TRAIN_MSMLC_DATA)
 	$(TRAIN_MSMLC_BASE_CMD) \
 		++multi_label_typer.model_args.dynamic_pn_ratio_equivalence=False \
 		++multi_label_typer.model_args.static_pn_ratio_equivalence=False \
-		++multi_label_typer.train_datasets=$(GOLD_TRAIN_MSMLC_DATA) \
+		++multi_label_typer.train_msmlc_datasets=$(GOLD_TRAIN_MSMLC_DATA) \
 		++multi_label_typer.model_output_path=$(GOLD_TRAINED_MSMLC_MODEL)
 
 $(EVAL_FLATTEN_MARGINAL_MSMLC_ON_GOLD_OUT): $(GOLD_TRAINED_MSMLC_MODEL) $(GOLD_TRAIN_MSMLC_DATA) $(GOLD_DATA)
 	$(FLATTEN_MARGINAL_SOFTMAX_NER_BASE_CMD) \
 		++ner_model.multi_label_ner_model.multi_label_typer.model_args.saved_param_path=$(GOLD_TRAINED_MSMLC_MODEL) \
-		++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=$(GOLD_TRAIN_MSMLC_DATA) \
+		++ner_model.multi_label_ner_model.multi_label_typer.train_msmlc_datasets=$(GOLD_TRAIN_MSMLC_DATA) \
 		2>&1 | tee $(EVAL_FLATTEN_MARGINAL_MSMLC_ON_GOLD_OUT)
 
 $(EVAL_FLATTEN_MARGINAL_MSMLC_OUT): $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL) $(PSEUDO_MSMLC_DATA_ON_GOLD) $(GOLD_DATA)
 	@echo $(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL)
 	$(FLATTEN_MARGINAL_SOFTMAX_NER_BASE_CMD) \
 		++ner_model.multi_label_ner_model.multi_label_typer.model_args.saved_param_path=$(PSEUDO_ON_GOLD_TRAINED_MSMLC_MODEL) \
-		++ner_model.multi_label_ner_model.multi_label_typer.train_datasets=$(PSEUDO_MSMLC_DATA_ON_GOLD) \
+		++ner_model.multi_label_ner_model.multi_label_typer.train_msmlc_datasets=$(PSEUDO_MSMLC_DATA_ON_GOLD) \
 		2>&1 | tee $(EVAL_FLATTEN_MARGINAL_MSMLC_OUT)
 
 
