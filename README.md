@@ -1,5 +1,5 @@
-# two-stage-distant-ner
-Two Stage Distant NER (Using NP Chunker)
+# Thesaurus Based Weakly Supervised NER
+Thesaurus Based Weakly Supervised NER
 
 ## Preprocess for UMLS
 1. Please Dwonload 2021AA-full from https://www.nlm.nih.gov/research/umls/licensedcontent/umlsknowledgesources.html"
