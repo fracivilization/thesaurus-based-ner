@@ -148,3 +148,6 @@ nohup.out
 # datasetsのcacheファイルを無視
 cache-*.arrow
 tmp/
+
+# ignore direnv files
+.direnv/
