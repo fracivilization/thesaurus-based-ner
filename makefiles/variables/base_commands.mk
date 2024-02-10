@@ -37,6 +37,7 @@ TRAIN_MSMLC_BASE_CMD := ${PYTHON} -m cli.train_msmlc +multi_label_typer=enumerat
 		++multi_label_typer.train_args.per_device_eval_batch_size=$(EVAL_BATCH_SIZE) \
 		++multi_label_typer.train_args.load_best_model_at_end=True \
 		++multi_label_typer.train_args.metric_for_best_model=f1 \
+		++multi_label_typer.train_args.greater_is_better=True \
 		++multi_label_typer.train_args.save_strategy=STEPS \
 		++multi_label_typer.train_args.evaluation_strategy=STEPS \
 		++multi_label_typer.train_args.save_total_limit=40 \
@@ -59,6 +60,7 @@ TRAIN_BASE_CMD := $(TRAIN_COMMON_BASE_CMD) \
 		ner_model.typer.train_args.save_strategy=STEPS \
 		ner_model.typer.train_args.evaluation_strategy=STEPS \
 		ner_model.typer.train_args.metric_for_best_model=f1 \
+		ner_model.typer.train_args.greater_is_better=True \
 		ner_model.typer.train_args.eval_steps=$(EVAL_STEPS) \
 		ner_model.typer.train_args.save_steps=$(EVAL_STEPS) \
 		ner_model.typer.train_args.fp16=True
