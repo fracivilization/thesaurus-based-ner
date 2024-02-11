@@ -20,5 +20,3 @@ export ftp_proxy=$MY_PROXY_URL
 
 
 EVAL_DATASET=${EVAL_DATASET} REMAIN_COMMON_SENSE_FOR_TERM2CATS=False make train_pseudo_anno -j$(nproc) >>${OUTPUT_DIR}/cout 2>>${OUTPUT_DIR}/cerr
-# TODO: そもそも生成させないようにする
-rm -r `find outputs -type d -regex '.*/checkpoint-[0-9]+'`
