@@ -30,8 +30,8 @@ FEW_SHOT_NUM ?= 5
 NUM_TRAIN_EPOCHS ?= 40 # Early Stoppingの場合は最大epoch数
 EARLY_STOPPING_PATIENCE ?= 5
 EVAL_STEPS ?= 100
-
-
+## 乱数のシード値(今のところ、教師データ数を制限した際のランダムデータ選択に利用する)
+RANDOM_SEED ?= 42
 
 # 中間変数
 ## 疑似教師として利用する知識ベース or アンカーテキスト

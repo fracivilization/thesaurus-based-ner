@@ -275,7 +275,7 @@ def remove_span_duplication(docs: List[str]):
 
 
 def load_gold_datasets(
-    positive_cats: str, negative_cats: str, input_dir: str, train_snt_num: int
+    positive_cats: str, negative_cats: str, input_dir: str, train_snt_num: int, random_seed: int,
 ) -> DatasetDict:
     # load remained cats
     positive_cats = positive_cats.split(CATEGORY_SEPARATOR)
@@ -300,7 +300,9 @@ def load_gold_datasets(
     dataset_dict = dict()
     for key, split in singularized_ner.items():
         if key == 'train':
-            split = split[:train_snt_num]
+            import random
+            random.seed(random_seed)
+            split = random.shuffle(split)[:train_snt_num]
         dataset_dict[key] = translate_conll_into_dataset(
             split,
             ner_tag_names,
