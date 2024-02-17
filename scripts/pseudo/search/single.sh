@@ -8,13 +8,13 @@
 # done
 
 EVAL_DATASET="CoNLL2003"
-negative_ratios=(3.0)
+negative_ratios=(0.3 3.0)
 for NEGATIVE_RATIO in ${negative_ratios[@]}; do
     qsub -v NEGATIVE_RATIO=${NEGATIVE_RATIO} -v EVAL_DATASET=${EVAL_DATASET} scripts/pseudo/single.sh
 done
 
 EVAL_DATASET="MedMentions"
-negative_ratios=(16.0)
+negative_ratios=(0.3 32.0 64.0)
 for NEGATIVE_RATIO in ${negative_ratios[@]}; do
     qsub -v NEGATIVE_RATIO=${NEGATIVE_RATIO} -v EVAL_DATASET=${EVAL_DATASET} scripts/pseudo/single.sh
 done

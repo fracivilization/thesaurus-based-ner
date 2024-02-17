@@ -5,7 +5,7 @@
 dir=`dirname $0`
 # EVAL_DATASET=MedMentions
 LD_LIBRARY_PATH=/home/takayo-s/.linuxbrew/Cellar/libffi/3.4.4/lib/:/home/takayo-s/.linuxbrew/Cellar/openssl@1.1/1.1.1q/lib/:/home/takayo-s/.linuxbrew/Cellar/libx11/1.8.1/lib:/home/takayo-s/.linuxbrew/Cellar/libffi/3.4.4/lib/:/home/takayo-s/.linuxbrew/Cellar/openssl@1.1/1.1.1q/lib/:/home/takayo-s/.linuxbrew/Cellar/libx11/1.8.1/lib:
-OUTPUT_DIR=outputs/${EVAL_DATASET}/pseudo/multi_w_almost_cat/negative_ratio=${NEGATIVE_RATIO}
+OUTPUT_DIR=outputs/${EVAL_DATASET}/pseudo/multi_w_nc/negative_ratio=${NEGATIVE_RATIO}
 mkdir -p ${OUTPUT_DIR}
 pwd >> ${OUTPUT_DIR}/cout
 ls -la >> ${OUTPUT_DIR}/cout
