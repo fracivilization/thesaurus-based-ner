@@ -47,6 +47,7 @@ class TestEnumeratedTyper(unittest.TestCase):
             evaluation_strategy="epoch",
             save_strategy="epoch",
             metric_for_best_model="f1",
+            greater_is_better=True,
             do_train=True,
             do_eval=True,
             overwrite_output_dir=True

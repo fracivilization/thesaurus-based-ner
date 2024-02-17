@@ -87,7 +87,8 @@ class TestEnumeratedTyper(unittest.TestCase):
             save_strategy="epoch",
             do_train=True,
             overwrite_output_dir=True,
-            metric_for_best_model="f1"
+            metric_for_best_model="f1",
+            greater_is_better=True,
         )
         model_args = MultiLabelEnumeratedModelArguments(
             model_name_or_path='bert-base-cased',
@@ -116,7 +117,8 @@ class TestEnumeratedTyper(unittest.TestCase):
             save_strategy="epoch",
             do_train=True,
             overwrite_output_dir=True,
-            metric_for_best_model="f1"
+            metric_for_best_model="f1",
+            greater_is_better=True,
         )
         model_args = MultiLabelEnumeratedModelArguments(
             model_name_or_path='bert-base-cased',

@@ -21,5 +21,5 @@ export ftp_proxy=$MY_PROXY_URL
 echo "negative_ratio: ${NEGATIVE_RATIO}" >>${OUTPUT_DIR}/cout
 MAKE="EVAL_DATASET=${EVAL_DATASET} MSMLC_NEGATIVE_RATIO_OVER_POSITIVE=${NEGATIVE_RATIO} WITH_NEGATIVE_CATEGORIES=True make"
 eval ${MAKE} eval_flatten_marginal_softmax -j$(nproc) >>${OUTPUT_DIR}/cout 2>>${OUTPUT_DIR}/cerr
-# TODO: そもそも生成させないようにする
-rm -r `find outputs -type d -regex '.*/checkpoint-[0-9]+'`
+# TODO: Move this to the end of python train script
+# rm -r `find outputs -type d -regex '.*/checkpoint-[0-9]+'`
