@@ -302,7 +302,8 @@ def load_gold_datasets(
         if key == 'train':
             import random
             random.seed(random_seed)
-            split = random.shuffle(split)[:train_snt_num]
+            random.shuffle(split)
+            split = split[:train_snt_num]
         dataset_dict[key] = translate_conll_into_dataset(
             split,
             ner_tag_names,

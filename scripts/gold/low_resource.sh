@@ -20,7 +20,7 @@ export http_proxy=$MY_PROXY_URL
 export https_proxy=$MY_PROXY_URL
 export ftp_proxy=$MY_PROXY_URL
 
-DIR=${OUTPUT_DIR}/${TRAIN_SNT_NUM}
+DIR=${OUTPUT_DIR}/${TRAIN_SNT_NUM}/${RANDOM_SEED}
 mkdir -p ${DIR}
 eval_step=1
 echo "train_snt_num: ${TRAIN_SNT_NUM} eval_step: ${eval_step}" >>${OUTPUT_DIR}/cout
