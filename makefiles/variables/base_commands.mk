@@ -56,6 +56,7 @@ TRAIN_BASE_CMD := $(TRAIN_COMMON_BASE_CMD) \
 		ner_model.typer.train_args.num_train_epochs=$(NUM_TRAIN_EPOCHS) \
 		ner_model.typer.train_args.do_train=True \
 		ner_model.typer.train_args.overwrite_output_dir=True \
+		ner_model.typer.train_args.save_total_limit=1 \
 		ner_model.typer.train_args.load_best_model_at_end=True \
 		ner_model.typer.train_args.save_strategy=STEPS \
 		ner_model.typer.train_args.evaluation_strategy=STEPS \

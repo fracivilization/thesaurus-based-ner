@@ -8,7 +8,8 @@ def test_load_gold_conll_dataset():
     negative_cats = ""
     input_dir = CoNLL_MULTI_LABEL_NER_DATASETS
     train_snt_num = 5
-    gold_datasets = load_gold_datasets(positive_cats, negative_cats, input_dir, train_snt_num)
+    random_seed = 42
+    gold_datasets = load_gold_datasets(positive_cats, negative_cats, input_dir, train_snt_num, random_seed)
     assert len(gold_datasets['train']) == train_snt_num
 
 def test_load_gold_medmentions_dataset():
@@ -16,7 +17,8 @@ def test_load_gold_medmentions_dataset():
     negative_cats = ""
     input_dir = MEDMENTIONS_MULTI_LABEL_NER_DATASETS
     train_snt_num = 5
-    gold_datasets = load_gold_datasets(positive_cats, negative_cats, input_dir, train_snt_num)
+    random_seed = 42
+    gold_datasets = load_gold_datasets(positive_cats, negative_cats, input_dir, train_snt_num, random_seed)
     assert len(gold_datasets['train']) == train_snt_num
 
 

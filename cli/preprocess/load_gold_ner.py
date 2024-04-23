@@ -13,11 +13,12 @@ import sys
 )
 @click.option("--input-dir", type=str, default="data/gold/multi_label_ner")
 @click.option("--train-snt-num", type=int, default=sys.maxsize)
+@click.option("--random-seed", type=int, default=42)
 def cmd(
-    positive_cats: str, negative_cats: str, output: str, input_dir: str, train_snt_num: int
+    positive_cats: str, negative_cats: str, output: str, input_dir: str, train_snt_num: int, random_seed: int,
 ):
     gold_datasets = load_gold_datasets(
-        positive_cats, negative_cats, input_dir, train_snt_num
+        positive_cats, negative_cats, input_dir, train_snt_num, random_seed
     )
     gold_datasets.save_to_disk(output)
 

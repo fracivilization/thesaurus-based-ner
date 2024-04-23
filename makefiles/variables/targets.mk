@@ -11,7 +11,7 @@ RAW_CORPUS_OUT := $(RAW_CORPUS_DIR)/$(firstword $(shell echo $(RAW_CORPUS_NUM) |
 PSEUDO_OUT := outputs/$(firstword $(shell echo "PSEUDO_OUT" $(EVAL_DATASET) $(PSEUDO_DATA_ARGS) | sha1sum))
 
 GOLD_DATA := $(GOLD_DIR)/$(firstword $(shell echo $(EVAL_DATASET) $(POSITIVE_CATS) $(TRAIN_SNT_NUM) | sha1sum))
-GOLD_TRAIN_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD TRAIN DATA" $(POSITIVE_CATS) $(NEGATIVE_CATS) $(TRAIN_SNT_NUM) | sha1sum))
+GOLD_TRAIN_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD TRAIN DATA" $(POSITIVE_CATS) $(NEGATIVE_CATS) $(TRAIN_SNT_NUM) $(RANDOM_SEED) | sha1sum))
 DSNET_FEW_SHOT_DATA := $(GOLD_DIR)/$(firstword $(shell echo "DSNET FEW SHOT DATA" $(GOLD_TRAIN_DATA) | sha1sum))
 GOLD_TRAIN_MSC_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD MSC DATA" $(GOLD_TRAIN_DATA) $(MSC_ARGS) | sha1sum)) 
 GOLD_FEW_SHOT_TRAIN_DATA := $(GOLD_DIR)/$(firstword $(shell echo "GOLD FEW SHOT TRAIN DATA" $(GOLD_TRAIN_DATA) $(FEW_SHOT_NUM) | sha1sum))
