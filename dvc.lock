@@ -1,0 +1,24 @@
+schema: '2.0'
+stages:
+  dbpedia:
+    cmd:
+    - wget 
+      https://databus.dbpedia.org/ontologies/dbpedia.org/ontology/2024.08.01-180007/ontology_tag=sorted_type=parsed.nt
+    - wget 
+      https://databus.dbpedia.org/dbpedia/mappings/instance-types/2022.12.01/instance-types_inference=specific_lang=en.ttl.bz2
+    - wget 
+      https://databus.dbpedia.org/dbpedia/generic/labels/2022.12.01/labels_lang=en.ttl.bz2
+    - wget 
+      https://databus.dbpedia.org/dbpedia/generic/redirects/2022.12.01/redirects_lang=en.ttl.bz2
+    - wget 
+      https://databus.dbpedia.org/dbpedia/generic/disambiguations/2022.12.01/disambiguations_lang=en.ttl.bz2
+    - bunzip2 *.bz2
+    - mkdir -p data/DBPedia/
+    - mv *.ttl data/DBPedia/
+    - mv *.nt data/DBPedia/
+    outs:
+    - path: data/DBPedia
+      hash: md5
+      md5: 578d29d75ced353bd0375b6ff54fa770.dir
+      size: 5207621702
+      nfiles: 5

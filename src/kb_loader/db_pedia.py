@@ -10,8 +10,9 @@ from src.utils.utils import SQliteJsonDict
 from src.dataset.utils import get_ascendant_dbpedia_thesaurus_node
 
 DBPedia_dir = "data/DBPedia"
-AnchorTextSourcePath = os.path.join(DBPedia_dir, "anchor-text_lang=en.ttl")
-DBPedia_instance_type = os.path.join(DBPedia_dir, "instance-types_lang=en_specific.ttl")
+DBPedia_instance_type = os.path.join(
+    DBPedia_dir, "instance-types_inference=specific_lang=en.ttl"
+)
 DBPedia_redirect = os.path.join(DBPedia_dir, "redirects_lang=en.ttl")
 AnchorTextDBPath = "data/sqlite_dbs/anchor_text_term2cats.db"
 

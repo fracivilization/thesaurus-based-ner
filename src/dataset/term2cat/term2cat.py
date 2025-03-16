@@ -14,8 +14,6 @@ from collections import Counter
 from prettytable import PrettyTable
 from src.utils.utils import WeightedSQliteDict
 from src.dataset.utils import (
-    load_dbpedia_thesaurus,
-    get_negative_cats_from_positive_cats,
     CoNLL2003CategoryMapper,
     load_negative_cats_from_positive_cats,
 )
@@ -76,16 +74,6 @@ def get_anomaly_suffixes(term2cat):
                 for orig_term in lowered2orig[anomaly_suffix]:
                     anomaly_suffixes.add(orig_term)
     return anomaly_suffixes
-
-
-def get_dbpedia_negative_cats_from_positive_cats(positive_cats: List[str]):
-    dbpedia_thesaurus = load_dbpedia_thesaurus()
-
-    negative_cats = get_negative_cats_from_positive_cats(
-        positive_cats, dbpedia_thesaurus
-    )
-    assert not positive_cats & set(negative_cats)
-    return negative_cats
 
 
 def load_dict_term2cat(conf: DictTerm2CatConfig):
