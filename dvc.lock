@@ -17,8 +17,65 @@ stages:
     - mv *.ttl data/DBPedia/
     - mv *.nt data/DBPedia/
     outs:
-    - path: data/DBPedia
+    - path: data/DBPedia/disambiguations_lang=en.ttl
       hash: md5
-      md5: 578d29d75ced353bd0375b6ff54fa770.dir
-      size: 5207621702
-      nfiles: 5
+      md5: 1f866188c7bd19dbff9a352180f4c72c
+      size: 297115986
+    - path: data/DBPedia/instance-types_inference=specific_lang=en.ttl
+      hash: md5
+      md5: 2bad62bb73e6fc3185f72286f1e602bb
+      size: 1162567401
+    - path: data/DBPedia/labels_lang=en.ttl
+      hash: md5
+      md5: afa4c3b3235445734d3102f72d28c01d
+      size: 2119694335
+    - path: data/DBPedia/ontology_tag=sorted_type=parsed.nt
+      hash: md5
+      md5: 891ec147a23062bc4580ac7184076ae7
+      size: 9858392
+    - path: data/DBPedia/redirects_lang=en.ttl
+      hash: md5
+      md5: f04a34988626434141da660c7f9b80a8
+      size: 1618385588
+  dictionary_form_term2cats:
+    cmd: rye run python -m cli.preprocess.load_dictionary_form_term2cats --knowledge-base=DBPedia
+      --remain-common-sense=true --output-dir=data/dictionary_form_term2cats
+    deps:
+    - path: data/DBPedia/disambiguations_lang=en.ttl
+      hash: md5
+      md5: 1f866188c7bd19dbff9a352180f4c72c
+      size: 297115986
+    - path: data/DBPedia/instance-types_inference=specific_lang=en.ttl
+      hash: md5
+      md5: 2bad62bb73e6fc3185f72286f1e602bb
+      size: 1162567401
+    - path: data/DBPedia/labels_lang=en.ttl
+      hash: md5
+      md5: afa4c3b3235445734d3102f72d28c01d
+      size: 2119694335
+    - path: data/DBPedia/ontology_tag=sorted_type=parsed.nt
+      hash: md5
+      md5: 891ec147a23062bc4580ac7184076ae7
+      size: 9858392
+    - path: data/DBPedia/redirects_lang=en.ttl
+      hash: md5
+      md5: f04a34988626434141da660c7f9b80a8
+      size: 1618385588
+    outs:
+    - path: data/dictionary_form_term2cats
+      hash: md5
+      md5: d7e52e4446874ab0fede6171832d3e36
+      size: 3089551360
+  term2cats:
+    cmd: rye run python -m cli.preprocess.inflect_terms_of_term2cats --dictionary-form-term2cats-dir=data/dictionary_form_term2cats
+      --output-path=data/term2cats
+    deps:
+    - path: data/dictionary_form_term2cats
+      hash: md5
+      md5: d7e52e4446874ab0fede6171832d3e36
+      size: 3089551360
+    outs:
+    - path: data/term2cats
+      hash: md5
+      md5: 810baa0881663b3857e56a7a02559807
+      size: 6194307072

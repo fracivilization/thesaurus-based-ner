@@ -1,0 +1,3 @@
+term2cats:
+  remain_common_sense: True
+  knowledge_base: DBPedia # DBPedia or UMLS

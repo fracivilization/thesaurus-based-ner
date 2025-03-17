@@ -1,6 +1,5 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from dataclasses import dataclass
 from typing import Any, Dict, List, Callable, Set
 from more_itertools import powerset
 import os

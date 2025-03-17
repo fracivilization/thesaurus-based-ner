@@ -12,4 +12,36 @@ stages:
       - mv *.ttl data/DBPedia/
       - mv *.nt data/DBPedia/
     outs:
-    - data/DBPedia
+      - data/DBPedia/ontology_tag=sorted_type=parsed.nt
+      - data/DBPedia/instance-types_inference=specific_lang=en.ttl
+      - data/DBPedia/labels_lang=en.ttl
+      - data/DBPedia/redirects_lang=en.ttl
+      - data/DBPedia/disambiguations_lang=en.ttl
+  
+  dictionary_form_term2cats:
+    cmd:
+      rye run python -m cli.preprocess.load_dictionary_form_term2cats
+          --knowledge-base=${term2cats.knowledge_base}
+          --remain-common-sense=${term2cats.remain_common_sense}
+          --output-dir=data/dictionary_form_term2cats
+    deps:
+      # DBPedia
+      - data/DBPedia/ontology_tag=sorted_type=parsed.nt
+      - data/DBPedia/instance-types_inference=specific_lang=en.ttl
+      - data/DBPedia/labels_lang=en.ttl
+      - data/DBPedia/redirects_lang=en.ttl
+      - data/DBPedia/disambiguations_lang=en.ttl
+    outs:
+      - data/dictionary_form_term2cats
+
+  term2cats:
+    cmd:
+      rye run python -m cli.preprocess.inflect_terms_of_term2cats
+        --dictionary-form-term2cats-dir=data/dictionary_form_term2cats
+        --output-path=data/term2cats
+    deps:
+      - data/dictionary_form_term2cats
+    outs:
+      - data/term2cats
+params:
+  - params.yaml
