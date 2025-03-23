@@ -1,14 +1,10 @@
 import os
 from pathlib import Path
-import shutil
-from typing import Dict, Generator, List
+from typing import Dict, Generator
 from glob import glob
 from datasets import Dataset
 import spacy
 from tqdm import tqdm
-from transformers.models.auto.tokenization_auto import AutoTokenizer
-from p_tqdm import p_umap
-from src.utils.params import pseudo_annotated_time, unlabelled_corpus_dataset_features
 from logging import getLogger
 import datasets
 import json
@@ -36,36 +32,28 @@ def make_pubmed_xml_to_text(file):
 class RawCorpusDataset:
     def __init__(
         self,
-        source_txt_dir: str,
+        source_txt: str,
         sentence_num: int = 0,
+        spacy_model="en_core_sci_sm",
     ) -> None:
         self.args = {
-            "source_txt_dir": source_txt_dir,
+            "source_txt": source_txt,
             "sentence_num": sentence_num,
         }
-        self.source_txt_dir = source_txt_dir
+        self.source_txt = source_txt
         self.sentence_num = sentence_num
-        self.nlp = None
+        self.nlp = spacy.load(spacy_model)
         # load txt file for each dataset
 
-    def load_txt_files(self) -> Path:
-        return glob(os.path.join(self.source_txt_dir, "*.txt"))
-
     def load_texts(self) -> Generator:
-        # todo: テキストファイルにするまでの前処理をRawCorpusでしてしまう
-        # 複数のtxtファイルをまとめて、指定された数まで出力するに留める
-        files = self.load_txt_files()
         text_num_tqdm = tqdm(total=self.sentence_num)
-        for file in files:
-            if text_num_tqdm.n == self.sentence_num:
-                break
-            with open(file) as f:
-                for text in f:
-                    if text_num_tqdm.n == self.sentence_num:
-                        break
-                    else:
-                        yield text
-                        text_num_tqdm.update()
+        with Path(self.source_txt).open() as f:
+            for text in f:
+                if text_num_tqdm.n == self.sentence_num:
+                    break
+                else:
+                    yield text
+                    text_num_tqdm.update()
 
     def tokenize(self, text: str) -> Dict:
         tokens = []
@@ -88,7 +76,8 @@ class RawCorpusDataset:
         for text in self.load_texts():
             text = text.strip()
             tokenized_text = self.tokenize(text)
-            assert len(tokenized_text["tokens"])
+            if not tokenized_text["tokens"]:
+                continue
             for tok in tokenized_text["tokens"]:
                 if read_snt_num.n == self.sentence_num:
                     break

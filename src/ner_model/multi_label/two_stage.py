@@ -67,11 +67,7 @@ class MultiLabelTwoStageModel(MultiLabelNERModel):
             snt_starts = []
             snt_ends = []
             snt_outputs = []
-            for s, e, o in zip(
-                snt_input_starts,
-                snt_input_ends,
-                snt_input_outputs
-            ):
+            for s, e, o in zip(snt_input_starts, snt_input_ends, snt_input_outputs):
                 if o.labels:
                     snt_starts.append(s)
                     snt_ends.append(e)

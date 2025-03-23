@@ -37,3 +37,25 @@ Two Stage Distant NER (Using NP Chunker)
     - base_commands.mk: タスク種別ごとにタスクのサブクラスによらない共通部分を記載
         - 例えばGoldデータと疑似データによらないマルチラベルスパン分類の共通コマンドなど
     - targets.mk: 生成対象となるファイル一覧を記載している
+
+# Load from raw text
+rye run python -m cli.preprocess.load_raw_corpus --source-txt data/raw/pile_type/ner_4843.txt --output-dir data/raw/ner_4843.txt.dataset
+rye run python -m cli.preprocess.load_pseudo_multi_label_ner \
+    +multi_label_ner_model/multi_label_typer=CoNLL2003DictMatch \
+    ++multi_label_ner_model.multi_label_typer.term2cats=data/terms2cats_with_common_sense \
+    ++multi_label_ner_model.remove_null_chunk=True \
+    +raw_corpus=data/raw/ner_4843.dataset
+    +output_dir=data/pseudo/ner_4843
+
+# Refactoring TODO
+- Makefileの内容を全てdvc.yamlで取り扱えるようにする
+- hydraを駆逐しomegaconfのみに置き換える。
+  outputsディレクトリに移動させる設計がdvcと相性わるいので
+  omegaconf自体のリリースが止まっているので別のハイパラ設定方法考えてもよいかも
+  というかdvcになるべく寄せたいのでparams.yamlを拡張する方針にしたい
+- goldデータセットとの統合は別のスクリプトに切り出したい@load_pseudo_multi_label_ner
+- load_raw_corpus.py の外で連結の処理をするように修正
+- 辞書マッチのDoubleArrayを中間生成物としてdvcに明示的に管理させる
+- シソーラス(class同士の親子関係)、entity-type 関係, entity-name 関係などを共通フォーマットに変換した上でterm2catsを生成するようにしたい
+
+        

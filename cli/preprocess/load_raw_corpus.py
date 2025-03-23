@@ -2,18 +2,18 @@
 # -*- coding: utf-8 -*-
 import click
 from src.dataset.raw_corpus import RawCorpusDataset
-import os
 from logging import getLogger
-from datasets import Dataset
+import sys
 
 logger = getLogger(__name__)
 
 
 @click.command()
-@click.option("--source-txt-dir", default="data/raw/pubmed")
-@click.option("--raw-sentence-num", type=int, default=10000)
+@click.option("--source-txt", type=str, required=True)
+@click.option("--raw-sentence-num", type=int, default=sys.maxsize)
 @click.option("--output-dir", default=".")
-def cmd(raw_sentence_num: int, output_dir: str, source_txt_dir: str):
+@click.option("--spacy-model", default="en_core_sci_sm")
+def cmd(raw_sentence_num: int, output_dir: str, source_txt: str, spacy_model: str):
     """Load txt files in source_txt_dir and Split by sentence and words and save into output dir
     load sentences for raw_sentence_num
 
@@ -22,11 +22,10 @@ def cmd(raw_sentence_num: int, output_dir: str, source_txt_dir: str):
         output_dir (str): [description]
         source_txt_dir (str): [description]
     """
-    raw_corpus = RawCorpusDataset(source_txt_dir, raw_sentence_num)
+    raw_corpus = RawCorpusDataset(source_txt, raw_sentence_num, spacy_model)
     tokens = raw_corpus.load_tokens()
     tokens.save_to_disk(output_dir)
 
-    tokens = Dataset.load_from_disk(output_dir)
     logger.info(tokens.info.description)
 
 

@@ -111,7 +111,7 @@ class SpacyNPChunker(Chunker):
         self.config = cfg
 
     def predict(self, tokens: List[str]) -> List[Span]:
-        doc = self.nlp(tokens)
+        doc = self.nlp(Doc(self.nlp.vocab, tokens))
         return [(chunk.start, chunk.end) for chunk in doc.noun_chunks]
 
     def train(self):

@@ -1,4 +1,36 @@
 stages:
+  conll2003:
+    cmd:
+      - curl -L -o conll2003.zip
+        https://www.kaggle.com/api/v1/datasets/download/alaakhaled/conll003-englishversion
+      - unzip conll2003.zip -d data/gold/CoNLL2003
+    outs:
+      - data/gold/CoNLL2003
+
+  medmentions:
+    cmd:
+      - git clone https://github.com/chanzuckerberg/MedMentions
+      - gunzip MedMentions/full/data/corpus_pubtator.txt.gz
+      - gunzip MedMentions/st21pv/data/corpus_pubtator.txt.gz
+      - mv MedMentions data/gold/MedMentions
+      - cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_trng.txt data/gold/MedMentions/st21pv/data/
+      - cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_dev.txt data/gold/MedMentions/st21pv/data/
+      - cp data/gold/MedMentions/full/data/corpus_pubtator_pmids_test.txt data/gold/MedMentions/st21pv/data/
+    outs:
+      - data/gold/MedMentions/full/data
+      - data/gold/MedMentions/st21pv/data
+
+  gold_multi_label_ner:
+    cmd:
+      rye run python -m cli.preprocess.load_gold_multi_label_ner
+        --evaluation-data ${eval_dataset}
+        --input-dir data/gold/${eval_dataset}
+        --output-dir data/gold/multi_label_ner
+    deps:
+      - data/gold/${eval_dataset}
+    params:
+      - eval_dataset
+
   dbpedia:
     cmd: 
       - wget https://databus.dbpedia.org/ontologies/dbpedia.org/ontology/2024.08.01-180007/ontology_tag=sorted_type=parsed.nt # DBPedia Ontology
@@ -18,12 +50,69 @@ stages:
       - data/DBPedia/redirects_lang=en.ttl
       - data/DBPedia/disambiguations_lang=en.ttl
   
-  dictionary_form_term2cats:
+  dictionary_form_term2cats_with_common_sense:
     cmd:
       rye run python -m cli.preprocess.load_dictionary_form_term2cats
-          --knowledge-base=${term2cats.knowledge_base}
-          --remain-common-sense=${term2cats.remain_common_sense}
-          --output-dir=data/dictionary_form_term2cats
+          --knowledge-base=${knowledge_base}
+          --remain-common-sense=True
+          --output-dir=data/dictionary_form_term2cats_with_common_sense
+    deps:
+      # TODO: 共通のフォーマットにそれぞれのDBを変換した上で
+      # 共通フォーマットにしたものをこのステージでは利用するようにしたい
+      # DBPedia
+      - data/DBPedia/ontology_tag=sorted_type=parsed.nt
+      - data/DBPedia/instance-types_inference=specific_lang=en.ttl
+      - data/DBPedia/labels_lang=en.ttl
+      - data/DBPedia/redirects_lang=en.ttl
+      - data/DBPedia/disambiguations_lang=en.ttl
+      # UMLS
+      - data/2021AA/META/MRSTY.RRF
+      - data/2021AA/META/MRCONSO.RRF
+      - data/2021AA/NET/SRDEF
+    params:
+      - knowledge_base
+    outs:
+      - data/dictionary_form_term2cats_with_common_sense
+
+  term2cats_with_common_sense:
+    cmd:
+      rye run python -m cli.preprocess.inflect_terms_of_term2cats
+        --dictionary-form-term2cats-dir=data/dictionary_form_term2cats_with_common_sense
+        --output-path=data/term2cats_with_common_sense
+    deps:
+      - data/dictionary_form_term2cats_with_common_sense
+    outs:
+      - data/term2cats_with_common_sense
+  
+  pseudo_multi_label_ner_on_gold:
+    cmd:
+      rye run python -m cli.preprocess.load_pseudo_multi_label_ner
+        +multi_label_ner_model/multi_label_typer=${eval_dataset}DictMatch
+        ++multi_label_ner_model.multi_label_typer.term2cats=data/term2cats_with_common_sense
+        ++multi_label_ner_model.remove_null_chunk=True
+        +gold_corpus=data/gold/multi_label_ner
+        +raw_corpus=data/gold/multi_label_ner
+        +output_dir=data/pseudo/multi_label_ner_on_gold
+    deps:
+      - data/term2cats_with_common_sense
+      - data/gold/multi_label_ner
+      - src/ner_model/multi_label/two_stage.py
+      - src/ner_model/multi_label/ml_typer/dict_match.py
+    params:
+      - eval_dataset
+    outs:
+      - data/pseudo/multi_label_ner_on_gold
+    
+
+
+
+  # NOTE: シングルラベル疑似教師データ作成時には、共通親クラスへの抽象化を行わない
+  dictionary_form_term2cats_without_common_sense:
+    cmd:
+      rye run python -m cli.preprocess.load_dictionary_form_term2cats
+          --knowledge-base=${knowledge_base}
+          --remain-common-sense=False
+          --output-dir=data/dictionary_form_term2cats_without_common_sense
     deps:
       # DBPedia
       - data/DBPedia/ontology_tag=sorted_type=parsed.nt
@@ -31,17 +120,20 @@ stages:
       - data/DBPedia/labels_lang=en.ttl
       - data/DBPedia/redirects_lang=en.ttl
       - data/DBPedia/disambiguations_lang=en.ttl
+    params:
+      - knowledge_base
     outs:
-      - data/dictionary_form_term2cats
+      - data/dictionary_form_term2cats_without_common_sense
 
-  term2cats:
+  term2cats_without_common_sense:
     cmd:
       rye run python -m cli.preprocess.inflect_terms_of_term2cats
-        --dictionary-form-term2cats-dir=data/dictionary_form_term2cats
-        --output-path=data/term2cats
+        --dictionary-form-term2cats-dir=data/dictionary_form_term2cats_with_common_sense
+        --output-path=data/term2cats_without_common_sense
     deps:
-      - data/dictionary_form_term2cats
+      - data/dictionary_form_term2cats_without_common_sense
     outs:
-      - data/term2cats
+      - data/term2cats_without_common_sense
+
 params:
   - params.yaml

@@ -275,7 +275,11 @@ def remove_span_duplication(docs: List[str]):
 
 
 def load_gold_datasets(
-    positive_cats: str, negative_cats: str, input_dir: str, train_snt_num: int, random_seed: int,
+    positive_cats: str,
+    negative_cats: str,
+    input_dir: str,
+    train_snt_num: int,
+    random_seed: int,
 ) -> DatasetDict:
     # load remained cats
     positive_cats = positive_cats.split(CATEGORY_SEPARATOR)
@@ -299,8 +303,9 @@ def load_gold_datasets(
     ner_tag_names = [tag for tag, _ in c.most_common()]
     dataset_dict = dict()
     for key, split in singularized_ner.items():
-        if key == 'train':
+        if key == "train":
             import random
+
             random.seed(random_seed)
             random.shuffle(split)
             split = split[:train_snt_num]
@@ -361,6 +366,7 @@ def translate_MedMentions_conll_into_msmlc_dataset(
 
 def load_MedMentions_gold_multi_label_ner_datasets(input_dir: str):
     # load dataset
+    input_dir = os.path.join(input_dir, "full", "data")
     pubtator = os.path.join(input_dir, "corpus_pubtator.txt")
     with open(pubtator) as f:
         all_dataset = f.read().split("\n\n")

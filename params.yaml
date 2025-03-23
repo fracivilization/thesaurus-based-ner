@@ -1,3 +1,9 @@
-term2cats:
-  remain_common_sense: True
-  knowledge_base: DBPedia # DBPedia or UMLS
+# TODO: 依存関係のある変数があるので、pythonを利用してパラメータを設定する
+
+# For CoNLL2003&DBPedia
+# eval_dataset: CoNLL2003
+# knowledge_base: DBPedia
+
+# For MedMentions&UMLS
+eval_dataset: MedMentions
+knowledge_base: UMLS
