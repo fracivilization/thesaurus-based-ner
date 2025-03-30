@@ -28,7 +28,7 @@ echo "rye run python -m cli.preprocess.load_pseudo_multi_label_ner \
     +raw_corpus=data/raw/pile_all.dataset \
     +output_dir=data/pseudo/pile_all"
 rye run python -m cli.preprocess.load_pseudo_multi_label_ner \
-    +multi_label_ner_model/multi_label_typer=MedMentionsDictMatch \
+    +multi_label_ner_model/multi_label_typer=CoNLL2003DictMatch \
     ++multi_label_ner_model.multi_label_typer.term2cats=data/term2cats_with_common_sense \
     ++multi_label_ner_model.remove_null_chunk=True \
     +raw_corpus=data/raw/pile_all.dataset \

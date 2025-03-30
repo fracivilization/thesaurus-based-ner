@@ -80,7 +80,7 @@ stages:
       md5: 810baa0881663b3857e56a7a02559807
       size: 6194307072
   dictionary_form_term2cats_with_common_sense:
-    cmd: rye run python -m cli.preprocess.load_dictionary_form_term2cats --knowledge-base=UMLS
+    cmd: rye run python -m cli.preprocess.load_dictionary_form_term2cats --knowledge-base=DBPedia
       --remain-common-sense=True --output-dir=data/dictionary_form_term2cats_with_common_sense
     deps:
     - path: data/2021AA/META/MRCONSO.RRF
@@ -118,12 +118,12 @@ stages:
       size: 1618385588
     params:
       params.yaml:
-        knowledge_base: UMLS
+        knowledge_base: DBPedia
     outs:
     - path: data/dictionary_form_term2cats_with_common_sense
       hash: md5
-      md5: f60c33b59abfb650c06b689575235279
-      size: 1149390848
+      md5: 8a246a79a09bf52f375ce9c6a7f98048
+      size: 3089391616
   conll2003:
     cmd:
     - curl -L -o conll2003.zip 
@@ -157,31 +157,31 @@ stages:
       nfiles: 4
   gold_multi_label_ner:
     cmd: rye run python -m cli.preprocess.load_gold_multi_label_ner --evaluation-data
-      MedMentions --input-dir data/gold/MedMentions --output-dir data/gold/multi_label_ner
+      CoNLL2003 --input-dir data/gold/CoNLL2003 --output-dir data/gold/multi_label_ner
     deps:
-    - path: data/gold/MedMentions
+    - path: data/gold/CoNLL2003
       hash: md5
-      md5: 2be78ed8859a0c56a5a04dbdc23d5035.dir
-      size: 39667951
-      nfiles: 14
+      md5: fcd3c1b55e620ecf9ae694f75037466e.dir
+      size: 4859111
+      nfiles: 4
     params:
       params.yaml:
-        eval_dataset: MedMentions
+        eval_dataset: CoNLL2003
   pseudo_multi_label_ner_on_gold:
-    cmd: rye run python -m cli.preprocess.load_pseudo_multi_label_ner +multi_label_ner_model/multi_label_typer=MedMentionsDictMatch
+    cmd: rye run python -m cli.preprocess.load_pseudo_multi_label_ner +multi_label_ner_model/multi_label_typer=CoNLL2003DictMatch
       ++multi_label_ner_model.multi_label_typer.term2cats=data/term2cats_with_common_sense
       ++multi_label_ner_model.remove_null_chunk=True +gold_corpus=data/gold/multi_label_ner
       +raw_corpus=data/gold/multi_label_ner +output_dir=data/pseudo/multi_label_ner_on_gold
     deps:
     - path: data/gold/multi_label_ner
       hash: md5
-      md5: ddef2dfc43d57c6945490d8a55ba5e90.dir
-      size: 29592820
+      md5: 7540daf3c2e56a0c9c235e14cea8cdcb.dir
+      size: 3615909
       nfiles: 10
     - path: data/term2cats_with_common_sense
       hash: md5
-      md5: 02d236cef2855ef67cbae669106cf908
-      size: 2318667776
+      md5: 8d978db51f9e7186c1f717bd5c9a9b8b
+      size: 6194028544
     - path: src/ner_model/multi_label/ml_typer/dict_match.py
       hash: md5
       md5: bcfe22a9ca23a353bbc2679b578327ee
@@ -192,12 +192,12 @@ stages:
       size: 3480
     params:
       params.yaml:
-        eval_dataset: MedMentions
+        eval_dataset: CoNLL2003
     outs:
     - path: data/pseudo/multi_label_ner_on_gold
       hash: md5
-      md5: 844132031b34fa09482de6c9b660e1ca.dir
-      size: 21951062
+      md5: dcd8c26c571119733d06329ee55c34cf.dir
+      size: 4036465
       nfiles: 10
   term2cats_with_common_sense:
     cmd: rye run python -m cli.preprocess.inflect_terms_of_term2cats --dictionary-form-term2cats-dir=data/dictionary_form_term2cats_with_common_sense
@@ -205,15 +205,15 @@ stages:
     deps:
     - path: data/dictionary_form_term2cats_with_common_sense
       hash: md5
-      md5: f60c33b59abfb650c06b689575235279
-      size: 1149390848
+      md5: 8a246a79a09bf52f375ce9c6a7f98048
+      size: 3089391616
     outs:
     - path: data/term2cats_with_common_sense
       hash: md5
-      md5: 02d236cef2855ef67cbae669106cf908
-      size: 2318667776
+      md5: 8d978db51f9e7186c1f717bd5c9a9b8b
+      size: 6194028544
   dictionary_form_term2cats_without_common_sense:
-    cmd: rye run python -m cli.preprocess.load_dictionary_form_term2cats --knowledge-base=UMLS
+    cmd: rye run python -m cli.preprocess.load_dictionary_form_term2cats --knowledge-base=DBPedia
       --remain-common-sense=False --output-dir=data/dictionary_form_term2cats_without_common_sense
     deps:
     - path: data/DBPedia/disambiguations_lang=en.ttl
@@ -238,22 +238,22 @@ stages:
       size: 1618385588
     params:
       params.yaml:
-        knowledge_base: UMLS
+        knowledge_base: DBPedia
     outs:
     - path: data/dictionary_form_term2cats_without_common_sense
       hash: md5
-      md5: 5331fd65ab4793776d497d9c49e604b6
-      size: 1152487424
+      md5: 17665bce4408e64797bd9abe31f21a36
+      size: 3183939584
   term2cats_without_common_sense:
     cmd: rye run python -m cli.preprocess.inflect_terms_of_term2cats --dictionary-form-term2cats-dir=data/dictionary_form_term2cats_with_common_sense
       --output-path=data/term2cats_without_common_sense
     deps:
     - path: data/dictionary_form_term2cats_without_common_sense
       hash: md5
-      md5: 5331fd65ab4793776d497d9c49e604b6
-      size: 1152487424
+      md5: 17665bce4408e64797bd9abe31f21a36
+      size: 3183939584
     outs:
     - path: data/term2cats_without_common_sense
       hash: md5
-      md5: bfb201ee047fd55c539a3e525f6e7ae1
-      size: 2318667776
+      md5: e91bdc51e26c132fb83cf70329f5653e
+      size: 6194307072

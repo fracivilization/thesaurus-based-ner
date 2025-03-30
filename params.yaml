@@ -1,9 +1,9 @@
 # TODO: 依存関係のある変数があるので、pythonを利用してパラメータを設定する
 
 # For CoNLL2003&DBPedia
-# eval_dataset: CoNLL2003
-# knowledge_base: DBPedia
+eval_dataset: CoNLL2003
+knowledge_base: DBPedia
 
 # For MedMentions&UMLS
-eval_dataset: MedMentions
-knowledge_base: UMLS
+# eval_dataset: MedMentions
+# knowledge_base: UMLS
