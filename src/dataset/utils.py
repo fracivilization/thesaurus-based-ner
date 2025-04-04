@@ -1,6 +1,5 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from dataclasses import dataclass
 from typing import Any, Dict, List, Callable, Set
 from more_itertools import powerset
 import os
@@ -186,7 +185,7 @@ def dbpedia_name_patch(node="<http://dbpedia.org/ontology/Infrastucture>"):
 
 def load_dbpedia_parent2descendants() -> Dict:
     DBPedia_dir = "data/DBPedia"
-    DBPedia_ontology = os.path.join(DBPedia_dir, "ontology--DEV_type=parsed_sorted.nt")
+    DBPedia_ontology = os.path.join(DBPedia_dir, "ontology_tag=sorted_type=parsed.nt")
     # Get DBPedia Concepts
     from rdflib import Graph, URIRef
 
@@ -482,9 +481,7 @@ def load_negative_cats_from_positive_cats(
     positive_categories: List[str], eval_dataset: str
 ):
     if eval_dataset == "MedMentions":
-        negative_cats = get_umls_negative_cats_from_positive_cats(
-            positive_categories
-        )
+        negative_cats = get_umls_negative_cats_from_positive_cats(positive_categories)
     elif eval_dataset == "CoNLL2003":
         negative_cats = get_dbpedia_negative_cats_from_positive_cats(
             positive_categories

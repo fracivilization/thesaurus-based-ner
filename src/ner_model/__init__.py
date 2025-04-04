@@ -1,8 +1,6 @@
 from .abstract_model import NERModel, NERModelConfig
 from datasets import DatasetDict
 from src.utils.mlflow import MlflowWriter
-from .bert import BERTNERModel, register_BERT_configs
-from .bond import BONDNERModel, register_BOND_configs
 from .two_stage import TwoStageModel, register_two_stage_configs
 from .matcher_model import NERMatcherModel, register_ner_matcher_configs
 from .marginal_softmax_model import (

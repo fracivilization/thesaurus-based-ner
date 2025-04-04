@@ -31,18 +31,8 @@ from src.kb_loader.db_pedia import (
 
 DBPedia_dir = "data/DBPedia"
 # DBPedia(Wikipedia)
-DBPedia_ontology = os.path.join(DBPedia_dir, "ontology--DEV_type=parsed_sorted.nt")
-DBPedia_mapping_literals = os.path.join(
-    DBPedia_dir, "mappingbased-literals_lang=en.ttl"
-)
-DBPedia_infobox = os.path.join(DBPedia_dir, "infobox-properties_lang=en.ttl")
 DBPedia_disambiguate = os.path.join(DBPedia_dir, "disambiguations_lang=en.ttl")
 DBPedia_labels = os.path.join(DBPedia_dir, "labels_lang=en.ttl")
-# DBPedia (Wikidata)
-DBPedia_WD_instance_type = os.path.join(DBPedia_dir, "instance-types_specific.ttl")
-DBPedia_WD_SubClassOf = os.path.join(DBPedia_dir, "ontology-subclassof.ttl")
-DBPedia_WD_labels = os.path.join(DBPedia_dir, "labels.ttl")
-DBPedia_WD_alias = os.path.join(DBPedia_dir, "alias.ttl")
 
 
 @dataclass
@@ -55,9 +45,7 @@ class DictionaryFormTerm2CatsConfig:
 class DictDictionaryFormTerm2CatsConfig(DictionaryFormTerm2CatsConfig):
     name: str = "dict"
     knowledge_base: str = "UMLS"
-    remain_common_sense: bool = (
-        True  # 複数のエンティティから共通のカテゴリのみを利用する。Falseの場合KBに含まれる全ての語義（カテゴリ）を残す
-    )
+    remain_common_sense: bool = True  # 複数のエンティティから共通のカテゴリのみを利用する。Falseの場合KBに含まれる全ての語義（カテゴリ）を残す
     output: str = MISSING
 
 

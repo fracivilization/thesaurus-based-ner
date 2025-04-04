@@ -12,7 +12,7 @@ from src.ner_model.chunker.spacy_model import SpacyNPChunkerConfig
 
 @click.command()
 @click.option("--output-dir", type=str)
-@click.option("--input-dir", type=str, default="data/gold/MedMentions/full/data")
+@click.option("--input-dir", type=str, default="data/gold/MedMentions")
 @click.option("--evaluation-data", type=str, default="MedMentions")
 def main(output_dir, input_dir, evaluation_data):
     if evaluation_data == "MedMentions":
